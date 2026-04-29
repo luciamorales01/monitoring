@@ -1,0 +1,24 @@
+import { Controller, Get, Param, ParseIntPipe, Req, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { IncidentsService } from './incidents.service';
+
+@UseGuards(JwtAuthGuard)
+@Controller('incidents')
+export class IncidentsController {
+  constructor(private readonly incidentsService: IncidentsService) {}
+
+  @Get()
+  findAll(@Req() req: any) {
+    return this.incidentsService.findAll(req.user);
+  }
+
+  @Get('active')
+  findActive(@Req() req: any) {
+    return this.incidentsService.findActive(req.user);
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.incidentsService.findOne(id, req.user);
+  }
+}

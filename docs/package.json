@@ -1,0 +1,26 @@
+{
+  "name": "monitoring-tfg",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "apps/workers/monitoring-worker",
+    "apps/workers/notifications-worker",
+    "apps/workers/reports-worker",
+    "packages/shared-types"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=web",
+    "dev:api": "npm run start:dev --workspace=api",
+    "dev:monitoring-worker": "npm run start:dev --workspace=monitoring-worker",
+    "dev:notifications-worker": "npm run start:dev --workspace=notifications-worker",
+    "dev:reports-worker": "npm run start:dev --workspace=reports-worker",
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}
