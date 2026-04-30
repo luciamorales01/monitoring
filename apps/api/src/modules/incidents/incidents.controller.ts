@@ -1,4 +1,13 @@
-import { Controller, Get, Param, ParseIntPipe, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IncidentsService } from './incidents.service';
 
@@ -20,5 +29,14 @@ export class IncidentsController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.incidentsService.findOne(id, req.user);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { status?: 'OPEN' | 'RESOLVED' },
+    @Req() req: any,
+  ) {
+    return this.incidentsService.update(id, dto, req.user);
   }
 }

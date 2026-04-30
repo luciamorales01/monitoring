@@ -59,6 +59,11 @@ export class MonitorsController {
     return this.monitorsService.runCheck(id, req.user);
   }
 
+  @Post(':id/check')
+  runCheckAlias(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+    return this.monitorsService.runCheck(id, req.user);
+  }
+
   @Patch(':id/toggle-active')
   toggleActive(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.monitorsService.toggleActive(id, req.user);

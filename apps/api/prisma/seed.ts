@@ -1,25 +1,10 @@
-import {
-  PrismaClient,
-  MonitorStatus,
-  MonitorType,
-  UserRole,
-  IncidentStatus,
-  type Monitor,
-} from '@prisma/client';
-import { hash } from 'bcrypt';
+import { PrismaClient, MonitorStatus, MonitorType, IncidentStatus, UserRole } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-function minutesAgo(minutes: number) {
-  return new Date(Date.now() - minutes * 60 * 1000);
-}
-
-function daysAgo(days: number) {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-}
-
 async function main() {
-  console.log('🌱 Limpiando base de datos...');
+  console.log('🌱 Iniciando seed...');
 
   await prisma.incident.deleteMany();
   await prisma.checkResult.deleteMany();
@@ -27,264 +12,191 @@ async function main() {
   await prisma.user.deleteMany();
   await prisma.organization.deleteMany();
 
-  console.log('🏢 Creando organización...');
+  const passwordHash = await bcrypt.hash('123456', 10);
 
   const organization = await prisma.organization.create({
     data: {
-      name: 'Monitoring TFG',
-      slug: 'monitoring-tfg',
+      name: 'Monitor Dinan',
+      slug: 'monitor-dinan',
     },
   });
 
-  const passwordHash = await hash('123456', 10);
-
-  console.log('👤 Creando usuarios...');
-
-  const owner = await prisma.user.create({
+  const user = await prisma.user.create({
     data: {
-      name: 'Ana Sánchez',
-      email: 'admin@monitoring.com',
+      name: 'Lucía Admin',
+      email: 'lucia@demo.com',
       passwordHash,
       role: UserRole.OWNER,
       organizationId: organization.id,
     },
   });
 
-  const admin = await prisma.user.create({
-    data: {
-      name: 'José Martínez',
-      email: 'admin2@monitoring.com',
-      passwordHash,
-      role: UserRole.ADMIN,
-      organizationId: organization.id,
-    },
-  });
+  const now = new Date();
 
-  const viewer = await prisma.user.create({
-    data: {
-      name: 'Laura Méndez',
-      email: 'viewer@monitoring.com',
-      passwordHash,
-      role: UserRole.VIEWER,
-      organizationId: organization.id,
-    },
-  });
-
-  console.log('🌐 Creando monitores...');
-
-  const monitorSeeds = [
-    {
-      name: 'Google',
-      target: 'https://google.com',
-      type: MonitorType.HTTPS,
-      currentStatus: MonitorStatus.UP,
-      lastResponseTime: 337,
-      createdById: owner.id,
-    },
-    {
-      name: 'ZARA',
-      target: 'https://www.zara.com/es/',
-      type: MonitorType.HTTPS,
-      currentStatus: MonitorStatus.UP,
-      lastResponseTime: 411,
-      createdById: owner.id,
-    },
-    {
-      name: 'Dinan Informática',
-      target: 'https://dinaninformatica.com',
-      type: MonitorType.HTTPS,
-      currentStatus: MonitorStatus.UP,
-      lastResponseTime: 512,
-      createdById: admin.id,
-    },
-    {
-      name: 'API interna',
-      target: 'https://api.miempresa.com/health',
-      type: MonitorType.HTTPS,
-      currentStatus: MonitorStatus.DOWN,
-      lastResponseTime: 1842,
-      createdById: admin.id,
-    },
-    {
-      name: 'Tienda online',
-      target: 'https://tienda.miempresa.com',
-      type: MonitorType.HTTPS,
-      currentStatus: MonitorStatus.DOWN,
-      lastResponseTime: null,
-      createdById: owner.id,
-    },
-    {
-      name: 'Blog corporativo',
-      target: 'https://blog.miempresa.com',
-      type: MonitorType.HTTPS,
-      currentStatus: MonitorStatus.UP,
-      lastResponseTime: 873,
-      createdById: viewer.id,
-    },
-    {
-      name: 'Panel cliente',
-      target: 'https://panel.miempresa.com',
-      type: MonitorType.HTTPS,
-      currentStatus: MonitorStatus.UP,
-      lastResponseTime: 659,
-      createdById: owner.id,
-    },
-    {
-      name: 'Docs',
-      target: 'https://docs.miempresa.com',
-      type: MonitorType.HTTPS,
-      currentStatus: MonitorStatus.UP,
-      lastResponseTime: 305,
-      createdById: admin.id,
-    },
-    {
-      name: 'Status Page',
-      target: 'https://status.miempresa.com',
-      type: MonitorType.HTTPS,
-      currentStatus: MonitorStatus.UNKNOWN,
-      lastResponseTime: null,
-      createdById: owner.id,
-      isActive: false,
-    },
-    {
-      name: 'Legacy HTTP',
-      target: 'http://legacy.miempresa.com',
-      type: MonitorType.HTTP,
-      currentStatus: MonitorStatus.UNKNOWN,
-      lastResponseTime: null,
-      createdById: viewer.id,
-      isActive: false,
-    },
-  ];
-
-  const monitors: Monitor[] = [];
-
-  for (const seed of monitorSeeds) {
-    const monitor = await prisma.monitor.create({
-      data: {
-        name: seed.name,
-        target: seed.target,
-        type: seed.type,
-        currentStatus: seed.currentStatus,
-        lastResponseTime: seed.lastResponseTime,
-        lastCheckedAt: seed.currentStatus === MonitorStatus.UNKNOWN ? null : minutesAgo(1),
-        nextCheckAt: new Date(),
+  const monitors = await prisma.monitor.createManyAndReturn({
+    data: [
+      {
+        name: 'Web corporativa',
+        type: MonitorType.HTTPS,
+        target: 'https://dinaninformatica.es',
         expectedStatusCode: 200,
         frequencySeconds: 60,
         timeoutSeconds: 10,
-        isActive: seed.isActive ?? true,
+        currentStatus: MonitorStatus.UP,
+        lastResponseTime: 184,
+        lastCheckedAt: new Date(now.getTime() - 2 * 60 * 1000),
+        nextCheckAt: new Date(now.getTime() + 60 * 1000),
+        isActive: true,
         organizationId: organization.id,
-        createdById: seed.createdById,
+        createdById: user.id,
+        locations: ['Madrid', 'Sevilla'],
+        alertEmail: true,
+        alertPush: true,
+        alertThreshold: 3,
       },
-    });
-
-    monitors.push(monitor);
-  }
-
-  console.log('📊 Creando histórico de checks...');
+      {
+        name: 'API clientes',
+        type: MonitorType.HTTPS,
+        target: 'https://api.dinaninformatica.es/health',
+        expectedStatusCode: 200,
+        frequencySeconds: 30,
+        timeoutSeconds: 8,
+        currentStatus: MonitorStatus.DOWN,
+        lastResponseTime: null,
+        lastCheckedAt: new Date(now.getTime() - 1 * 60 * 1000),
+        nextCheckAt: new Date(now.getTime() + 30 * 1000),
+        isActive: true,
+        organizationId: organization.id,
+        createdById: user.id,
+        locations: ['Madrid', 'Barcelona'],
+        alertEmail: true,
+        alertPush: true,
+        alertThreshold: 2,
+      },
+      {
+        name: 'Panel interno',
+        type: MonitorType.HTTPS,
+        target: 'https://panel.dinaninformatica.es',
+        expectedStatusCode: 200,
+        frequencySeconds: 120,
+        timeoutSeconds: 12,
+        currentStatus: MonitorStatus.UP,
+        lastResponseTime: 326,
+        lastCheckedAt: new Date(now.getTime() - 5 * 60 * 1000),
+        nextCheckAt: new Date(now.getTime() + 2 * 60 * 1000),
+        isActive: true,
+        organizationId: organization.id,
+        createdById: user.id,
+        locations: ['Sevilla'],
+        alertEmail: true,
+        alertPush: false,
+        alertThreshold: 3,
+      },
+      {
+        name: 'Servidor legacy HTTP',
+        type: MonitorType.HTTP,
+        target: 'http://legacy.dinaninformatica.es',
+        expectedStatusCode: 200,
+        frequencySeconds: 300,
+        timeoutSeconds: 15,
+        currentStatus: MonitorStatus.UNKNOWN,
+        lastResponseTime: null,
+        lastCheckedAt: null,
+        nextCheckAt: now,
+        isActive: true,
+        organizationId: organization.id,
+        createdById: user.id,
+        locations: ['Default'],
+        alertEmail: false,
+        alertPush: false,
+        alertThreshold: 5,
+      },
+      {
+        name: 'Servicio pausado de pruebas',
+        type: MonitorType.HTTPS,
+        target: 'https://test.dinaninformatica.es',
+        expectedStatusCode: 200,
+        frequencySeconds: 60,
+        timeoutSeconds: 10,
+        currentStatus: MonitorStatus.UNKNOWN,
+        lastResponseTime: null,
+        lastCheckedAt: null,
+        nextCheckAt: now,
+        isActive: false,
+        organizationId: organization.id,
+        createdById: user.id,
+        locations: [],
+        alertEmail: false,
+        alertPush: false,
+        alertThreshold: 3,
+      },
+    ],
+  });
 
   for (const monitor of monitors) {
-    const isDownMonitor = monitor.currentStatus === MonitorStatus.DOWN;
-    const isPaused = !monitor.isActive;
-
-    for (let i = 50; i >= 1; i--) {
-      const checkedAt = minutesAgo(i * 10);
-
-      let status: MonitorStatus = MonitorStatus.UP;
-      let responseTimeMs: number | null = 250 + Math.floor(Math.random() * 700);
-      let statusCode: number | null = 200;
-      let errorMessage: string | null = null;
-
-      if (isPaused) {
-        status = MonitorStatus.UNKNOWN;
-        responseTimeMs = null;
-        statusCode = null;
-        errorMessage = 'Monitor paused';
-      } else if (isDownMonitor && i <= 18) {
-        status = MonitorStatus.DOWN;
-        responseTimeMs = 1500 + Math.floor(Math.random() * 900);
-        statusCode = monitor.name.includes('API') ? 502 : null;
-        errorMessage = monitor.name.includes('API') ? 'Bad Gateway' : 'fetch failed';
-      } else if (Math.random() < 0.08) {
-        status = MonitorStatus.DOWN;
-        responseTimeMs = 1200 + Math.floor(Math.random() * 800);
-        statusCode = 500;
-        errorMessage = 'Temporary server error';
-      }
-
-      await prisma.checkResult.create({
-        data: {
+    await prisma.checkResult.createMany({
+      data: [
+        {
           monitorId: monitor.id,
-          status,
-          responseTimeMs,
-          statusCode,
-          errorMessage,
-          checkedAt,
+          status: monitor.currentStatus === MonitorStatus.DOWN ? MonitorStatus.DOWN : MonitorStatus.UP,
+          responseTimeMs: monitor.currentStatus === MonitorStatus.DOWN ? null : 210,
+          statusCode: monitor.currentStatus === MonitorStatus.DOWN ? null : 200,
+          errorMessage: monitor.currentStatus === MonitorStatus.DOWN ? 'Timeout al conectar con el servicio' : null,
+          location: 'Madrid',
+          checkedAt: new Date(now.getTime() - 30 * 60 * 1000),
         },
-      });
-    }
+        {
+          monitorId: monitor.id,
+          status: monitor.currentStatus === MonitorStatus.DOWN ? MonitorStatus.DOWN : MonitorStatus.UP,
+          responseTimeMs: monitor.currentStatus === MonitorStatus.DOWN ? null : 245,
+          statusCode: monitor.currentStatus === MonitorStatus.DOWN ? 500 : 200,
+          errorMessage: monitor.currentStatus === MonitorStatus.DOWN ? 'Respuesta HTTP 500' : null,
+          location: 'Sevilla',
+          checkedAt: new Date(now.getTime() - 15 * 60 * 1000),
+        },
+        {
+          monitorId: monitor.id,
+          status: monitor.currentStatus,
+          responseTimeMs: monitor.lastResponseTime,
+          statusCode: monitor.currentStatus === MonitorStatus.UP ? 200 : null,
+          errorMessage: monitor.currentStatus === MonitorStatus.DOWN ? 'Servicio no disponible' : null,
+          location: 'Barcelona',
+          checkedAt: new Date(now.getTime() - 5 * 60 * 1000),
+        },
+      ],
+    });
   }
 
-  console.log('🚨 Creando incidencias...');
-
-  const apiMonitor = monitors.find((m) => m.name === 'API interna');
-  const shopMonitor = monitors.find((m) => m.name === 'Tienda online');
-  const blogMonitor = monitors.find((m) => m.name === 'Blog corporativo');
-  const docsMonitor = monitors.find((m) => m.name === 'Docs');
+  const apiMonitor = monitors.find((m) => m.name === 'API clientes');
+  const webMonitor = monitors.find((m) => m.name === 'Web corporativa');
 
   if (apiMonitor) {
     await prisma.incident.create({
       data: {
         monitorId: apiMonitor.id,
         status: IncidentStatus.OPEN,
-        title: 'Error 502 - Bad Gateway',
-        startedAt: minutesAgo(180),
+        title: 'API clientes no responde',
+        startedAt: new Date(now.getTime() - 45 * 60 * 1000),
       },
     });
   }
 
-  if (shopMonitor) {
+  if (webMonitor) {
     await prisma.incident.create({
       data: {
-        monitorId: shopMonitor.id,
-        status: IncidentStatus.OPEN,
-        title: 'Monitor caído',
-        startedAt: minutesAgo(95),
-      },
-    });
-  }
-
-  if (blogMonitor) {
-    await prisma.incident.create({
-      data: {
-        monitorId: blogMonitor.id,
+        monitorId: webMonitor.id,
         status: IncidentStatus.RESOLVED,
-        title: 'Alta latencia detectada',
-        startedAt: daysAgo(1),
-        resolvedAt: minutesAgo(480),
+        title: 'Caída temporal de la web corporativa',
+        startedAt: new Date(now.getTime() - 3 * 60 * 60 * 1000),
+        resolvedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
         durationSeconds: 3600,
       },
     });
   }
 
-  if (docsMonitor) {
-    await prisma.incident.create({
-      data: {
-        monitorId: docsMonitor.id,
-        status: IncidentStatus.RESOLVED,
-        title: 'Mantenimiento programado',
-        startedAt: daysAgo(2),
-        resolvedAt: daysAgo(2),
-        durationSeconds: 5400,
-      },
-    });
-  }
-
   console.log('✅ Seed completado');
-  console.log('');
-  console.log('Login de prueba:');
-  console.log('Email: admin@monitoring.com');
-  console.log('Password: 123456');
+  console.log('Usuario demo: lucia@demo.com');
+  console.log('Contraseña: 123456');
 }
 
 main()

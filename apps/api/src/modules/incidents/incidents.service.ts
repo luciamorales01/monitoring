@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { IncidentStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
 
@@ -61,5 +66,55 @@ export class IncidentsService {
     }
 
     return incident;
+  }
+
+  async update(
+    id: number,
+    dto: { status?: 'OPEN' | 'RESOLVED' },
+    user: AuthenticatedUser,
+  ) {
+    const incident = await this.findOne(id, user);
+
+    if (!dto.status) {
+      return incident;
+    }
+
+    if (!Object.values(IncidentStatus).includes(dto.status)) {
+      throw new BadRequestException('Estado de incidencia no valido');
+    }
+
+    if (dto.status === IncidentStatus.RESOLVED) {
+      const resolvedAt = incident.resolvedAt ?? new Date();
+      const durationSeconds = Math.max(
+        0,
+        Math.floor(
+          (resolvedAt.getTime() - incident.startedAt.getTime()) / 1000,
+        ),
+      );
+
+      return this.prisma.incident.update({
+        where: { id },
+        data: {
+          status: IncidentStatus.RESOLVED,
+          resolvedAt,
+          durationSeconds,
+        },
+        include: {
+          monitor: true,
+        },
+      });
+    }
+
+    return this.prisma.incident.update({
+      where: { id },
+      data: {
+        status: IncidentStatus.OPEN,
+        resolvedAt: null,
+        durationSeconds: null,
+      },
+      include: {
+        monitor: true,
+      },
+    });
   }
 }
