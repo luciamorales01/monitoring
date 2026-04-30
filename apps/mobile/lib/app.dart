@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'features/auth/login_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
-import 'styles/app_colors.dart';
 import 'features/monitors/monitors_screen.dart';
 import 'features/monitors/monitor_detail_screen.dart';
 import 'features/incidents/incidents_screen.dart';
 import 'features/incidents/incident_detail_screen.dart';
 import 'features/profile/profile_settings_screen.dart';
 import 'features/sections/sections_screen.dart';
+import 'styles/app_theme.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -18,15 +18,7 @@ class App extends StatelessWidget {
     return MaterialApp(
       title: 'MonitoringTFG',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        scaffoldBackgroundColor: AppColors.background,
-        fontFamily: 'Roboto',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
       routes: {
         '/': (_) => const LoginScreen(),
         '/dashboard': (_) => const DashboardScreen(),

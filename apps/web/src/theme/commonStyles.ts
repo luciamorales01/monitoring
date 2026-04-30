@@ -18,6 +18,10 @@ export const pageMain: CSSProperties = {
   flex: 1,
   padding: `${spacing['6xl']}px ${spacing['7xl']}px`,
   background: colors.background,
+  fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  WebkitFontSmoothing: 'antialiased',
+  lineHeight: 1.4,
+  letterSpacing: '-0.01em',
 };
 
 export const topbarBase: CSSProperties = {
@@ -37,13 +41,15 @@ export const topActionsBase: CSSProperties = {
 export const pageTitle: CSSProperties = {
   margin: 0,
   fontSize: typography.title.fontSize,
-  fontWeight: typography.title.fontWeight,
+  fontWeight: 600, // 🔥 antes 800
+  letterSpacing: '-0.02em',
 };
 
 export const pageSubtitle: CSSProperties = {
   margin: `${spacing.sm}px 0 0`,
   color: colors.muted,
   fontSize: typography.subtitle.fontSize,
+  lineHeight: 1.4,
 };
 
 export const surfaceCard: CSSProperties = {
@@ -63,6 +69,7 @@ export const controlBase: CSSProperties = {
   background: colors.surface,
   color: colors.text,
   borderRadius: radii.sm,
+  fontWeight: 500, // 🔥 más ligero
 };
 
 export const inputBase: CSSProperties = {
@@ -80,15 +87,6 @@ export const filterGroupBase: CSSProperties = {
   fontSize: typography.helper.fontSize,
 };
 
-export const datePillBase: CSSProperties = {
-  ...controlBase,
-  padding: `${spacing.md}px ${spacing.xl}px`,
-  fontSize: typography.caption.fontSize,
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: spacing.sm,
-};
-
 export const iconButtonBase: CSSProperties = {
   ...controlBase,
   width: 38,
@@ -104,11 +102,13 @@ export const primaryButtonBase: CSSProperties = {
   color: colors.white,
   borderRadius: radii.sm,
   boxShadow: shadows.button,
+  fontWeight: 600, // 🔥 antes 800
 };
 
 export const secondaryButtonBase: CSSProperties = {
   ...controlBase,
   color: colors.text,
+  fontWeight: 600,
 };
 
 export const avatarBase: CSSProperties = {
@@ -119,16 +119,18 @@ export const avatarBase: CSSProperties = {
   borderRadius: radii.pill,
   display: 'grid',
   placeItems: 'center',
+  fontWeight: 600,
 };
 
 export const badgeBase: CSSProperties = {
-  padding: '5px 9px',
+  padding: '4px 8px',
   borderRadius: radii.pill,
   fontSize: typography.helper.fontSize,
-  fontWeight: 800,
+  fontWeight: 600, // 🔥 antes 800
   whiteSpace: 'nowrap',
   display: 'inline-flex',
   alignItems: 'center',
+  gap: 5,
 };
 
 export const tableCardBase: CSSProperties = {
@@ -140,7 +142,7 @@ export const tableHeaderCellBase: CSSProperties = {
   textAlign: 'left',
   color: colors.muted,
   fontSize: typography.caption.fontSize,
-  fontWeight: 800,
+  fontWeight: 600, // 🔥 antes 800
 };
 
 export const tableRowBase: CSSProperties = {
@@ -149,11 +151,12 @@ export const tableRowBase: CSSProperties = {
 };
 
 export const tableHoverRowBase: CSSProperties = {
-  background: colors.background,
+  background: '#F1F5F9', // 🔥 mejor hover
 };
 
 export const tableCellBase: CSSProperties = {
   color: colors.text,
+  fontWeight: 500,
 };
 
 export const paginationBase: CSSProperties = {
@@ -172,7 +175,7 @@ export const pageActiveButtonBase: CSSProperties = {
   background: colors.primarySoft,
   cursor: 'pointer',
   minWidth: 36,
-  fontWeight: 800,
+  fontWeight: 600,
 };
 
 export const pageArrowBase: CSSProperties = {

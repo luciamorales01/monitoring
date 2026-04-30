@@ -6,28 +6,22 @@ import {
   type MonitorType,
 } from '../../shared/monitorApi';
 import {
-  datePillBase,
-  iconButtonBase,
   inputBase,
   pageMain,
-  pageSubtitle,
-  pageTitle,
   primaryButtonBase,
   secondaryButtonBase,
   surfaceCard,
-  topActionsBase,
-  topbarBase,
   uiTheme,
 } from '../../theme/commonStyles';
+import AppTopbar from '../../shared/AppTopbar';
+import LoadingState from '../../shared/LoadingState';
 import {
   ActivityIcon,
   BellIcon,
-  CalendarIcon,
   CheckCircleIcon,
   ClockIcon,
   GlobeIcon,
   MonitorIcon,
-  RefreshIcon,
 } from '../../shared/uiIcons';
 
 type WizardStep = 1 | 2 | 3 | 4;
@@ -610,39 +604,18 @@ export default function CreateMonitorPage() {
 
   return (
     <main style={styles.main}>
-      <header style={styles.topbar}>
-        <div>
-          <div style={styles.breadcrumb}>
+      <AppTopbar
+        title="Crear nuevo monitor"
+        subtitle="Configura los parametros de monitorizacion para empezar a supervisar tu servicio."
+        onRefresh={() => undefined}
+        eyebrow={(
+          <>
             <span>Webs monitorizadas</span>
-            <span>›</span>
+            <span>&gt;</span>
             <strong>Crear monitor</strong>
-          </div>
-
-          <h1 style={styles.title}>Crear nuevo monitor</h1>
-          <p style={styles.subtitle}>
-            Configura los parámetros de monitorización para empezar a supervisar tu servicio.
-          </p>
-        </div>
-
-        <div style={styles.topActions}>
-          <div style={styles.datePill}>
-            <CalendarIcon size={15} />
-            24 may 2024 00:00 — 24 may 2024 23:59
-          </div>
-
-          <button type="button" style={styles.iconButton}>
-            <RefreshIcon size={16} />
-          </button>
-
-          <div style={styles.bell}>
-            <BellIcon size={16} />
-            <span style={styles.bellBadge}>3</span>
-          </div>
-
-          <div style={styles.avatar}>AS</div>
-          <span style={styles.adminText}>Admin</span>
-        </div>
-      </header>
+          </>
+        )}
+      />
 
       <div style={styles.actionsTop}>
         <NavigationButtons
@@ -791,7 +764,13 @@ function NavigationButtons({
         style={styles.primaryButton}
         disabled={isSubmitting}
       >
-        {currentStep === 4 ? (isSubmitting ? 'Creando...' : 'Crear monitor') : 'Siguiente'}
+        {currentStep === 4 && isSubmitting ? (
+          <LoadingState variant="button" label="Creando monitor" />
+        ) : currentStep === 4 ? (
+          'Crear monitor'
+        ) : (
+          'Siguiente'
+        )}
         {currentStep < 4 && <span>→</span>}
       </button>
     </>
@@ -891,47 +870,6 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 
 const styles: Record<string, CSSProperties> = {
   main: { ...pageMain, overflow: 'auto' },
-  topbar: topbarBase,
-  topActions: topActionsBase,
-  title: pageTitle,
-  subtitle: pageSubtitle,
-  breadcrumb: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 22,
-    color: uiTheme.colors.muted,
-    fontSize: 13,
-  },
-  datePill: datePillBase,
-  iconButton: iconButtonBase,
-  bell: { ...iconButtonBase, position: 'relative' },
-  bellBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 18,
-    height: 18,
-    borderRadius: 999,
-    background: uiTheme.colors.primary,
-    color: '#fff',
-    display: 'grid',
-    placeItems: 'center',
-    fontSize: 10,
-    fontWeight: 800,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 999,
-    background: uiTheme.colors.primary,
-    color: '#fff',
-    display: 'grid',
-    placeItems: 'center',
-    fontWeight: 900,
-    fontSize: 13,
-  },
-  adminText: { color: uiTheme.colors.text, fontSize: 13 },
   actionsTop: {
     display: 'flex',
     justifyContent: 'flex-end',
@@ -948,7 +886,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     gap: 8,
     cursor: 'pointer',
-    fontWeight: 800,
+    fontWeight: 600,
   },
   cancelButton: {
     ...secondaryButtonBase,
@@ -956,7 +894,7 @@ const styles: Record<string, CSSProperties> = {
     padding: '0 18px',
     borderRadius: uiTheme.radii.sm,
     cursor: 'pointer',
-    fontWeight: 800,
+    fontWeight: 600,
   },
   secondaryButton: {
     ...secondaryButtonBase,
@@ -964,7 +902,7 @@ const styles: Record<string, CSSProperties> = {
     padding: '0 18px',
     borderRadius: uiTheme.radii.sm,
     cursor: 'pointer',
-    fontWeight: 800,
+    fontWeight: 600,
   },
   steps: {
     display: 'grid',
@@ -997,7 +935,7 @@ const styles: Record<string, CSSProperties> = {
     placeItems: 'center',
     color: uiTheme.colors.muted,
     background: '#fff',
-    fontWeight: 800,
+    fontWeight: 600,
   },
   stepCircleActive: {
     width: 34,
@@ -1008,7 +946,7 @@ const styles: Record<string, CSSProperties> = {
     placeItems: 'center',
     color: uiTheme.colors.primary,
     background: uiTheme.colors.primarySoft,
-    fontWeight: 800,
+    fontWeight: 600,
     boxShadow: `0 18px 0 -16px ${uiTheme.colors.primary}`,
   },
   stepCircleDone: {
@@ -1020,7 +958,7 @@ const styles: Record<string, CSSProperties> = {
     placeItems: 'center',
     color: uiTheme.colors.primary,
     background: uiTheme.colors.primarySoft,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   stepTitle: {
     color: uiTheme.colors.text,
@@ -1062,7 +1000,7 @@ const styles: Record<string, CSSProperties> = {
     background: uiTheme.colors.primarySoft,
     color: uiTheme.colors.primary,
     fontSize: 12,
-    fontWeight: 800,
+    fontWeight: 600,
     marginBottom: 10,
   },
   cardTitle: {
@@ -1093,7 +1031,7 @@ const styles: Record<string, CSSProperties> = {
   errorMessage: {
     margin: 0,
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   formGrid: {
     display: 'grid',
@@ -1107,7 +1045,7 @@ const styles: Record<string, CSSProperties> = {
   labelText: {
     color: uiTheme.colors.text,
     fontSize: 13,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   input: inputBase,
   helper: {
@@ -1272,7 +1210,7 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 8,
     padding: '5px 9px',
     fontSize: 12,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   previewTitle: {
     margin: '10px 0 4px',
@@ -1329,7 +1267,7 @@ const styles: Record<string, CSSProperties> = {
     background: uiTheme.colors.primarySoft,
     color: uiTheme.colors.primary,
     fontSize: 12,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   footerBar: {
     ...surfaceCard,

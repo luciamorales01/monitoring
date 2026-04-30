@@ -17,6 +17,8 @@ import {
   type MonitorViewStatus,
 } from '../../shared/monitorFilters';
 import { useLocalPagination } from '../../shared/useLocalPagination';
+import AppTopbar from '../../shared/AppTopbar';
+import LoadingState from '../../shared/LoadingState';
 import {
   readSections,
   sanitizeSections,
@@ -24,7 +26,6 @@ import {
   type MonitorSection,
 } from '../../shared/sectionsStore';
 import {
-  CalendarIcon,
   CheckCircleIcon,
   ChevronRightIcon,
   ClockIcon,
@@ -71,55 +72,38 @@ export default function SectionDetailPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
   const [activeTab, setActiveTab] = useState<ActiveTab>('monitors');
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadData = async () => {
+    setLoading(true);
 
-    const loadData = async () => {
-      setLoading(true);
+    try {
+      const sections = readSections();
+      const currentSection = sections.find((item) => item.id === sectionId) ?? null;
+      const nextMonitors = await getMonitors();
+      const sanitizedSections = sanitizeSections(
+        sections,
+        nextMonitors.map((monitor) => monitor.id),
+      );
+      const sanitizedSection =
+        sanitizedSections.find((item) => item.id === sectionId) ?? null;
 
-      try {
-        const sections = readSections();
-        const currentSection =
-          sections.find((item) => item.id === sectionId) ?? null;
-        const nextMonitors = await getMonitors();
-
-        if (cancelled) {
-          return;
-        }
-
-        const sanitizedSections = sanitizeSections(
-          sections,
-          nextMonitors.map((monitor) => monitor.id),
-        );
-        const sanitizedSection =
-          sanitizedSections.find((item) => item.id === sectionId) ?? null;
-
-        if (JSON.stringify(sections) !== JSON.stringify(sanitizedSections)) {
-          writeSections(sanitizedSections);
-        }
-
-        setSection(sanitizedSection ?? currentSection);
-        setMonitors(nextMonitors);
-        setError(null);
-      } catch (currentError) {
-        console.error('Error loading section detail', currentError);
-
-        if (!cancelled) {
-          setError('No se pudo cargar la seccion.');
-          setMonitors([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+      if (JSON.stringify(sections) !== JSON.stringify(sanitizedSections)) {
+        writeSections(sanitizedSections);
       }
-    };
 
+      setSection(sanitizedSection ?? currentSection);
+      setMonitors(nextMonitors);
+      setError(null);
+    } catch (currentError) {
+      console.error('Error loading section detail', currentError);
+      setError('No se pudo cargar la seccion.');
+      setMonitors([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     void loadData();
-
-    return () => {
-      cancelled = true;
-    };
   }, [sectionId]);
 
   const sectionMonitors = useMemo(() => {
@@ -198,7 +182,11 @@ export default function SectionDetailPage() {
   });
 
   if (loading) {
-    return <main style={styles.page}>Cargando seccion...</main>;
+    return (
+      <main style={styles.page}>
+        <LoadingState variant="page" label="Cargando seccion" />
+      </main>
+    );
   }
 
   if (error || !section) {
@@ -219,6 +207,17 @@ export default function SectionDetailPage() {
 
   return (
     <main style={styles.page}>
+      <AppTopbar
+        title="Detalle de seccion"
+        subtitle={section.name}
+        onRefresh={loadData}
+        cta={{
+          icon: <PlusIcon size={16} />,
+          label: "Nuevo monitor",
+          to: "/monitors/create",
+        }}
+      />
+
       <div style={styles.breadcrumb}>
         <Link to="/sections" style={styles.breadcrumbLink}>
           Secciones
@@ -246,11 +245,6 @@ export default function SectionDetailPage() {
               {section.description || 'Monitores agrupados en esta seccion.'}
             </p>
             <div style={styles.metaRow}>
-              <span style={styles.metaItem}>
-                <CalendarIcon size={14} />
-                Creada: {formatDate(section.createdAt)}
-              </span>
-              <span style={styles.metaDivider} />
               <span style={styles.metaItem}>
                 <ClockIcon size={14} />
                 Ultima actualizacion: {formatRelativeDate(section.updatedAt)}
@@ -630,20 +624,6 @@ function getTabTitle(tab: ActiveTab) {
   return 'Configuracion';
 }
 
-function formatDate(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return '-';
-  }
-
-  return new Intl.DateTimeFormat('es-ES', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
-}
-
 function formatRelativeDate(value?: string | null) {
   if (!value) {
     return '-';
@@ -689,7 +669,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 10,
     color: uiTheme.colors.muted,
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   breadcrumbLink: {
     color: uiTheme.colors.muted,
@@ -740,7 +720,7 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.primary,
     background: uiTheme.colors.primarySoft,
     fontSize: 12,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   description: {
     margin: '10px 0 0',
@@ -755,7 +735,7 @@ const styles: Record<string, CSSProperties> = {
     marginTop: 16,
     color: uiTheme.colors.muted,
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   metaItem: {
     display: 'inline-flex',
@@ -783,7 +763,7 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: 'center',
     gap: 10,
     cursor: 'pointer',
-    fontWeight: 800,
+    fontWeight: 600,
     textDecoration: 'none',
   },
   secondaryButton: {
@@ -795,7 +775,7 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: 'center',
     gap: 10,
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 500,
     textDecoration: 'none',
   },
   secondaryLink: {
@@ -806,7 +786,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'inline-flex',
     alignItems: 'center',
     textDecoration: 'none',
-    fontWeight: 700,
+    fontWeight: 500,
   },
   moreButton: {
     ...controlBase,
@@ -864,7 +844,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'block',
     color: uiTheme.colors.muted,
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 500,
     marginBottom: 6,
   },
   kpiValue: {
@@ -896,7 +876,7 @@ const styles: Record<string, CSSProperties> = {
     border: 'none',
     background: 'transparent',
     color: uiTheme.colors.muted,
-    fontWeight: 700,
+    fontWeight: 500,
     fontSize: 14,
     padding: '0 16px 14px',
     cursor: 'pointer',
@@ -905,7 +885,7 @@ const styles: Record<string, CSSProperties> = {
     border: 'none',
     background: 'transparent',
     color: uiTheme.colors.primary,
-    fontWeight: 800,
+    fontWeight: 600,
     fontSize: 14,
     padding: '0 16px 14px',
     cursor: 'pointer',
@@ -955,14 +935,14 @@ const styles: Record<string, CSSProperties> = {
     padding: '0 14px',
     color: uiTheme.colors.muted,
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   select: {
     border: 'none',
     background: 'transparent',
     outline: 'none',
     color: uiTheme.colors.text,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   filterButton: {
     ...controlBase,
@@ -986,7 +966,7 @@ const styles: Record<string, CSSProperties> = {
     padding: '13px 16px',
     color: uiTheme.colors.muted,
     fontSize: 12,
-    fontWeight: 800,
+    fontWeight: 600,
     background: uiTheme.colors.background,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
   },
@@ -1025,14 +1005,14 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 7,
     color: uiTheme.colors.primary,
     background: uiTheme.colors.primarySoft,
-    fontWeight: 800,
+    fontWeight: 600,
     fontSize: 12,
   },
   statusText: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 8,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   statusDot: {
     fontSize: 12,
@@ -1051,11 +1031,11 @@ const styles: Record<string, CSSProperties> = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 14,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   uptimeTrend: {
     color: uiTheme.colors.success,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   pagination: {
     display: 'grid',
@@ -1086,7 +1066,7 @@ const styles: Record<string, CSSProperties> = {
   pageNumberButton: {
     ...pageArrowBase,
     width: 36,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   pageSize: {
     justifySelf: 'end',

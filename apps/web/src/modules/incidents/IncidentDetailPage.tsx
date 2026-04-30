@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { matchesSearchTerm, normalizeSearchTerm } from '../../shared/filterUtils';
 import { getIncidents, type Incident } from '../../shared/incidentApi';
+import AppTopbar from '../../shared/AppTopbar';
+import LoadingState from '../../shared/LoadingState';
 
 export default function IncidentDetailPage() {
   const { id } = useParams();
@@ -9,10 +11,13 @@ export default function IncidentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  const loadData = async () => {
+    const nextIncidents = await getIncidents();
+    setIncidents(nextIncidents);
+  };
+
   useEffect(() => {
-    getIncidents()
-      .then(setIncidents)
-      .finally(() => setLoading(false));
+    loadData().finally(() => setLoading(false));
   }, []);
 
   const incident = useMemo(
@@ -23,7 +28,7 @@ export default function IncidentDetailPage() {
   if (loading) {
     return (
       <main style={styles.main}>
-        <p style={styles.empty}>Cargando incidencia...</p>
+        <LoadingState variant="page" label="Cargando incidencia" />
       </main>
     );
   }
@@ -75,25 +80,27 @@ export default function IncidentDetailPage() {
 
   return (
     <main style={styles.main}>
-      <header style={styles.topbar}>
-        <div style={styles.breadcrumb}>
-          <Link to="/incidents" style={styles.breadcrumbLink}>Incidencias</Link>
-          <span>›</span>
-          <strong>{code}</strong>
-        </div>
+      <AppTopbar
+        title={code}
+        subtitle={incident.title}
+        onRefresh={loadData}
+        eyebrow={(
+          <>
+            <Link to="/incidents" style={styles.breadcrumbLink}>Incidencias</Link>
+            <span>&gt;</span>
+            <strong>{code}</strong>
+          </>
+        )}
+      />
 
-        <div style={styles.topActions}>
-          <input
-            style={styles.search}
-            placeholder="Buscar en la incidencia..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          <button type="button" style={styles.iconButton}>♢</button>
-          <button type="button" style={styles.iconButton}>☾</button>
-          <div style={styles.avatar}>AD</div>
-        </div>
-      </header>
+      <div style={styles.searchBar}>
+        <input
+          style={styles.search}
+          placeholder="Buscar en la incidencia..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </div>
 
       <section style={styles.layout}>
         <div style={styles.content}>
@@ -287,13 +294,9 @@ function formatDuration(seconds: number) {
 
 const styles: Record<string, CSSProperties> = {
   main: { flex: 1, padding: '24px 28px', background: '#f8fafc' },
-  topbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  breadcrumb: { display: 'flex', alignItems: 'center', gap: 12, color: '#64748b', fontSize: 13 },
   breadcrumbLink: { color: '#64748b', textDecoration: 'none' },
-  topActions: { display: 'flex', alignItems: 'center', gap: 10 },
+  searchBar: { display: 'flex', justifyContent: 'flex-end', marginTop: -12, marginBottom: 20 },
   search: { height: 40, border: '1px solid #dbe3ef', borderRadius: 10, padding: '0 14px', fontSize: 13 },
-  iconButton: { width: 40, height: 40, border: '1px solid #dbe3ef', borderRadius: 10, background: '#fff' },
-  avatar: { width: 40, height: 40, borderRadius: 10, background: '#2563eb', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 900 },
 
   layout: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 },
   content: { display: 'grid', gap: 14 },
@@ -303,17 +306,17 @@ const styles: Record<string, CSSProperties> = {
   alertIcon: { width: 94, height: 94, borderRadius: 16, background: '#fef2f2', color: '#ef4444', display: 'grid', placeItems: 'center', fontSize: 44, fontWeight: 900 },
   heroContent: { flex: 1 },
   badgeRow: { display: 'flex', gap: 10, alignItems: 'center' },
-  codeBadge: { padding: '6px 10px', borderRadius: 8, background: '#f1f5f9', color: '#334155', fontWeight: 800, fontSize: 12 },
-  statusOpen: { padding: '6px 10px', borderRadius: 8, background: '#fee2e2', color: '#ef4444', fontWeight: 800, fontSize: 12 },
-  statusResolved: { padding: '6px 10px', borderRadius: 8, background: '#dcfce7', color: '#059669', fontWeight: 800, fontSize: 12 },
-  title: { margin: '14px 0 8px', fontSize: 28, fontWeight: 800, color: '#0f172a' },
+  codeBadge: { padding: '6px 10px', borderRadius: 8, background: '#f1f5f9', color: '#334155', fontWeight: 600, fontSize: 12 },
+  statusOpen: { padding: '6px 10px', borderRadius: 8, background: '#fee2e2', color: '#ef4444', fontWeight: 600, fontSize: 12 },
+  statusResolved: { padding: '6px 10px', borderRadius: 8, background: '#dcfce7', color: '#059669', fontWeight: 600, fontSize: 12 },
+  title: { margin: '14px 0 8px', fontSize: 28, fontWeight: 600, color: '#0f172a' },
   subtitle: { margin: 0, color: '#64748b', fontSize: 15 },
   metaRow: { display: 'flex', gap: 10, marginTop: 20 },
   metaPill: { border: '1px solid #dbe3ef', borderRadius: 8, padding: '9px 12px', background: '#fff', color: '#475569', fontSize: 12 },
 
   tabs: { display: 'flex', gap: 26, borderBottom: '1px solid #dbe3ef', marginTop: 6 },
-  tab: { padding: '12px 0', color: '#64748b', fontWeight: 700, fontSize: 13 },
-  tabActive: { padding: '12px 0', color: '#2563eb', fontWeight: 800, fontSize: 13, borderBottom: '2px solid #2563eb' },
+  tab: { padding: '12px 0', color: '#64748b', fontWeight: 500, fontSize: 13 },
+  tabActive: { padding: '12px 0', color: '#2563eb', fontWeight: 600, fontSize: 13, borderBottom: '2px solid #2563eb' },
 
   card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, boxShadow: '0 8px 24px rgba(15,23,42,.035)' },
   cardTitle: { margin: '0 0 14px', fontSize: 16, fontWeight: 800 },
@@ -332,8 +335,8 @@ const styles: Record<string, CSSProperties> = {
   sideTitle: { margin: '0 0 16px', fontSize: 16, fontWeight: 800 },
   infoRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, padding: '12px 0', color: '#64748b', fontSize: 13 },
   dangerText: { color: '#ef4444' },
-  primaryButton: { width: '100%', height: 42, border: 0, borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 800, marginBottom: 10 },
-  secondaryButton: { width: '100%', height: 42, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff', color: '#2563eb', fontWeight: 800, marginBottom: 10 },
+  primaryButton: { width: '100%', height: 42, border: 0, borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 600, marginBottom: 10 },
+  secondaryButton: { width: '100%', height: 42, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff', color: '#2563eb', fontWeight: 600, marginBottom: 10 },
   dangerButton: { width: '100%', height: 42, border: '1px solid #fecaca', borderRadius: 8, background: '#fff', color: '#ef4444', fontWeight: 800 },
   tags: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   tag: { padding: '7px 10px', borderRadius: 8, background: '#eff6ff', color: '#2563eb', fontSize: 12, fontWeight: 700 },

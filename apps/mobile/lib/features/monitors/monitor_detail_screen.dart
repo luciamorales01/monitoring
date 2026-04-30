@@ -3,6 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/network/api_client.dart';
+import '../../shared/utils/ui_formatters.dart';
+import '../../shared/widgets/app_ui.dart';
+import '../../styles/app_colors.dart';
+import '../../styles/app_radius.dart';
+import '../../styles/app_spacing.dart';
+import '../../styles/app_text_styles.dart';
 import 'data/monitor_api.dart';
 
 class MonitorDetailScreen extends StatefulWidget {
@@ -13,10 +19,9 @@ class MonitorDetailScreen extends StatefulWidget {
 }
 
 class _MonitorDetailScreenState extends State<MonitorDetailScreen> {
-  final _monitorApi = MonitorApi();
+  final MonitorApi _monitorApi = MonitorApi();
   Future<Monitor>? _monitorFuture;
   int? _monitorId;
-  final int _currentIndex = 1;
   int _selectedTab = 0;
 
   @override
@@ -38,200 +43,232 @@ class _MonitorDetailScreenState extends State<MonitorDetailScreen> {
     setState(() => _monitorFuture = _monitorApi.getMonitorById(id));
   }
 
-  void _onDestinationSelected(int index) {
-    if (index == 0) {
-      Navigator.pushReplacementNamed(context, '/dashboard');
-      return;
-    }
-
-    if (index == 1) {
-      Navigator.pushReplacementNamed(context, '/monitors');
-      return;
-    }
-
-    if (index == 2) {
-      Navigator.pushReplacementNamed(context, '/incidents');
-      return;
-    }
-
-    if (index == 3) {
-      Navigator.pushReplacementNamed(context, '/sections');
-      return;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final future = _monitorFuture;
+    return AppScaffold(
+      currentDestination: AppDestination.monitors,
+      body: FutureBuilder<Monitor>(
+        future: _monitorFuture,
+        builder: (context, snapshot) {
+          if (_monitorFuture == null) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: EmptyState(
+                  icon: Icons.link_off_rounded,
+                  title: 'Monitor no seleccionado',
+                  message:
+                      'Abre un monitor desde la lista para ver el detalle.',
+                ),
+              ),
+            );
+          }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      bottomNavigationBar: _BottomNav(
-        currentIndex: _currentIndex,
-        onDestinationSelected: _onDestinationSelected,
-      ),
-      body: SafeArea(
-        bottom: false,
-        child: future == null
-            ? const _CenteredState(
-                icon: Icons.link_off_rounded,
-                title: 'Monitor not selected',
-                subtitle: 'Open a monitor from the monitors list.',
-              )
-            : FutureBuilder<Monitor>(
-                future: future,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const _CenteredState(
-                      icon: Icons.sync_rounded,
-                      title: 'Loading monitor',
-                      subtitle: 'Fetching monitor details from the API.',
-                    );
-                  }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: EmptyState(
+                  icon: Icons.sync_rounded,
+                  title: 'Cargando monitor',
+                  message: 'Preparando resumen, checks e incidencias.',
+                ),
+              ),
+            );
+          }
 
-                  if (snapshot.hasError) {
-                    return _CenteredState(
-                      icon: Icons.error_outline_rounded,
-                      title: 'Could not load monitor',
-                      subtitle: _errorMessage(snapshot.error),
-                      action: ElevatedButton.icon(
-                        onPressed: _retry,
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('Retry'),
-                      ),
-                    );
-                  }
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: EmptyState(
+                  icon: Icons.error_outline_rounded,
+                  title: 'No se pudo cargar el monitor',
+                  message: _errorMessage(snapshot.error),
+                  action: PrimaryButton(
+                    label: 'Reintentar',
+                    icon: Icons.refresh_rounded,
+                    onPressed: _retry,
+                  ),
+                ),
+              ),
+            );
+          }
 
-                  final monitor = snapshot.data!;
+          final monitor = snapshot.data!;
 
-                  return Column(
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 104),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _Header(
-                        monitor: monitor,
-                        selectedTab: _selectedTab,
-                        onTabChanged: (index) =>
-                            setState(() => _selectedTab = index),
-                      ),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(22, 22, 22, 96),
-                          child: _TabContent(
-                            monitor: monitor,
-                            selectedTab: _selectedTab,
-                          ),
+                      _TopBar(
+                        onBack: () => Navigator.pushReplacementNamed(
+                          context,
+                          '/monitors',
                         ),
                       ),
+                      const SizedBox(height: AppSpacing.md),
+                      _MonitorHeader(monitor: monitor),
+                      const SizedBox(height: AppSpacing.lg),
+                      _MetricStrip(monitor: monitor),
+                      const SizedBox(height: AppSpacing.lg),
+                      _Tabs(
+                        selectedIndex: _selectedTab,
+                        onChanged: (value) {
+                          setState(() => _selectedTab = value);
+                        },
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
+                      _TabContent(monitor: monitor, selectedTab: _selectedTab),
                     ],
-                  );
-                },
+                  ),
+                ),
               ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  final Monitor monitor;
-  final int selectedTab;
-  final ValueChanged<int> onTabChanged;
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.onBack});
 
-  const _Header({
-    required this.monitor,
-    required this.selectedTab,
-    required this.onTabChanged,
-  });
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    final status = _statusData(monitor);
+    return TextButton.icon(
+      onPressed: onBack,
+      style: TextButton.styleFrom(
+        padding: EdgeInsets.zero,
+        foregroundColor: AppColors.primary,
+      ),
+      icon: const Icon(Icons.arrow_back_rounded, size: 18),
+      label: Text(
+        'Volver a monitores',
+        style: AppTextStyles.label.copyWith(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
 
-    return Container(
-      color: const Color(0xFFF7F8FA),
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 0),
+class _MonitorHeader extends StatelessWidget {
+  const _MonitorHeader({required this.monitor});
+
+  final Monitor monitor;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InkWell(
-            onTap: () => Navigator.pushReplacementNamed(context, '/monitors'),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.arrow_back_rounded,
-                  size: 18,
-                  color: Color(0xFF2563EB),
-                ),
-                SizedBox(width: 6),
-                Text(
-                  'Monitors',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF2563EB),
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      monitor.name,
-                      style: const TextStyle(
-                        fontSize: 26,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF071631),
-                        letterSpacing: -0.5,
-                      ),
+                      monitor.name.isEmpty
+                          ? 'Monitor sin nombre'
+                          : monitor.name,
+                      style: AppTextStyles.display,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      monitor.target,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(monitor.target, style: AppTextStyles.subtitle),
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: status.softColor,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(radius: 4, backgroundColor: status.color),
-                    const SizedBox(width: 7),
-                    Text(
-                      status.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: status.color,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
+              const SizedBox(width: AppSpacing.md),
+              StatusBadge(
+                label: _statusLabel(monitor),
+                tone: _statusTone(monitor),
               ),
             ],
           ),
-          const SizedBox(height: 22),
-          _Tabs(selectedIndex: selectedTab, onChanged: onTabChanged),
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFE7EAF0)),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              StatusBadge(
+                label: monitor.type,
+                tone: AppStatusTone.primary,
+                icon: Icons.language_rounded,
+                showDot: false,
+              ),
+              StatusBadge(
+                label:
+                    'Ultimo check ${UiFormatters.relativeTime(monitor.lastCheckedAt)}',
+                tone: AppStatusTone.neutral,
+                icon: Icons.schedule_rounded,
+                showDot: false,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricStrip extends StatelessWidget {
+  const _MetricStrip({required this.monitor});
+
+  final Monitor monitor;
+
+  @override
+  Widget build(BuildContext context) {
+    final failedChecks = monitor.checkResults
+        .where((check) => check.status.toUpperCase() == 'DOWN')
+        .length;
+
+    return SizedBox(
+      height: 168,
+      child: Row(
+        children: [
+          Expanded(
+            child: MetricCard(
+              label: 'Estado',
+              value: _statusLabel(monitor),
+              subtitle: 'Estado actual',
+              icon: Icons.favorite_rounded,
+              tone: _statusTone(monitor),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: MetricCard(
+              label: 'Respuesta',
+              value: UiFormatters.responseTime(monitor.lastResponseTime),
+              subtitle: 'Ultima medicion',
+              icon: Icons.speed_rounded,
+              tone: AppStatusTone.primary,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: MetricCard(
+              label: 'Checks fallidos',
+              value: '$failedChecks',
+              subtitle: 'Historial reciente',
+              icon: Icons.error_outline_rounded,
+              tone: failedChecks > 0
+                  ? AppStatusTone.danger
+                  : AppStatusTone.success,
+            ),
+          ),
         ],
       ),
     );
@@ -239,62 +276,57 @@ class _Header extends StatelessWidget {
 }
 
 class _Tabs extends StatelessWidget {
+  const _Tabs({required this.selectedIndex, required this.onChanged});
+
   final int selectedIndex;
   final ValueChanged<int> onChanged;
 
-  const _Tabs({required this.selectedIndex, required this.onChanged});
-
   @override
   Widget build(BuildContext context) {
-    final tabs = ['Summary', 'Checks', 'Incidents', 'History'];
-
-    return SizedBox(
-      height: 37,
-      child: Row(
-        children: List.generate(tabs.length, (index) {
-          final selected = selectedIndex == index;
-
-          return Expanded(
-            child: GestureDetector(
+    const labels = ['Resumen', 'Checks', 'Incidencias'];
+    return Row(
+      children: List.generate(labels.length, (index) {
+        final selected = selectedIndex == index;
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(
+              right: index == labels.length - 1 ? 0 : AppSpacing.xs,
+            ),
+            child: InkWell(
               onTap: () => onChanged(index),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    tabs[index],
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: selected
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFF334155),
-                      fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primary : AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: selected ? AppColors.primary : AppColors.border,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    labels[index],
+                    style: AppTextStyles.label.copyWith(
+                      color: selected ? Colors.white : AppColors.textSoft,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    height: 2,
-                    width: selected ? 58 : 0,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          );
-        }),
-      ),
+          ),
+        );
+      }),
     );
   }
 }
 
 class _TabContent extends StatelessWidget {
+  const _TabContent({required this.monitor, required this.selectedTab});
+
   final Monitor monitor;
   final int selectedTab;
-
-  const _TabContent({required this.monitor, required this.selectedTab});
 
   @override
   Widget build(BuildContext context) {
@@ -302,9 +334,7 @@ class _TabContent extends StatelessWidget {
       case 1:
         return _ChecksTab(checks: monitor.checkResults);
       case 2:
-        return const _IncidentsTab();
-      case 3:
-        return _HistoryTab(monitor: monitor);
+        return _IncidentsTab(monitor: monitor);
       default:
         return _SummaryTab(monitor: monitor);
     }
@@ -320,153 +350,66 @@ class _SummaryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _SummaryMetrics(monitor: monitor),
-        const SizedBox(height: 20),
         const _ChartCard(
-          title: 'Uptime (Last 24h)',
-          chartType: _ChartType.uptime,
+          title: 'Disponibilidad',
+          subtitle: 'Variacion estimada de las ultimas 24 horas.',
+          tone: AppStatusTone.primary,
         ),
-        const SizedBox(height: 20),
-        const _ChartCard(
-          title: 'Response Time (Last 24h)',
-          chartType: _ChartType.response,
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryMetrics extends StatelessWidget {
-  const _SummaryMetrics({required this.monitor});
-
-  final Monitor monitor;
-
-  @override
-  Widget build(BuildContext context) {
-    final checksDown = monitor.checkResults
-        .where((check) => check.status.toUpperCase() == 'DOWN')
-        .length;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _MetricCard(
-            label: 'Status',
-            value: _statusData(monitor).label,
-            detail: 'Current',
-            color: _statusData(monitor).color,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _MetricCard(
-            label: 'Avg\nResponse',
-            value: monitor.lastResponseTime == null
-                ? '-'
-                : '${monitor.lastResponseTime}ms',
-            detail: 'Last check',
-            color: const Color(0xFF071631),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _MetricCard(
-            label: 'Failed\nChecks',
-            value: checksDown.toString(),
-            detail: 'Recent',
-            color: const Color(0xFF071631),
+        const SizedBox(height: AppSpacing.lg),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SectionHeader(
+                title: 'Configuracion',
+                subtitle: 'Parametros actuales del monitor.',
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _InfoRow(label: 'Tipo', value: monitor.type),
+              _InfoRow(
+                label: 'Codigo esperado',
+                value: '${monitor.expectedStatusCode ?? 200}',
+              ),
+              _InfoRow(
+                label: 'Frecuencia',
+                value: '${monitor.frequencySeconds ?? 60}s',
+              ),
+              _InfoRow(
+                label: 'Timeout',
+                value: '${monitor.timeoutSeconds ?? 10}s',
+                showDivider: false,
+              ),
+            ],
           ),
         ),
       ],
     );
   }
 }
-
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final String detail;
-  final Color color;
-
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.detail,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
-      padding: const EdgeInsets.fromLTRB(15, 16, 15, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              height: 1.2,
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 20,
-              height: 1,
-              color: color,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.3,
-            ),
-          ),
-          const SizedBox(height: 9),
-          Text(
-            detail,
-            style: const TextStyle(
-              fontSize: 10,
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-enum _ChartType { uptime, response }
 
 class _ChartCard extends StatelessWidget {
-  final String title;
-  final _ChartType chartType;
+  const _ChartCard({
+    required this.title,
+    required this.subtitle,
+    required this.tone,
+  });
 
-  const _ChartCard({required this.title, required this.chartType});
+  final String title;
+  final String subtitle;
+  final AppStatusTone tone;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF071631),
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 22),
+          SectionHeader(title: title, subtitle: subtitle),
+          const SizedBox(height: AppSpacing.lg),
           SizedBox(
-            height: 158,
+            height: 164,
             child: CustomPaint(
-              painter: _ChartPainter(chartType),
+              painter: _SummaryChartPainter(tone: tone),
               child: const SizedBox.expand(),
             ),
           ),
@@ -484,545 +427,236 @@ class _ChecksTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (checks.isEmpty) {
-      return const _InlineState(
-        icon: Icons.check_circle_outline_rounded,
-        title: 'No checks yet',
-        subtitle: 'Run a check to see recent results here.',
+      return const EmptyState(
+        icon: Icons.checklist_rounded,
+        title: 'Sin checks recientes',
+        message: 'Cuando existan ejecuciones apareceran aqui.',
       );
     }
 
     return Column(
-      children: checks
-          .map(
-            (check) => Padding(
-              padding: const EdgeInsets.only(bottom: 14),
-              child: _CheckCard(check: check),
-            ),
-          )
-          .toList(),
-    );
-  }
-}
-
-class _CheckCard extends StatelessWidget {
-  final CheckResult check;
-
-  const _CheckCard({required this.check});
-
-  @override
-  Widget build(BuildContext context) {
-    final up = check.status.toUpperCase() == 'UP';
-    final color = up ? const Color(0xFF22C55E) : const Color(0xFFFF4D4F);
-    final soft = up ? const Color(0xFFEAFBF1) : const Color(0xFFFFECEF);
-
-    return _Card(
-      padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
-      child: Row(
-        children: [
-          Container(
-            width: 39,
-            height: 39,
-            decoration: BoxDecoration(
-              color: soft,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(
-              up ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
-              color: color,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      children: checks.map((check) {
+        final up = check.status.toUpperCase() == 'UP';
+        final tone = up ? AppStatusTone.success : AppStatusTone.danger;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          child: AppCard(
+            child: Row(
               children: [
-                Text(
-                  check.statusCode == null
-                      ? check.status
-                      : 'HTTP ${check.statusCode}',
-                  style: const TextStyle(
-                    fontSize: 17,
-                    color: Color(0xFF071631),
-                    fontWeight: FontWeight.w900,
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: up ? AppColors.successSoft : AppColors.dangerSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Icon(
+                    up
+                        ? Icons.check_circle_outline_rounded
+                        : Icons.error_outline_rounded,
+                    color: up ? AppColors.success : AppColors.danger,
                   ),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  check.location ?? 'default',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                    fontWeight: FontWeight.w600,
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        check.statusCode == null
+                            ? check.status
+                            : 'HTTP ${check.statusCode}',
+                        style: AppTextStyles.bodyStrong,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        check.location ?? 'Ubicacion por defecto',
+                        style: AppTextStyles.caption,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        UiFormatters.dateTime(check.checkedAt),
+                        style: AppTextStyles.caption,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  _formatDateTime(check.checkedAt),
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF64748B),
-                    fontWeight: FontWeight.w600,
-                  ),
+                const SizedBox(width: AppSpacing.sm),
+                StatusBadge(
+                  label: UiFormatters.responseTime(check.responseTimeMs),
+                  tone: tone,
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            decoration: BoxDecoration(
-              color: soft,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              check.responseTimeMs == null ? '-' : '${check.responseTimeMs}ms',
-              style: TextStyle(
-                fontSize: 10,
-                color: color,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      }).toList(),
     );
   }
 }
 
 class _IncidentsTab extends StatelessWidget {
-  const _IncidentsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _InlineState(
-      icon: Icons.check_circle_outline_rounded,
-      title: 'No active incidents',
-      subtitle: 'Incident data is available in the Incidents tab.',
-    );
-  }
-}
-
-class _HistoryTab extends StatelessWidget {
-  const _HistoryTab({required this.monitor});
+  const _IncidentsTab({required this.monitor});
 
   final Monitor monitor;
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Monitor Settings',
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF071631),
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 28),
-          _HistoryRow(label: 'Type', value: monitor.type),
-          const SizedBox(height: 28),
-          _HistoryRow(
-            label: 'Expected code',
-            value: '${monitor.expectedStatusCode ?? 200}',
-          ),
-          const SizedBox(height: 28),
-          _HistoryRow(
-            label: 'Frequency',
-            value: '${monitor.frequencySeconds ?? 60}s',
-          ),
-          const SizedBox(height: 28),
-          _HistoryRow(
-            label: 'Timeout',
-            value: '${monitor.timeoutSeconds ?? 10}s',
-          ),
-        ],
-      ),
+    final hasProblem = monitor.currentStatus.toUpperCase() == 'DOWN';
+
+    return EmptyState(
+      icon: hasProblem
+          ? Icons.warning_amber_rounded
+          : Icons.check_circle_outline_rounded,
+      title: hasProblem
+          ? 'Monitor con problema activo'
+          : 'Sin incidencias activas',
+      message: hasProblem
+          ? 'Consulta la pantalla de incidencias para mas contexto operativo.'
+          : 'Las incidencias relacionadas apareceran aqui cuando existan.',
+      action: hasProblem
+          ? PrimaryButton(
+              label: 'Abrir incidencias',
+              icon: Icons.arrow_forward_rounded,
+              onPressed: () =>
+                  Navigator.pushReplacementNamed(context, '/incidents'),
+            )
+          : null,
     );
   }
 }
 
-class _HistoryRow extends StatelessWidget {
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
+    required this.label,
+    required this.value,
+    this.showDivider = true,
+  });
+
   final String label;
   final String value;
-
-  const _HistoryRow({required this.label, required this.value});
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF334155),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+        Row(
+          children: [
+            Expanded(child: Text(label, style: AppTextStyles.caption)),
+            Text(value, style: AppTextStyles.bodyStrong),
+          ],
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 15,
-            color: Color(0xFF071631),
-            fontWeight: FontWeight.w900,
+        if (showDivider)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(height: 1, color: AppColors.border),
           ),
-        ),
       ],
     );
   }
 }
 
-class _CenteredState extends StatelessWidget {
-  const _CenteredState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.action,
-  });
+class _SummaryChartPainter extends CustomPainter {
+  const _SummaryChartPainter({required this.tone});
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: _InlineState(
-          icon: icon,
-          title: title,
-          subtitle: subtitle,
-          action: action,
-        ),
-      ),
-    );
-  }
-}
-
-class _InlineState extends StatelessWidget {
-  const _InlineState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.action,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
-      padding: const EdgeInsets.all(22),
-      child: Column(
-        children: [
-          Icon(icon, color: const Color(0xFF2563EB), size: 34),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF071631),
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (action != null) ...[const SizedBox(height: 16), action!],
-        ],
-      ),
-    );
-  }
-}
-
-class _BottomNav extends StatelessWidget {
-  final int currentIndex;
-  final ValueChanged<int> onDestinationSelected;
-
-  const _BottomNav({
-    required this.currentIndex,
-    required this.onDestinationSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 78,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.black.withOpacity(0.06))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 18,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            _NavItem(
-              index: 0,
-              currentIndex: currentIndex,
-              icon: Icons.grid_view_rounded,
-              label: 'Dashboard',
-              onTap: onDestinationSelected,
-            ),
-            _NavItem(
-              index: 1,
-              currentIndex: currentIndex,
-              icon: Icons.monitor_heart_outlined,
-              selectedIcon: Icons.monitor_heart_rounded,
-              label: 'Monitors',
-              onTap: onDestinationSelected,
-            ),
-            _NavItem(
-              index: 2,
-              currentIndex: currentIndex,
-              icon: Icons.info_outline_rounded,
-              selectedIcon: Icons.info_rounded,
-              label: 'Incidents',
-              onTap: onDestinationSelected,
-            ),
-            _NavItem(
-              index: 3,
-              currentIndex: currentIndex,
-              icon: Icons.widgets_outlined,
-              label: 'Sections',
-              onTap: onDestinationSelected,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final int index;
-  final int currentIndex;
-  final IconData icon;
-  final IconData? selectedIcon;
-  final String label;
-  final ValueChanged<int> onTap;
-
-  const _NavItem({
-    required this.index,
-    required this.currentIndex,
-    required this.icon,
-    this.selectedIcon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = index == currentIndex;
-
-    return Expanded(
-      child: InkWell(
-        onTap: () => onTap(index),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              selected ? selectedIcon ?? icon : icon,
-              size: 25,
-              color: selected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF94A3B8),
-            ),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: selected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF64748B),
-                fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  const _Card({required this.child, required this.padding});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE7EAF0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.055),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
-
-class _StatusData {
-  const _StatusData({
-    required this.label,
-    required this.color,
-    required this.softColor,
-  });
-
-  final String label;
-  final Color color;
-  final Color softColor;
-}
-
-class _ChartPainter extends CustomPainter {
-  final _ChartType type;
-
-  _ChartPainter(this.type);
+  final AppStatusTone tone;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final labelStyle = const TextStyle(
-      color: Color(0xFF94A3B8),
-      fontSize: 10,
-      fontWeight: FontWeight.w600,
-    );
+    const leftPad = 22.0;
+    const topPad = 8.0;
+    const bottomPad = 18.0;
+    final chartWidth = size.width - leftPad;
+    final chartHeight = size.height - topPad - bottomPad;
 
-    final paint = Paint()
-      ..color = type == _ChartType.uptime
-          ? const Color(0xFF2F73FF)
-          : const Color(0xFF8B5CF6)
+    final gridPaint = Paint()
+      ..color = AppColors.borderStrong
+      ..strokeWidth = 1;
+
+    for (int i = 0; i < 4; i++) {
+      final y = topPad + chartHeight * i / 3;
+      canvas.drawLine(Offset(leftPad, y), Offset(size.width, y), gridPaint);
+    }
+
+    final color = tone == AppStatusTone.danger
+        ? AppColors.danger
+        : tone == AppStatusTone.success
+        ? AppColors.success
+        : AppColors.primary;
+
+    final linePaint = Paint()
+      ..color = color
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
-    const leftPad = 54.0;
-    const bottomPad = 24.0;
-    const topPad = 4.0;
-    final chartWidth = size.width - leftPad - 4;
-    final chartHeight = size.height - topPad - bottomPad;
-    final labels = type == _ChartType.uptime
-        ? ['100%', '99.75%', '99.5%', '99.25%', '99%']
-        : ['300ms', '225ms', '150ms', '75ms'];
+    final fillPaint = Paint()
+      ..color = color.withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
 
-    for (int i = 0; i < labels.length; i++) {
-      final y = topPad + chartHeight * i / (labels.length - 1);
-      _drawText(canvas, labels[i], Offset(0, y - 7), labelStyle);
-    }
-
-    final points = List.generate(90, (i) {
-      final t = i / 89;
-      final spike = 0.35 * math.exp(-math.pow((t - 0.34) / 0.06, 2));
-      final wave = 0.05 * math.sin(t * math.pi * 4);
+    final points = List.generate(42, (index) {
+      final t = index / 41;
+      final wave = 0.18 + 0.05 * math.sin(t * math.pi * 2.2);
+      final dip = 0.22 * math.exp(-math.pow((t - 0.65) / 0.14, 2));
       return Offset(
         leftPad + chartWidth * t,
-        topPad + chartHeight * (0.22 + wave + spike),
+        topPad + chartHeight * (wave + dip),
       );
     });
 
     final path = Path()..moveTo(points.first.dx, points.first.dy);
     for (int i = 1; i < points.length - 1; i++) {
-      final p0 = points[i];
-      final p1 = points[i + 1];
+      final current = points[i];
+      final next = points[i + 1];
       path.quadraticBezierTo(
-        p0.dx,
-        p0.dy,
-        (p0.dx + p1.dx) / 2,
-        (p0.dy + p1.dy) / 2,
+        current.dx,
+        current.dy,
+        (current.dx + next.dx) / 2,
+        (current.dy + next.dy) / 2,
       );
     }
 
-    canvas.drawPath(path, paint);
-  }
+    final fillPath = Path.from(path)
+      ..lineTo(points.last.dx, size.height - bottomPad)
+      ..lineTo(points.first.dx, size.height - bottomPad)
+      ..close();
 
-  void _drawText(Canvas canvas, String text, Offset offset, TextStyle style) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    painter.paint(canvas, offset);
+    canvas.drawPath(fillPath, fillPaint);
+    canvas.drawPath(path, linePaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SummaryChartPainter oldDelegate) {
+    return oldDelegate.tone != tone;
+  }
 }
 
-_StatusData _statusData(Monitor monitor) {
-  if (!monitor.isActive) {
-    return const _StatusData(
-      label: 'Paused',
-      color: Color(0xFF64748B),
-      softColor: Color(0xFFF1F5F9),
-    );
-  }
-
+String _statusLabel(Monitor monitor) {
+  if (!monitor.isActive) return 'Pausado';
   switch (monitor.currentStatus.toUpperCase()) {
     case 'UP':
-      return const _StatusData(
-        label: 'Operational',
-        color: Color(0xFF16A34A),
-        softColor: Color(0xFFEAFBF1),
-      );
+      return 'Online';
     case 'DOWN':
-      return const _StatusData(
-        label: 'Down',
-        color: Color(0xFFFF4D4F),
-        softColor: Color(0xFFFFECEF),
-      );
+      return 'Problema';
     default:
-      return const _StatusData(
-        label: 'Unknown',
-        color: Color(0xFFFF7A1A),
-        softColor: Color(0xFFFFF1E7),
-      );
+      return 'Pendiente';
   }
 }
 
-String _formatDateTime(DateTime? value) {
-  if (value == null) return '-';
-
-  String two(int number) => number.toString().padLeft(2, '0');
-  return '${value.year}-${two(value.month)}-${two(value.day)} '
-      '${two(value.hour)}:${two(value.minute)}:${two(value.second)}';
+AppStatusTone _statusTone(Monitor monitor) {
+  if (!monitor.isActive) return AppStatusTone.paused;
+  switch (monitor.currentStatus.toUpperCase()) {
+    case 'UP':
+      return AppStatusTone.success;
+    case 'DOWN':
+      return AppStatusTone.danger;
+    default:
+      return AppStatusTone.warning;
+  }
 }
 
 String _errorMessage(Object? error) {
   if (error is ApiException) return error.message;
-  return 'Unexpected error while contacting the API.';
+  return 'Error inesperado al consultar la API.';
 }

@@ -5,34 +5,27 @@ import { getIncidents, type Incident } from '../../shared/incidentApi';
 import { useLocalPagination } from '../../shared/useLocalPagination';
 import { useUrlFilterState } from '../../shared/useUrlFilterState';
 import {
-  avatarBase,
   controlBase,
-  datePillBase,
   filterGroupBase,
-  iconButtonBase,
   inputBase,
   kpiCardBase,
   pageActiveButtonBase,
   pageArrowBase,
   pageMain,
-  pageSubtitle,
-  pageTitle,
   paginationBase,
   selectFakeBase,
   surfaceCard,
   tableCardBase,
-  topActionsBase,
-  topbarBase,
   uiTheme,
 } from '../../theme/commonStyles';
+import AppTopbar from '../../shared/AppTopbar';
+import LoadingState from '../../shared/LoadingState';
 import {
   AlertTriangleIcon,
   BellIcon,
-  CalendarIcon,
   CheckCircleIcon,
   ChevronRightIcon,
   ClockIcon,
-  RefreshIcon,
 } from '../../shared/uiIcons';
 
 type IncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
@@ -185,25 +178,11 @@ export default function IncidentsPage() {
 
   return (
     <main style={styles.main}>
-      <header style={styles.topbar}>
-        <div>
-          <h1 style={styles.title}>Incidencias</h1>
-          <p style={styles.subtitle}>
-            Gestiona y da seguimiento a las incidencias detectadas en tus servicios.
-          </p>
-        </div>
-
-        <div style={styles.topActions}>
-          <div style={styles.datePill}>
-            <CalendarIcon size={15} />
-            24 may 2024 00:00 — 24 may 2024 23:59
-          </div>
-          <button type="button" style={styles.iconButton} onClick={() => void loadData()}>
-            <RefreshIcon size={16} />
-          </button>
-          <div style={styles.avatar}>AS</div>
-        </div>
-      </header>
+      <AppTopbar
+        title="Incidencias"
+        subtitle="Gestiona y da seguimiento a las incidencias detectadas en tus servicios."
+        onRefresh={loadData}
+      />
 
       <section style={styles.kpiGrid}>
         <KpiCard title="Incidencias abiertas" value={openCount} tone="red" />
@@ -290,7 +269,7 @@ export default function IncidentsPage() {
           </div>
 
           {loading ? (
-            <p style={styles.empty}>Cargando incidencias...</p>
+            <LoadingState variant="table" label="Cargando incidencias" rows={7} />
           ) : error ? (
             <p style={styles.empty}>{error}</p>
           ) : filteredIncidents.length === 0 ? (
@@ -560,18 +539,11 @@ function getSeverityLabel(severity: IncidentSeverity) {
 
 const styles: Record<string, React.CSSProperties> = {
   main: { ...pageMain, overflow: 'auto' },
-  topbar: topbarBase,
-  topActions: topActionsBase,
-  title: pageTitle,
-  subtitle: { ...pageSubtitle, margin: '6px 0 0' },
-  datePill: { ...datePillBase, padding: '9px 12px' },
-  iconButton: iconButtonBase,
-  avatar: { ...avatarBase, width: 38, height: 38, display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 13 },
 
   kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 14, marginBottom: 14 },
   kpiCard: { ...kpiCardBase, padding: 18, display: 'flex', gap: 14, alignItems: 'center', minHeight: 94 },
   kpiIcon: { width: 48, height: 48, borderRadius: 14, display: 'grid', placeItems: 'center', flexShrink: 0 },
-  kpiTitle: { margin: 0, color: uiTheme.colors.text, fontWeight: 800, fontSize: 13 },
+  kpiTitle: { margin: 0, color: uiTheme.colors.text, fontWeight: 600, fontSize: 13 },
   kpiValue: { display: 'block', marginTop: 6, fontSize: 24, lineHeight: 1 },
 
   contentGrid: { display: 'grid', gridTemplateColumns: '1fr 300px', gap: 14 },
@@ -581,15 +553,15 @@ const styles: Record<string, React.CSSProperties> = {
   select: inputBase,
   filterGroup: filterGroupBase,
   tabs: { display: 'flex', gap: 8, alignItems: 'center' },
-  tabButton: { ...controlBase, borderRadius: uiTheme.radii.sm, padding: '0 14px', cursor: 'pointer', fontWeight: 800, fontSize: 13, height: 40, display: 'inline-flex', alignItems: 'center' },
+  tabButton: { ...controlBase, borderRadius: uiTheme.radii.sm, padding: '0 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13, height: 40, display: 'inline-flex', alignItems: 'center' },
   tabActive: { background: uiTheme.colors.primarySoft, borderColor: '#bfdbfe', color: uiTheme.colors.primary },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: { textAlign: 'left', padding: '12px 10px', color: uiTheme.colors.muted, fontSize: 12, borderBottom: `1px solid ${uiTheme.colors.border}`, fontWeight: 800 },
   tr: { borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, background: '#fff', cursor: 'pointer' },
-  trHover: { background: uiTheme.colors.background },
+  trHover: { background: '#F1F5F9' },
   td: { padding: '13px 10px', fontSize: 12, color: uiTheme.colors.text },
   url: { marginTop: 3, color: uiTheme.colors.muted, fontSize: 11 },
-  badge: { padding: '5px 9px', borderRadius: 999, fontSize: 11, fontWeight: 800, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 },
+  badge: { padding: '5px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 },
   badgeDot: { width: 7, height: 7, borderRadius: 999, background: 'currentColor', display: 'inline-block' },
   empty: { color: uiTheme.colors.muted, fontSize: 13 },
   pagination: { ...paginationBase, padding: '16px 20px' },

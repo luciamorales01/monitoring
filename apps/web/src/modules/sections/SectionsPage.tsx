@@ -11,16 +11,14 @@ import {
   pageActiveButtonBase,
   pageArrowBase,
   pageMain,
-  pageSubtitle,
-  pageTitle,
   paginationBase,
   primaryButtonBase,
   secondaryButtonBase,
   surfaceCard,
-  topActionsBase,
-  topbarBase,
   uiTheme,
 } from '../../theme/commonStyles';
+import AppTopbar from '../../shared/AppTopbar';
+import LoadingState from '../../shared/LoadingState';
 import {
   getMonitors,
   type Monitor,
@@ -124,53 +122,38 @@ export default function SectionsPage() {
     return () => window.removeEventListener('mousedown', handlePointerDown);
   }, []);
 
+  const loadMonitors = async () => {
+    setLoading(true);
+
+    try {
+      const nextMonitors = await getMonitors();
+
+      setMonitors(nextMonitors);
+      setError(null);
+
+      setSections((currentSections) => {
+        const sanitizedSections = sanitizeSections(
+          currentSections,
+          nextMonitors.map((monitor) => monitor.id),
+        );
+
+        if (JSON.stringify(currentSections) !== JSON.stringify(sanitizedSections)) {
+          writeSections(sanitizedSections);
+        }
+
+        return sanitizedSections;
+      });
+    } catch (currentError) {
+      console.error('Error loading monitors for sections', currentError);
+      setError('No se pudieron cargar los monitores para agruparlos.');
+      setMonitors([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let cancelled = false;
-
-    const loadMonitors = async () => {
-      setLoading(true);
-
-      try {
-        const nextMonitors = await getMonitors();
-
-        if (cancelled) {
-          return;
-        }
-
-        setMonitors(nextMonitors);
-        setError(null);
-
-        setSections((currentSections) => {
-          const sanitizedSections = sanitizeSections(
-            currentSections,
-            nextMonitors.map((monitor) => monitor.id),
-          );
-
-          if (JSON.stringify(currentSections) !== JSON.stringify(sanitizedSections)) {
-            writeSections(sanitizedSections);
-          }
-
-          return sanitizedSections;
-        });
-      } catch (currentError) {
-        console.error('Error loading monitors for sections', currentError);
-
-        if (!cancelled) {
-          setError('No se pudieron cargar los monitores para agruparlos.');
-          setMonitors([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
     void loadMonitors();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const sectionSummaries = useMemo<SectionSummary[]>(() => {
@@ -359,22 +342,27 @@ export default function SectionsPage() {
   return (
     <>
       <main style={styles.page}>
-        <header style={styles.header}>
-          <div>
-            <h1 style={pageTitle}>Secciones</h1>
-            <p style={pageSubtitle}>
-              Organiza tus monitores en grupos personalizados.
-            </p>
-            <div style={styles.metaRow}>
-              <span style={styles.metaChip}>
-                <MonitorIcon size={14} />
-                {monitors.length} monitores totales
-              </span>
-              <span style={styles.metaChip}>
-                <ClockIcon size={14} />
-                {unassignedMonitors.length} sin seccion
-              </span>
-            </div>
+        <AppTopbar
+          title="Secciones"
+          subtitle="Organiza tus monitores en grupos personalizados."
+          onRefresh={loadMonitors}
+          cta={{
+            icon: <PlusIcon size={16} />,
+            label: "Nueva seccion",
+            onClick: handleOpenCreate,
+          }}
+        />
+
+        <div style={styles.topbarControls}>
+          <div style={styles.metaRow}>
+            <span style={styles.metaChip}>
+              <MonitorIcon size={14} />
+              {monitors.length} monitores totales
+            </span>
+            <span style={styles.metaChip}>
+              <ClockIcon size={14} />
+              {unassignedMonitors.length} sin seccion
+            </span>
           </div>
 
           <div style={styles.headerSide}>
@@ -388,26 +376,16 @@ export default function SectionsPage() {
               />
             </label>
 
-            <div style={styles.headerActions}>
-              <button
-                type="button"
-                style={styles.secondaryButton}
-                onClick={() => setManageOpen(true)}
-              >
-                <SettingsIcon size={16} />
-                Gestionar secciones
-              </button>
-              <button
-                type="button"
-                style={styles.primaryButton}
-                onClick={handleOpenCreate}
-              >
-                <PlusIcon size={16} />
-                Nueva seccion
-              </button>
-            </div>
+            <button
+              type="button"
+              style={styles.secondaryButton}
+              onClick={() => setManageOpen(true)}
+            >
+              <SettingsIcon size={16} />
+              Gestionar secciones
+            </button>
           </div>
-        </header>
+        </div>
 
         <div style={styles.tabs}>
           <button
@@ -457,12 +435,7 @@ export default function SectionsPage() {
 
         <section style={styles.listCard}>
           {loading ? (
-            <div style={styles.emptyState}>
-              <div style={styles.emptyIcon}>
-                <FolderIcon size={26} />
-              </div>
-              <strong>Cargando secciones...</strong>
-            </div>
+            <LoadingState variant="cards" label="Cargando secciones" rows={4} />
           ) : error ? (
             <div style={styles.emptyState}>
               <div style={styles.emptyIcon}>
@@ -1013,26 +986,25 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: 'column',
     gap: 22,
   },
-  header: {
-    ...topbarBase,
-    alignItems: 'stretch',
+  topbarControls: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 18,
+    marginTop: -12,
+    marginBottom: 2,
   },
   headerSide: {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 14,
     minWidth: 420,
-  },
-  headerActions: {
-    ...topActionsBase,
-    justifyContent: 'flex-end',
   },
   metaRow: {
     display: 'flex',
     flexWrap: 'wrap',
     gap: 10,
-    marginTop: 16,
   },
   metaChip: {
     ...controlBase,
@@ -1041,7 +1013,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 8,
     padding: '8px 12px',
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 500,
     color: uiTheme.colors.muted,
   },
   searchWrap: {
@@ -1070,7 +1042,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     gap: 10,
     cursor: 'pointer',
-    fontWeight: 800,
+    fontWeight: 600,
   },
   secondaryButton: {
     ...secondaryButtonBase,
@@ -1080,7 +1052,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     gap: 10,
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 500,
   },
   dangerButton: {
     ...secondaryButtonBase,
@@ -1090,7 +1062,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     gap: 10,
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 500,
     color: uiTheme.colors.danger,
     borderColor: '#fecaca',
     background: '#fff5f5',
@@ -1105,7 +1077,7 @@ const styles: Record<string, CSSProperties> = {
     border: 'none',
     background: 'transparent',
     color: uiTheme.colors.muted,
-    fontWeight: 700,
+    fontWeight: 500,
     fontSize: 14,
     padding: '0 16px 14px',
     cursor: 'pointer',
@@ -1114,7 +1086,7 @@ const styles: Record<string, CSSProperties> = {
     border: 'none',
     background: 'transparent',
     color: uiTheme.colors.primary,
-    fontWeight: 800,
+    fontWeight: 600,
     fontSize: 14,
     padding: '0 16px 14px',
     cursor: 'pointer',
@@ -1126,7 +1098,7 @@ const styles: Record<string, CSSProperties> = {
     background: '#f0fdf4',
     color: '#166534',
     padding: '14px 18px',
-    fontWeight: 700,
+    fontWeight: 500,
   },
   feedbackError: {
     ...surfaceCard,
@@ -1134,7 +1106,7 @@ const styles: Record<string, CSSProperties> = {
     background: '#fef2f2',
     color: '#991b1b',
     padding: '14px 18px',
-    fontWeight: 700,
+    fontWeight: 500,
   },
   listCard: {
     ...surfaceCard,
@@ -1192,7 +1164,7 @@ const styles: Record<string, CSSProperties> = {
     background: uiTheme.colors.surfaceSoft,
     color: uiTheme.colors.muted,
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   rowMetrics: {
     display: 'grid',
@@ -1208,7 +1180,7 @@ const styles: Record<string, CSSProperties> = {
   metricLabel: {
     fontSize: 12,
     color: uiTheme.colors.muted,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   metricValue: {
     fontSize: 16,
@@ -1217,7 +1189,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 8,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   statusDot: {
     fontSize: 13,
@@ -1328,7 +1300,7 @@ const styles: Record<string, CSSProperties> = {
   pageNumberButton: {
     ...pageArrowBase,
     width: 36,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   pageSize: {
     justifySelf: 'end',
@@ -1368,7 +1340,7 @@ const styles: Record<string, CSSProperties> = {
   modalTitle: {
     margin: 0,
     fontSize: 20,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   modalSubtitle: {
     margin: '8px 0 0',
@@ -1390,7 +1362,7 @@ const styles: Record<string, CSSProperties> = {
   field: {
     display: 'grid',
     gap: 10,
-    fontWeight: 700,
+    fontWeight: 500,
     color: uiTheme.colors.text,
   },
   fieldHint: {
@@ -1426,7 +1398,7 @@ const styles: Record<string, CSSProperties> = {
     justifyContent: 'center',
     gap: 10,
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 500,
     background: uiTheme.colors.surface,
   },
   iconOptionActive: {
@@ -1466,7 +1438,7 @@ const styles: Record<string, CSSProperties> = {
   monitorLinkedSection: {
     color: uiTheme.colors.primary,
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   selectorEmpty: {
     padding: '18px 14px',
@@ -1510,7 +1482,7 @@ const styles: Record<string, CSSProperties> = {
     padding: '6px 10px',
     borderRadius: 999,
     fontSize: 12,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   inlineBadgeSuccess: {
     color: uiTheme.colors.success,

@@ -21,7 +21,7 @@ const navItems = [
     to: "/monitors",
   },
   { icon: <FolderIcon size={16} />, label: "Secciones", to: "/sections" },
-  { icon: <ReportIcon size={16} />, label: "Informes" },
+  { icon: <ReportIcon size={16} />, label: "Informes", to: "/reports" },
   {
     icon: <AlertTriangleIcon size={16} />,
     label: "Incidencias",
@@ -215,7 +215,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 9,
     fontSize: 20,
-    fontWeight: 800,
+    fontWeight: 600,
     marginBottom: 22,
     color: uiTheme.colors.text,
   },
@@ -236,7 +236,7 @@ const styles: Record<string, React.CSSProperties> = {
   gap: 12,
   padding: "12px 14px",
   borderRadius: uiTheme.radii.sm,
-  fontWeight: 700,
+  fontWeight: 500,
   color: uiTheme.colors.muted,
   position: "relative",
   fontSize: 14,
@@ -264,7 +264,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "0 0 12px",
     color: uiTheme.colors.muted,
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   globalSubtitle: {
     margin: "5px 0 14px",
@@ -277,14 +277,14 @@ const styles: Record<string, React.CSSProperties> = {
   bigGreen: {
     marginTop: 10,
     fontSize: 26,
-    fontWeight: 800,
+    fontWeight: 600,
     color: uiTheme.colors.success,
   },
   redText: { color: uiTheme.colors.danger },
   bigRed: {
     marginTop: 10,
     fontSize: 20,
-    fontWeight: 800,
+    fontWeight: 600,
     color: uiTheme.colors.danger,
   },
 };

@@ -2,7 +2,6 @@ export {
   avatarBase,
   badgeBase,
   controlBase,
-  datePillBase,
   filterGroupBase,
   iconButtonBase,
   inputBase,

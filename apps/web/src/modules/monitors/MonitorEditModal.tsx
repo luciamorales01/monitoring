@@ -20,6 +20,7 @@ import {
   surfaceCard,
   uiTheme,
 } from '../../theme/commonStyles';
+import LoadingState from '../../shared/LoadingState';
 import { CloseIcon } from '../../shared/uiIcons';
 
 const baseLocationOptions = ['Madrid', 'Frankfurt', 'Virginia'] as const;
@@ -344,7 +345,11 @@ export default function MonitorEditModal({
               style={styles.primaryButton}
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Guardando...' : 'Guardar cambios'}
+              {isSubmitting ? (
+                <LoadingState variant="button" label="Guardando monitor" />
+              ) : (
+                'Guardar cambios'
+              )}
             </button>
           </div>
         </form>
@@ -396,7 +401,7 @@ const styles: Record<string, CSSProperties> = {
     margin: 0,
     color: uiTheme.colors.primary,
     fontSize: 12,
-    fontWeight: 800,
+    fontWeight: 600,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -423,7 +428,7 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.danger,
     padding: '12px 14px',
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   grid: {
     display: 'grid',
@@ -437,7 +442,7 @@ const styles: Record<string, CSSProperties> = {
   label: {
     color: uiTheme.colors.muted,
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   input: inputBase,
   section: {
@@ -488,7 +493,7 @@ const styles: Record<string, CSSProperties> = {
     padding: '0 16px',
     borderRadius: uiTheme.radii.sm,
     cursor: 'pointer',
-    fontWeight: 800,
+    fontWeight: 600,
   },
   primaryButton: {
     ...primaryButtonBase,
@@ -496,6 +501,6 @@ const styles: Record<string, CSSProperties> = {
     padding: '0 16px',
     borderRadius: uiTheme.radii.sm,
     cursor: 'pointer',
-    fontWeight: 800,
+    fontWeight: 600,
   },
 };

@@ -13,6 +13,7 @@ import SectionDetailPage from '../modules/sections/SectionDetailPage';
 import SectionsPage from '../modules/sections/SectionsPage';
 import UsersPage from '../modules/users/UsersPage';
 import SettingsPage from '../modules/settings/SettingsPage';
+import ReportsPage from '../modules/reports/ReportsPage';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
       { path: 'monitors', element: <MonitorsPage /> },
       { path: 'sections/:sectionId', element: <SectionDetailPage /> },
       { path: 'sections', element: <SectionsPage /> },
+      { path: 'reports', element: <ReportsPage /> },
       { path: 'users', element: <UsersPage /> },
       { path: 'settings', element: <SettingsPage/> },
     ],

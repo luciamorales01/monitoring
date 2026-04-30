@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/network/api_client.dart';
+import '../../shared/utils/ui_formatters.dart';
+import '../../shared/widgets/app_ui.dart';
+import '../../styles/app_colors.dart';
+import '../../styles/app_radius.dart';
+import '../../styles/app_spacing.dart';
+import '../../styles/app_text_styles.dart';
 import 'data/incident_api.dart';
 
 class IncidentDetailScreen extends StatefulWidget {
@@ -11,7 +17,7 @@ class IncidentDetailScreen extends StatefulWidget {
 }
 
 class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
-  final _incidentApi = IncidentApi();
+  final IncidentApi _incidentApi = IncidentApi();
   Future<Incident>? _incidentFuture;
   int? _incidentId;
 
@@ -36,259 +42,184 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final future = _incidentFuture;
+    return AppScaffold(
+      currentDestination: AppDestination.incidents,
+      scrollable: true,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 104),
+      body: FutureBuilder<Incident>(
+        future: _incidentFuture,
+        builder: (context, snapshot) {
+          if (_incidentFuture == null) {
+            return const EmptyState(
+              icon: Icons.link_off_rounded,
+              title: 'Incidencia no seleccionada',
+              message:
+                  'Abre una incidencia desde el listado para ver el detalle.',
+            );
+          }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FA),
-      body: SafeArea(
-        bottom: false,
-        child: future == null
-            ? const _CenteredState(
-                icon: Icons.link_off_rounded,
-                title: 'Incident not selected',
-                subtitle: 'Open an incident from the incidents list.',
-              )
-            : FutureBuilder<Incident>(
-                future: future,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const _CenteredState(
-                      icon: Icons.sync_rounded,
-                      title: 'Loading incident',
-                      subtitle: 'Fetching incident details from the API.',
-                    );
-                  }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const EmptyState(
+              icon: Icons.sync_rounded,
+              title: 'Cargando incidencia',
+              message: 'Recuperando timeline y datos tecnicos.',
+            );
+          }
 
-                  if (snapshot.hasError) {
-                    return _CenteredState(
-                      icon: Icons.error_outline_rounded,
-                      title: 'Could not load incident',
-                      subtitle: _errorMessage(snapshot.error),
-                      action: ElevatedButton.icon(
-                        onPressed: _retry,
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text('Retry'),
-                      ),
-                    );
-                  }
-
-                  final incident = snapshot.data!;
-
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _TopBar(),
-                        const SizedBox(height: 22),
-                        _IncidentHeader(incident: incident),
-                        const SizedBox(height: 22),
-                        _SummaryCards(incident: incident),
-                        const SizedBox(height: 22),
-                        _AffectedMonitorCard(incident: incident),
-                        const SizedBox(height: 22),
-                        _TimelineCard(incident: incident),
-                        const SizedBox(height: 22),
-                        _TechnicalDataCard(incident: incident),
-                        const SizedBox(height: 22),
-                        _NotesCard(incident: incident),
-                        const SizedBox(height: 90),
-                      ],
-                    ),
-                  );
-                },
+          if (snapshot.hasError) {
+            return EmptyState(
+              icon: Icons.error_outline_rounded,
+              title: 'No se pudo cargar la incidencia',
+              message: _errorMessage(snapshot.error),
+              action: PrimaryButton(
+                label: 'Reintentar',
+                icon: Icons.refresh_rounded,
+                onPressed: _retry,
               ),
+            );
+          }
+
+          final incident = snapshot.data!;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextButton.icon(
+                onPressed: () =>
+                    Navigator.pushReplacementNamed(context, '/incidents'),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  foregroundColor: AppColors.primary,
+                ),
+                icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                label: Text(
+                  'Volver a incidencias',
+                  style: AppTextStyles.label.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _Header(incident: incident),
+              const SizedBox(height: AppSpacing.lg),
+              _SummaryMetrics(incident: incident),
+              const SizedBox(height: AppSpacing.lg),
+              _AffectedMonitorCard(incident: incident),
+              const SizedBox(height: AppSpacing.lg),
+              _TimelineCard(incident: incident),
+              const SizedBox(height: AppSpacing.lg),
+              _TechnicalCard(incident: incident),
+              const SizedBox(height: AppSpacing.lg),
+              _NotesCard(incident: incident),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.pop(context),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.arrow_back_rounded, size: 18, color: Color(0xFF2563EB)),
-          SizedBox(width: 6),
-          Text(
-            'Incidents',
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF2563EB),
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _IncidentHeader extends StatelessWidget {
-  const _IncidentHeader({required this.incident});
+class _Header extends StatelessWidget {
+  const _Header({required this.incident});
 
   final Incident incident;
 
   @override
   Widget build(BuildContext context) {
-    final status = _statusData(incident);
-
-    return _Card(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _IconBox(
-            icon: incident.isResolved
-                ? Icons.schedule_rounded
-                : Icons.error_outline_rounded,
-            color: status.color,
-            background: status.background,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  incident.title.isEmpty ? 'Incident' : incident.title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    height: 1.1,
-                    color: Color(0xFF071631),
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  incident.monitor?.target ?? 'No monitor target',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF64748B),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _Badge(
-                      text: status.label,
-                      color: status.color,
-                      background: status.background,
-                    ),
-                    _Badge(
-                      text: incident.isResolved ? 'Resolved' : 'Critical',
-                      color: status.color,
-                      background: status.background,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryCards extends StatelessWidget {
-  const _SummaryCards({required this.incident});
-
-  final Incident incident;
-
-  @override
-  Widget build(BuildContext context) {
-    final status = _statusData(incident);
-
-    return Row(
-      children: [
-        Expanded(
-          child: _MetricCard(
-            label: 'Started',
-            value: _timeOnly(incident.startedAt),
-            subtitle: _dateOnly(incident.startedAt),
-            color: status.color,
-            icon: Icons.access_time_rounded,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _MetricCard(
-            label: 'Duration',
-            value: _durationLabel(incident),
-            subtitle: incident.isResolved ? 'Resolved' : 'Still active',
-            color: const Color(0xFFFF7A1A),
-            icon: Icons.timer_outlined,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final String subtitle;
-  final Color color;
-  final IconData icon;
-
-  const _MetricCard({
-    required this.label,
-    required this.value,
-    required this.subtitle,
-    required this.color,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
-      padding: const EdgeInsets.all(16),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _IconBox(
-            icon: icon,
-            color: color,
-            background: color.withOpacity(0.12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      incident.title.isEmpty
+                          ? 'Incidencia #${incident.id}'
+                          : incident.title,
+                      style: AppTextStyles.display,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      incident.monitor?.target ?? 'Sin target asociado',
+                      style: AppTextStyles.subtitle,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              StatusBadge(
+                label: incident.isResolved ? 'Resuelta' : 'Activa',
+                tone: incident.isResolved
+                    ? AppStatusTone.success
+                    : AppStatusTone.danger,
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 25,
-              color: Color(0xFF071631),
-              fontWeight: FontWeight.w900,
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              StatusBadge(
+                label: incident.isResolved
+                    ? 'Baja prioridad'
+                    : 'Alta prioridad',
+                tone: incident.isResolved
+                    ? AppStatusTone.warning
+                    : AppStatusTone.danger,
+                icon: Icons.flag_rounded,
+                showDot: false,
+              ),
+              StatusBadge(
+                label: UiFormatters.dateTime(incident.startedAt),
+                tone: AppStatusTone.neutral,
+                icon: Icons.schedule_rounded,
+                showDot: false,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryMetrics extends StatelessWidget {
+  const _SummaryMetrics({required this.incident});
+
+  final Incident incident;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 168,
+      child: Row(
+        children: [
+          Expanded(
+            child: MetricCard(
+              label: 'Inicio',
+              value: UiFormatters.time(incident.startedAt),
+              subtitle: UiFormatters.date(incident.startedAt),
+              icon: Icons.access_time_rounded,
+              tone: AppStatusTone.primary,
             ),
           ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontWeight: FontWeight.w800,
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: MetricCard(
+              label: 'Duracion',
+              value: _durationLabel(incident),
+              subtitle: incident.isResolved ? 'Evento cerrado' : 'Sigue activa',
+              icon: Icons.timer_outlined,
+              tone: incident.isResolved
+                  ? AppStatusTone.success
+                  : AppStatusTone.warning,
             ),
           ),
         ],
@@ -306,8 +237,7 @@ class _AffectedMonitorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final monitor = incident.monitor;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
+    return AppCard(
       onTap: monitor == null
           ? null
           : () => Navigator.pushNamed(
@@ -315,54 +245,46 @@ class _AffectedMonitorCard extends StatelessWidget {
               '/monitor-detail',
               arguments: monitor.id,
             ),
-      child: _Card(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            _IconBox(
-              icon: Icons.monitor_heart_outlined,
-              color: const Color(0xFFFF4D4F),
-              background: const Color(0xFFFFECEF),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppColors.dangerSoft,
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Affected monitor',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    monitor?.name ?? 'Unknown monitor',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      color: Color(0xFF071631),
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    monitor == null
-                        ? 'Monitor data unavailable'
-                        : 'Current status ${monitor.currentStatus}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFFFF4D4F),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
+            child: const Icon(
+              Icons.monitor_heart_rounded,
+              color: AppColors.danger,
             ),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
-          ],
-        ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Monitor afectado', style: AppTextStyles.caption),
+                const SizedBox(height: 4),
+                Text(
+                  monitor?.name ?? 'Monitor no disponible',
+                  style: AppTextStyles.bodyStrong,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  monitor == null
+                      ? 'Sin informacion adicional'
+                      : 'Estado actual ${monitor.currentStatus}',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSoft,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (monitor != null)
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+        ],
       ),
     );
   }
@@ -375,38 +297,38 @@ class _TimelineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Card(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(title: 'Timeline'),
-          const SizedBox(height: 16),
+          const SectionHeader(
+            title: 'Timeline',
+            subtitle: 'Secuencia del incidente',
+          ),
+          const SizedBox(height: AppSpacing.lg),
           _TimelineRow(
-            icon: Icons.error_outline_rounded,
-            color: const Color(0xFFFF4D4F),
-            title: 'Incident opened',
+            title: 'Incidencia abierta',
             subtitle: incident.title.isEmpty
-                ? 'Monitor reported failure'
+                ? 'Fallo detectado por el sistema de checks.'
                 : incident.title,
-            time: _timeOnly(incident.startedAt),
+            time: UiFormatters.time(incident.startedAt),
+            tone: AppStatusTone.danger,
+            showDivider: incident.resolvedAt != null,
           ),
           if (incident.resolvedAt != null)
             _TimelineRow(
-              icon: Icons.check_circle_outline_rounded,
-              color: const Color(0xFF22C55E),
-              title: 'Incident resolved',
-              subtitle: 'Monitor returned to a healthy state',
-              time: _timeOnly(incident.resolvedAt),
+              title: 'Incidencia resuelta',
+              subtitle: 'El monitor volvio a un estado saludable.',
+              time: UiFormatters.time(incident.resolvedAt),
+              tone: AppStatusTone.success,
               showDivider: false,
             )
           else
             const _TimelineRow(
-              icon: Icons.search_rounded,
-              color: Color(0xFFFF7A1A),
-              title: 'Investigation active',
-              subtitle: 'Incident is still open',
-              time: 'Now',
+              title: 'Investigacion activa',
+              subtitle: 'La incidencia sigue abierta y requiere seguimiento.',
+              time: 'Ahora',
+              tone: AppStatusTone.warning,
               showDivider: false,
             ),
         ],
@@ -416,84 +338,81 @@ class _TimelineCard extends StatelessWidget {
 }
 
 class _TimelineRow extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
-  final String time;
-  final bool showDivider;
-
   const _TimelineRow({
-    required this.icon,
-    required this.color,
     required this.title,
     required this.subtitle,
     required this.time,
-    this.showDivider = true,
+    required this.tone,
+    required this.showDivider,
   });
+
+  final String title;
+  final String subtitle;
+  final String time;
+  final AppStatusTone tone;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
+    final color = tone == AppStatusTone.success
+        ? AppColors.success
+        : tone == AppStatusTone.warning
+        ? AppColors.warning
+        : AppColors.danger;
+    final soft = tone == AppStatusTone.success
+        ? AppColors.successSoft
+        : tone == AppStatusTone.warning
+        ? AppColors.warningSoft
+        : AppColors.dangerSoft;
+
     return Column(
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _IconBox(
-              icon: icon,
-              color: color,
-              background: color.withOpacity(0.12),
-              size: 38,
-              iconSize: 21,
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: soft,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Icon(
+                tone == AppStatusTone.success
+                    ? Icons.check_circle_outline_rounded
+                    : tone == AppStatusTone.warning
+                    ? Icons.search_rounded
+                    : Icons.error_outline_rounded,
+                color: color,
+              ),
             ),
-            const SizedBox(width: 13),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: Color(0xFF071631),
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text(title, style: AppTextStyles.bodyStrong),
+                  const SizedBox(height: 4),
+                  Text(subtitle, style: AppTextStyles.caption),
                 ],
               ),
             ),
-            Text(
-              time,
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF94A3B8),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(time, style: AppTextStyles.caption),
           ],
         ),
         if (showDivider)
           const Padding(
-            padding: EdgeInsets.only(left: 51, top: 14, bottom: 14),
-            child: Divider(height: 1, color: Color(0xFFE7EAF0)),
+            padding: EdgeInsets.only(left: 21, top: 14, bottom: 14),
+            child: Divider(height: 1, color: AppColors.border),
           ),
-        if (!showDivider) const SizedBox(height: 10),
       ],
     );
   }
 }
 
-class _TechnicalDataCard extends StatelessWidget {
-  const _TechnicalDataCard({required this.incident});
+class _TechnicalCard extends StatelessWidget {
+  const _TechnicalCard({required this.incident});
 
   final Incident incident;
 
@@ -501,87 +420,32 @@ class _TechnicalDataCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final monitor = incident.monitor;
 
-    return _Card(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(title: 'Technical data'),
-          const SizedBox(height: 16),
+          const SectionHeader(
+            title: 'Datos tecnicos',
+            subtitle: 'Contexto operativo del monitor',
+          ),
+          const SizedBox(height: AppSpacing.lg),
           _InfoRow(label: 'Monitor', value: monitor?.name ?? '-'),
           _InfoRow(label: 'Target', value: monitor?.target ?? '-'),
           _InfoRow(
-            label: 'Expected code',
+            label: 'Codigo esperado',
             value: '${monitor?.expectedStatusCode ?? 200}',
           ),
           _InfoRow(
-            label: 'Response time',
-            value: monitor?.lastResponseTime == null
-                ? '-'
-                : '${monitor!.lastResponseTime}ms',
+            label: 'Tiempo de respuesta',
+            value: UiFormatters.responseTime(monitor?.lastResponseTime),
           ),
           _InfoRow(
-            label: 'Check interval',
-            value: '${monitor?.frequencySeconds ?? 60} seconds',
-          ),
-          _InfoRow(
-            label: 'Incident ID',
-            value: 'INC-${incident.id}',
+            label: 'Frecuencia',
+            value: '${monitor?.frequencySeconds ?? 60}s',
             showDivider: false,
           ),
         ],
       ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool showDivider;
-
-  const _InfoRow({
-    required this.label,
-    required this.value,
-    this.showDivider = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            Flexible(
-              child: Text(
-                value,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF071631),
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (showDivider)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 13),
-            child: Divider(height: 1, color: Color(0xFFE7EAF0)),
-          ),
-        if (!showDivider) const SizedBox(height: 10),
-      ],
     );
   }
 }
@@ -594,33 +458,24 @@ class _NotesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final note = incident.isResolved
-        ? 'Incident resolved at ${_formatDateTime(incident.resolvedAt)}.'
-        : 'Incident is open. Review backend logs and monitor checks.';
+        ? 'Incidencia resuelta el ${UiFormatters.dateTime(incident.resolvedAt)}.'
+        : 'Incidencia activa. Revisar logs, checks y dependencias del servicio.';
 
-    return _Card(
-      padding: const EdgeInsets.all(18),
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionTitle(title: 'Notes'),
-          const SizedBox(height: 14),
+          const SectionHeader(title: 'Notas', subtitle: 'Resumen operativo'),
+          const SizedBox(height: AppSpacing.md),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE7EAF0)),
+              color: AppColors.surfaceSoft,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.border),
             ),
-            child: Text(
-              note,
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.45,
-                color: Color(0xFF334155),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: Text(note, style: AppTextStyles.body),
           ),
         ],
       ),
@@ -628,228 +483,52 @@ class _NotesCard extends StatelessWidget {
   }
 }
 
-class _CenteredState extends StatelessWidget {
-  const _CenteredState({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.action,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: _Card(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: const Color(0xFF2563EB), size: 34),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF071631),
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (action != null) ...[const SizedBox(height: 16), action!],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-
-  const _SectionTitle({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        color: Color(0xFF071631),
-        fontWeight: FontWeight.w900,
-      ),
-    );
-  }
-}
-
-class _Badge extends StatelessWidget {
-  final String text;
-  final Color color;
-  final Color background;
-
-  const _Badge({
-    required this.text,
-    required this.color,
-    required this.background,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          color: color,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _IconBox extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final Color background;
-  final double size;
-  final double iconSize;
-
-  const _IconBox({
-    required this.icon,
-    required this.color,
-    required this.background,
-    this.size = 42,
-    this.iconSize = 23,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(size * 0.32),
-      ),
-      child: Icon(icon, color: color, size: iconSize),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  final Widget child;
-  final EdgeInsetsGeometry padding;
-
-  const _Card({required this.child, required this.padding});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE7EAF0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.055),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
-
-class _StatusData {
-  const _StatusData({
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({
     required this.label,
-    required this.color,
-    required this.background,
+    required this.value,
+    this.showDivider = true,
   });
 
   final String label;
-  final Color color;
-  final Color background;
-}
+  final String value;
+  final bool showDivider;
 
-_StatusData _statusData(Incident incident) {
-  if (incident.isResolved) {
-    return const _StatusData(
-      label: 'Resolved',
-      color: Color(0xFF16A34A),
-      background: Color(0xFFEAFBF1),
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(label, style: AppTextStyles.caption)),
+            Flexible(
+              child: Text(
+                value,
+                textAlign: TextAlign.end,
+                style: AppTextStyles.bodyStrong,
+              ),
+            ),
+          ],
+        ),
+        if (showDivider)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(height: 1, color: AppColors.border),
+          ),
+      ],
     );
   }
-
-  return const _StatusData(
-    label: 'Investigating',
-    color: Color(0xFFFF4D4F),
-    background: Color(0xFFFFECEF),
-  );
 }
 
 String _durationLabel(Incident incident) {
   if (incident.durationSeconds != null) {
-    return _formatDuration(Duration(seconds: incident.durationSeconds!));
+    return UiFormatters.durationFromSeconds(incident.durationSeconds);
   }
-
   if (incident.startedAt == null) return '-';
-  return _formatDuration(DateTime.now().difference(incident.startedAt!));
-}
-
-String _formatDuration(Duration duration) {
-  if (duration.inMinutes < 1) return '${duration.inSeconds}s';
-  if (duration.inHours < 1) return '${duration.inMinutes}m';
-  if (duration.inDays < 1) {
-    return '${duration.inHours}h ${duration.inMinutes % 60}m';
-  }
-  return '${duration.inDays}d ${duration.inHours % 24}h';
-}
-
-String _dateOnly(DateTime? value) {
-  if (value == null) return '-';
-  String two(int number) => number.toString().padLeft(2, '0');
-  return '${value.year}-${two(value.month)}-${two(value.day)}';
-}
-
-String _timeOnly(DateTime? value) {
-  if (value == null) return '-';
-  String two(int number) => number.toString().padLeft(2, '0');
-  return '${two(value.hour)}:${two(value.minute)}';
-}
-
-String _formatDateTime(DateTime? value) {
-  if (value == null) return '-';
-  return '${_dateOnly(value)} ${_timeOnly(value)}';
+  return UiFormatters.duration(DateTime.now().difference(incident.startedAt!));
 }
 
 String _errorMessage(Object? error) {
   if (error is ApiException) return error.message;
-  return 'Unexpected error while contacting the API.';
+  return 'Error inesperado al consultar la API.';
 }

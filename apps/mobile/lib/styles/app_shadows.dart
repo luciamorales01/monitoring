@@ -5,28 +5,25 @@ import 'app_colors.dart';
 class AppShadows {
   static List<BoxShadow> soft = [
     BoxShadow(
-      color: AppColors.text.withOpacity(0.04),
-      blurRadius: 30,
-      offset: const Offset(0, 12),
-    ),
-    BoxShadow(
-      color: AppColors.primary.withOpacity(0.04),
-      blurRadius: 16,
-      offset: const Offset(0, 4),
+      color: AppColors.text.withValues(alpha: 0.03),
+      blurRadius: 24,
+      offset: const Offset(0, 10),
+      spreadRadius: -8,
     ),
   ];
 
   static List<BoxShadow> floating = [
     BoxShadow(
-      color: AppColors.text.withOpacity(0.05),
-      blurRadius: 40,
-      offset: const Offset(0, 18),
+      color: AppColors.text.withValues(alpha: 0.05),
+      blurRadius: 28,
+      offset: const Offset(0, 14),
+      spreadRadius: -10,
     ),
     BoxShadow(
-      color: Colors.white.withOpacity(0.65),
-      blurRadius: 10,
-      offset: const Offset(0, -2),
-      spreadRadius: -4,
+      color: Colors.white.withValues(alpha: 0.75),
+      blurRadius: 8,
+      offset: const Offset(0, -1),
+      spreadRadius: -5,
     ),
   ];
 }

@@ -1,18 +1,13 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
-  avatarBase,
   controlBase,
-  datePillBase,
   filterGroupBase,
-  iconButtonBase,
   inputBase,
   kpiCardBase,
   pageActiveButtonBase,
   pageArrowBase,
   pageMain,
-  pageSubtitle,
-  pageTitle,
   paginationBase,
   primaryButtonBase,
   selectFakeBase,
@@ -20,10 +15,10 @@ import {
   surfaceCard,
   tableCardBase,
   toneStyles,
-  topActionsBase,
-  topbarBase,
   uiTheme,
 } from "../../theme/commonStyles";
+import AppTopbar from "../../shared/AppTopbar";
+import LoadingState from "../../shared/LoadingState";
 import {
   getMonitors,
   runMonitorCheck,
@@ -43,20 +38,17 @@ import { useUrlFilterState } from "../../shared/useUrlFilterState";
 import {
   ActivityIcon,
   AlertTriangleIcon,
-  BellIcon,
-  CalendarIcon,
   CheckCircleIcon,
   ClockIcon,
   GlobeIcon,
   MonitorIcon,
   PauseIcon,
   PlusIcon,
-  RefreshIcon,
 } from "../../shared/uiIcons";
 
 const dashboardFilterDefaults = {
   search: "",
-  sort: "status",
+  sort: "name",
   status: "ALL",
 };
 
@@ -71,7 +63,10 @@ export default function DashboardPage() {
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
-  const [toast, setToast] = useState<{ text: string; type: "ok" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    text: string;
+    type: "ok" | "error";
+  } | null>(null);
 
   const navigate = useNavigate();
   const { filters, setFilter } = useUrlFilterState(
@@ -95,7 +90,9 @@ export default function DashboardPage() {
       await runMonitorCheck(id);
 
       const updatedMonitors = await refreshMonitors();
-      const updatedMonitor = updatedMonitors.find((monitor) => monitor.id === id);
+      const updatedMonitor = updatedMonitors.find(
+        (monitor) => monitor.id === id,
+      );
 
       setToast(getMonitorStatusToast(updatedMonitor?.currentStatus));
     } catch {
@@ -147,8 +144,12 @@ export default function DashboardPage() {
 
   const stats = useMemo(() => {
     const total = monitors.length;
-    const online = monitors.filter((monitor) => monitor.currentStatus === "UP").length;
-    const alerts = monitors.filter((monitor) => monitor.currentStatus === "DOWN").length;
+    const online = monitors.filter(
+      (monitor) => monitor.currentStatus === "UP",
+    ).length;
+    const alerts = monitors.filter(
+      (monitor) => monitor.currentStatus === "DOWN",
+    ).length;
 
     return {
       total,
@@ -171,42 +172,53 @@ export default function DashboardPage() {
 
   return (
     <main style={styles.main}>
-      <header style={styles.topbar}>
-        <div>
-          <h1 style={styles.title}>Dashboard</h1>
-          <p style={styles.subtitle}>Resumen general de todas las webs monitorizadas</p>
-        </div>
-
-        <div style={styles.topActions}>
-          <div style={styles.datePill}>
-            <CalendarIcon size={15} />
-            24 may 2024 00:00 — 24 may 2024 23:59
-          </div>
-
-          <button type="button" style={styles.iconButton} onClick={() => void refreshMonitors()}>
-            <RefreshIcon size={16} />
-          </button>
-
-          <div style={styles.bell}>
-            <BellIcon size={16} />
-            {stats.alerts > 0 && <span style={styles.bellBadge}>{stats.alerts}</span>}
-          </div>
-
-          <div style={styles.avatar}>AS</div>
-
-          <Link to="/monitors/create" style={styles.primaryButton}>
-            <PlusIcon size={16} />
-            Nuevo monitor
-          </Link>
-        </div>
-      </header>
+      <AppTopbar
+        title="Dashboard"
+        subtitle="Resumen general de todas las webs monitorizadas"
+        onRefresh={refreshMonitors}
+        cta={{
+          icon: <PlusIcon size={16} />,
+          label: "Nuevo monitor",
+          to: "/monitors/create",
+        }}
+      />
 
       <section style={styles.kpiGrid}>
-        <KpiCard icon={<MonitorIcon size={18} />} title="Webs monitorizadas" value={stats.total} note="Total actual" tone="blue" />
-        <KpiCard icon={<CheckCircleIcon size={18} />} title="Webs online" value={stats.online} note={`${stats.total ? ((stats.online / stats.total) * 100).toFixed(1) : 0}% del total`} tone="green" />
-        <KpiCard icon={<AlertTriangleIcon size={18} />} title="Alertas activas" value={stats.alerts} note="Incidencias abiertas" tone="orange" />
-        <KpiCard icon={<ClockIcon size={18} />} title="Uptime promedio" value={stats.uptime} note="Promedio global" tone="blue" />
-        <KpiCard icon={<ActivityIcon size={18} />} title="Tiempo de respuesta" value={stats.response} note="Promedio global" tone="blue" />
+        <KpiCard
+          icon={<MonitorIcon size={18} />}
+          title="Webs monitorizadas"
+          value={stats.total}
+          note="Total actual"
+          tone="blue"
+        />
+        <KpiCard
+          icon={<CheckCircleIcon size={18} />}
+          title="Webs online"
+          value={stats.online}
+          note={`${stats.total ? ((stats.online / stats.total) * 100).toFixed(1) : 0}% del total`}
+          tone="green"
+        />
+        <KpiCard
+          icon={<AlertTriangleIcon size={18} />}
+          title="Alertas activas"
+          value={stats.alerts}
+          note="Incidencias abiertas"
+          tone="orange"
+        />
+        <KpiCard
+          icon={<ClockIcon size={18} />}
+          title="Uptime promedio"
+          value={stats.uptime}
+          note="Promedio global"
+          tone="blue"
+        />
+        <KpiCard
+          icon={<ActivityIcon size={18} />}
+          title="Tiempo de respuesta"
+          value={stats.response}
+          note="Promedio global"
+          tone="blue"
+        />
       </section>
 
       <section style={styles.contentGrid}>
@@ -225,12 +237,52 @@ export default function DashboardPage() {
               <span>0%</span>
             </div>
 
-            <svg width="100%" height="210" viewBox="0 0 720 210" preserveAspectRatio="none">
-              <rect x="0" y="0" width="720" height="210" rx="16" fill="#fbfdff" />
-              <line x1="0" y1="25" x2="720" y2="25" stroke="#dbe3ef" strokeDasharray="4 6" />
-              <line x1="0" y1="70" x2="720" y2="70" stroke="#dbe3ef" strokeDasharray="4 6" />
-              <line x1="0" y1="115" x2="720" y2="115" stroke="#dbe3ef" strokeDasharray="4 6" />
-              <line x1="0" y1="160" x2="720" y2="160" stroke="#dbe3ef" strokeDasharray="4 6" />
+            <svg
+              width="100%"
+              height="210"
+              viewBox="0 0 720 210"
+              preserveAspectRatio="none"
+            >
+              <rect
+                x="0"
+                y="0"
+                width="720"
+                height="210"
+                rx="16"
+                fill="#fbfdff"
+              />
+              <line
+                x1="0"
+                y1="25"
+                x2="720"
+                y2="25"
+                stroke="#dbe3ef"
+                strokeDasharray="4 6"
+              />
+              <line
+                x1="0"
+                y1="70"
+                x2="720"
+                y2="70"
+                stroke="#dbe3ef"
+                strokeDasharray="4 6"
+              />
+              <line
+                x1="0"
+                y1="115"
+                x2="720"
+                y2="115"
+                stroke="#dbe3ef"
+                strokeDasharray="4 6"
+              />
+              <line
+                x1="0"
+                y1="160"
+                x2="720"
+                y2="160"
+                stroke="#dbe3ef"
+                strokeDasharray="4 6"
+              />
               <path
                 d="M0 68 C45 62, 70 72, 110 60 C160 45, 230 60, 285 54 C335 48, 390 60, 430 95 C455 125, 485 70, 535 54 C590 40, 640 55, 680 60 C700 62, 690 118, 720 82"
                 fill="none"
@@ -316,9 +368,11 @@ export default function DashboardPage() {
           </div>
 
           {loading ? (
-            <p style={styles.empty}>Cargando monitores...</p>
+            <LoadingState variant="table" label="Cargando monitores" rows={6} />
           ) : filteredMonitors.length === 0 ? (
-            <p style={styles.empty}>No hay monitores que coincidan con los filtros.</p>
+            <p style={styles.empty}>
+              No hay monitores que coincidan con los filtros.
+            </p>
           ) : (
             <>
               <table style={styles.table}>
@@ -334,91 +388,118 @@ export default function DashboardPage() {
                 </thead>
 
                 <tbody>
-                  {pageItems.map((monitor) => (
-                    <tr
-                      key={monitor.id}
-                      style={{
-                        ...styles.tr,
-                        ...(hoveredMonitorId === monitor.id ? styles.trHover : {}),
-                      }}
-                      onClick={() => navigate(`/monitors/${monitor.id}`)}
-                      onMouseEnter={() => setHoveredMonitorId(monitor.id)}
-                      onMouseLeave={() => setHoveredMonitorId(null)}
-                    >
-                      <td style={styles.td}>
-                        <div style={styles.webCell}>
-                          <span style={styles.webIcon}>
-                            <GlobeIcon size={18} />
-                          </span>
-                          <div>
-                            <strong>{monitor.name}</strong>
-                            <div style={styles.url}>{monitor.target}</div>
+                  {pageItems.map((monitor) => {
+                    const viewStatus = getMonitorViewStatus(monitor);
+
+                    return (
+                      <tr
+                        key={monitor.id}
+                        style={{
+                          ...styles.tr,
+                          ...(hoveredMonitorId === monitor.id
+                            ? styles.trHover
+                            : {}),
+                        }}
+                        onClick={() => navigate(`/monitors/${monitor.id}`)}
+                        onMouseEnter={() => setHoveredMonitorId(monitor.id)}
+                        onMouseLeave={() => setHoveredMonitorId(null)}
+                      >
+                        <td style={styles.td}>
+                          <div style={styles.webCell}>
+                            <span style={styles.webIcon}>
+                              <GlobeIcon size={18} />
+                            </span>
+                            <div>
+                              <strong>{monitor.name}</strong>
+                              <div style={styles.url}>{monitor.target}</div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td style={styles.td}>
-                        <StatusBadge status={monitor.currentStatus ?? "UNKNOWN"} />
-                      </td>
+                        <td style={styles.td}>
+                          <StatusBadge
+                            status={monitor.currentStatus ?? "UNKNOWN"}
+                          />
+                        </td>
 
-                      <td style={styles.td}>
-                        {monitor.currentStatus === "UP"
-                          ? "99.9%"
-                          : monitor.currentStatus === "DOWN"
-                            ? "94.1%"
-                            : "-"}
-                      </td>
+                        <td style={styles.td}>
+                          {viewStatus === "UP"
+                            ? "99.9%"
+                            : viewStatus === "DOWN"
+                              ? "94.1%"
+                              : "-"}
+                        </td>
 
-                      <td style={styles.td}>{monitor.type}</td>
-                      <td style={styles.td}>Hace 1 min</td>
+                        <td style={styles.td}>{monitor.type}</td>
+                        <td style={styles.td}>Hace 1 min</td>
 
-                      <td style={styles.td}>
-                        <div style={styles.actionGroup}>
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleRunCheck(monitor.id);
-                            }}
-                            disabled={checkingId === monitor.id}
-                            style={{
-                              ...styles.checkButton,
-                              ...(checkingId === monitor.id ? styles.checkButtonDisabled : {}),
-                            }}
-                          >
-                            {checkingId !== monitor.id && <ActivityIcon size={14} />}
-                            {checkingId === monitor.id ? "Comprobando..." : "Comprobar ahora"}
-                          </button>
+                        <td style={styles.td}>
+                          <div style={styles.actionGroup}>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleRunCheck(monitor.id);
+                              }}
+                              disabled={checkingId === monitor.id}
+                              style={{
+                                ...styles.checkButton,
+                                ...(checkingId === monitor.id
+                                  ? styles.checkButtonDisabled
+                                  : {}),
+                              }}
+                            >
+                              {checkingId !== monitor.id && (
+                                <ActivityIcon size={14} />
+                              )}
+                              {checkingId === monitor.id ? (
+                                <LoadingState variant="button" label="Comprobando monitor" />
+                              ) : (
+                                "Comprobar ahora"
+                              )}
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              void handleToggleActive(monitor.id);
-                            }}
-                            disabled={togglingId === monitor.id}
-                            style={{
-                              ...styles.secondaryButton,
-                              ...(togglingId === monitor.id ? styles.checkButtonDisabled : {}),
-                            }}
-                          >
-                            {monitor.isActive ? <PauseIcon size={14} /> : <CheckCircleIcon size={14} />}
-                            {togglingId === monitor.id
-                              ? "Actualizando..."
-                              : monitor.isActive
-                                ? "Pausar"
-                                : "Reanudar"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleToggleActive(monitor.id);
+                              }}
+                              disabled={togglingId === monitor.id}
+                              style={{
+                                ...styles.secondaryButton,
+                                ...(togglingId === monitor.id
+                                  ? styles.checkButtonDisabled
+                                  : {}),
+                              }}
+                            >
+                              {togglingId !== monitor.id && (
+                                monitor.isActive ? (
+                                  <PauseIcon size={14} />
+                                ) : (
+                                  <CheckCircleIcon size={14} />
+                                )
+                              )}
+                              {togglingId === monitor.id ? (
+                                <LoadingState variant="button" label="Actualizando monitor" />
+                              ) : monitor.isActive ? (
+                                "Pausar"
+                              ) : (
+                                "Reanudar"
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
               <div style={styles.pagination}>
                 <span>
-                  Mostrando {rangeStart} a {rangeEnd} de {filteredMonitors.length} monitores
+                  Mostrando {rangeStart} a {rangeEnd} de{" "}
+                  {filteredMonitors.length} monitores
                 </span>
 
                 <div style={styles.pages}>
@@ -432,11 +513,18 @@ export default function DashboardPage() {
                     ‹
                   </button>
 
-                  {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+                  {Array.from(
+                    { length: totalPages },
+                    (_, index) => index + 1,
+                  ).map((pageNumber) => (
                     <button
                       key={pageNumber}
                       type="button"
-                      style={pageNumber === page ? styles.pageActiveButton : styles.pageNumberButton}
+                      style={
+                        pageNumber === page
+                          ? styles.pageActiveButton
+                          : styles.pageNumberButton
+                      }
                       onClick={() => setPage(pageNumber)}
                     >
                       {pageNumber}
@@ -471,11 +559,19 @@ export default function DashboardPage() {
             <span style={{ ...styles.mapDot, top: "65%", left: "82%" }} />
           </div>
 
-          {["Europa (Frankfurt)", "América (Norte)", "América (Sur)", "Asia (Singapur)", "Oceanía (Sídney)"].map((region, index) => (
+          {[
+            "Europa (Frankfurt)",
+            "América (Norte)",
+            "América (Sur)",
+            "Asia (Singapur)",
+            "Oceanía (Sídney)",
+          ].map((region, index) => (
             <div key={region} style={styles.regionRow}>
               <span>{region}</span>
               <div style={styles.regionBar}>
-                <span style={{ ...styles.regionProgress, width: `${96 + index}%` }} />
+                <span
+                  style={{ ...styles.regionProgress, width: `${96 + index}%` }}
+                />
               </div>
               <strong>{(99.8 - index * 0.15).toFixed(1)}%</strong>
             </div>
@@ -631,47 +727,6 @@ function AlertRow({
 
 const styles: Record<string, CSSProperties> = {
   main: { ...pageMain, overflow: "auto" },
-  topbar: topbarBase,
-  topActions: topActionsBase,
-  title: pageTitle,
-  subtitle: { ...pageSubtitle, margin: "6px 0 0" },
-  datePill: { ...datePillBase, padding: "9px 12px" },
-  iconButton: iconButtonBase,
-  bell: { ...iconButtonBase, position: "relative" },
-  bellBadge: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    background: uiTheme.colors.primary,
-    color: "#fff",
-    borderRadius: 999,
-    width: 18,
-    height: 18,
-    display: "grid",
-    placeItems: "center",
-    fontSize: 10,
-  },
-  avatar: {
-    ...avatarBase,
-    width: 38,
-    height: 38,
-    display: "grid",
-    placeItems: "center",
-    fontWeight: 800,
-    fontSize: 13,
-  },
-  primaryButton: {
-    ...primaryButtonBase,
-    textDecoration: "none",
-    padding: "0 16px",
-    borderRadius: uiTheme.radii.sm,
-    fontWeight: 800,
-    fontSize: 14,
-    minHeight: 40,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-  },
 
   kpiGrid: {
     display: "grid",
@@ -698,7 +753,7 @@ const styles: Record<string, CSSProperties> = {
   kpiTitle: {
     margin: 0,
     color: uiTheme.colors.text,
-    fontWeight: 800,
+    fontWeight: 600,
     fontSize: 13,
   },
   kpiValue: { display: "block", marginTop: 6, fontSize: 24, lineHeight: 1 },
@@ -740,7 +795,7 @@ const styles: Record<string, CSSProperties> = {
   linkFake: {
     color: uiTheme.colors.primary,
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   chartBox: {
     borderTop: `1px solid ${uiTheme.colors.border}`,
@@ -798,13 +853,15 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.muted,
     fontSize: 12,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
-    fontWeight: 800,
+    fontWeight: 600,
   },
   tr: {
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
     background: "#fff",
   },
-  trHover: { background: uiTheme.colors.background },
+  trHover: {
+    background: "#F1F5F9",
+  },
   td: {
     padding: "12px 10px",
     fontSize: 12,
@@ -813,7 +870,7 @@ const styles: Record<string, CSSProperties> = {
   actionGroup: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     justifyContent: "flex-end",
     flexWrap: "nowrap",
     whiteSpace: "nowrap",
@@ -839,14 +896,14 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 11,
   },
   badge: {
-    padding: "5px 9px",
+    padding: "4px 8px",
     borderRadius: 999,
-    fontSize: 11,
-    fontWeight: 800,
+    fontSize: 10,
+    fontWeight: 600,
     whiteSpace: "nowrap",
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
   },
   badgeDot: {
     width: 7,
@@ -859,11 +916,13 @@ const styles: Record<string, CSSProperties> = {
     ...primaryButtonBase,
     borderRadius: uiTheme.radii.sm,
     padding: "0 12px",
-    fontWeight: 800,
+    fontWeight: 600,
     cursor: "pointer",
     whiteSpace: "nowrap",
     fontSize: 12,
-    minHeight: 38,
+    height: 40,
+    minWidth: 150,
+    justifyContent: "center",
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
@@ -873,14 +932,19 @@ const styles: Record<string, CSSProperties> = {
     ...secondaryButtonBase,
     borderRadius: uiTheme.radii.sm,
     padding: "0 12px",
-    fontWeight: 800,
+    fontWeight: 600,
     cursor: "pointer",
     whiteSpace: "nowrap",
     fontSize: 12,
-    minHeight: 38,
+    height: 40,
+    minWidth: 104,
+    justifyContent: "center",
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
+    background: "#fff",
+    border: "1px solid #E2E8F0",
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
   },
 
   pagination: { ...paginationBase, gap: 18, padding: "16px 20px" },

@@ -371,7 +371,7 @@ class _SwitchTile extends StatelessWidget {
           ),
           Switch(
             value: value,
-            activeColor: const Color(0xFF2563EB),
+            activeThumbColor: const Color(0xFF2563EB),
             onChanged: onChanged,
           ),
         ],
@@ -392,7 +392,7 @@ class _IconBox extends StatelessWidget {
       width: 39,
       height: 39,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(13),
       ),
       child: Icon(icon, color: color, size: 21),
@@ -419,7 +419,7 @@ BoxDecoration _cardDecoration() {
     border: Border.all(color: const Color(0xFFE7EAF0)),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.055),
+        color: Colors.black.withValues(alpha: 0.055),
         blurRadius: 16,
         offset: const Offset(0, 6),
       ),

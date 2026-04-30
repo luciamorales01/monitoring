@@ -5,21 +5,16 @@ import {
   useState,
   type CSSProperties,
   type ReactNode,
-} from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+} from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  avatarBase,
   controlBase,
-  datePillBase,
   filterGroupBase,
-  iconButtonBase,
   inputBase,
   kpiCardBase,
   pageActiveButtonBase,
   pageArrowBase,
   pageMain,
-  pageSubtitle,
-  pageTitle,
   paginationBase,
   primaryButtonBase,
   secondaryButtonBase,
@@ -27,10 +22,10 @@ import {
   surfaceCard,
   tableCardBase,
   toneStyles,
-  topActionsBase,
-  topbarBase,
   uiTheme,
-} from '../../theme/commonStyles';
+} from "../../theme/commonStyles";
+import AppTopbar from "../../shared/AppTopbar";
+import LoadingState from "../../shared/LoadingState";
 import {
   deleteMonitor,
   getMonitors,
@@ -39,7 +34,7 @@ import {
   updateMonitor,
   type Monitor,
   type UpdateMonitorInput,
-} from '../../shared/monitorApi';
+} from "../../shared/monitorApi";
 import {
   filterMonitors,
   getMonitorLocationOptions,
@@ -48,14 +43,12 @@ import {
   type MonitorStatusFilter,
   type MonitorTypeFilter,
   type MonitorViewStatus,
-} from '../../shared/monitorFilters';
-import { useUrlFilterState } from '../../shared/useUrlFilterState';
-import { useLocalPagination } from '../../shared/useLocalPagination';
+} from "../../shared/monitorFilters";
+import { useUrlFilterState } from "../../shared/useUrlFilterState";
+import { useLocalPagination } from "../../shared/useLocalPagination";
 import {
   ActivityIcon,
   AlertTriangleIcon,
-  BellIcon,
-  CalendarIcon,
   ChevronRightIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -63,33 +56,31 @@ import {
   FilterIcon,
   GlobeIcon,
   MonitorIcon,
+  MoreHorizontalIcon,
   PauseIcon,
   PlayIcon,
   PlusIcon,
-  RefreshIcon,
   SettingsIcon,
   TrashIcon,
-} from '../../shared/uiIcons';
-import MonitorEditModal from './MonitorEditModal';
+} from "../../shared/uiIcons";
+import MonitorEditModal from "./MonitorEditModal";
 
 const monitorFilterDefaults = {
-  location: 'ALL',
-  search: '',
-  status: 'ALL',
-  type: 'ALL',
+  location: "ALL",
+  search: "",
+  status: "ALL",
+  type: "ALL",
 };
 
 const monitorAllowedValues = {
-  status: ['ALL', 'UP', 'DOWN', 'PAUSED', 'UNKNOWN'],
-  type: ['ALL', 'HTTP', 'HTTPS'],
+  status: ["ALL", "UP", "DOWN", "PAUSED", "UNKNOWN"],
+  type: ["ALL", "HTTP", "HTTPS"],
 } as const;
 
-type FeedbackState =
-  | {
-      text: string;
-      type: 'success' | 'error';
-    }
-  | null;
+type FeedbackState = {
+  text: string;
+  type: "success" | "error";
+} | null;
 
 export default function MonitorsPage() {
   const navigate = useNavigate();
@@ -98,10 +89,10 @@ export default function MonitorsPage() {
 
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
+  const [openMenuMonitorId, setOpenMenuMonitorId] = useState<number | null>(null);
   const [selectedMonitorIds, setSelectedMonitorIds] = useState<number[]>([]);
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -111,14 +102,15 @@ export default function MonitorsPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
   const { filters, hasActiveFilters, resetFilters, setFilter } =
     useUrlFilterState(monitorFilterDefaults, monitorAllowedValues);
 
-  const loadMonitors = async ({ initial = false }: { initial?: boolean } = {}) => {
+  const loadMonitors = async ({
+    initial = false,
+  }: { initial?: boolean } = {}) => {
     if (initial) {
       setLoading(true);
-    } else {
-      setRefreshing(true);
     }
 
     try {
@@ -129,15 +121,14 @@ export default function MonitorsPage() {
         current.filter((id) => data.some((monitor) => monitor.id === id)),
       );
     } catch (currentError) {
-      console.error('Error loading monitors', currentError);
-      setError('No se pudieron cargar las webs monitorizadas.');
+      console.error("Error loading monitors", currentError);
+      setError("No se pudieron cargar las webs monitorizadas.");
       setMonitors([]);
       setSelectedMonitorIds([]);
     } finally {
       if (initial) {
         setLoading(false);
       }
-      setRefreshing(false);
     }
   };
 
@@ -145,27 +136,35 @@ export default function MonitorsPage() {
     void loadMonitors({ initial: true });
   }, []);
 
+  useEffect(() => {
+    const closeMenu = () => setOpenMenuMonitorId(null);
+
+    window.addEventListener("click", closeMenu);
+
+    return () => window.removeEventListener("click", closeMenu);
+  }, []);
+
   const stats = useMemo(() => {
     const total = monitors.length;
     const online = monitors.filter(
-      (monitor) => getMonitorViewStatus(monitor) === 'UP',
+      (monitor) => getMonitorViewStatus(monitor) === "UP",
     ).length;
     const down = monitors.filter(
-      (monitor) => getMonitorViewStatus(monitor) === 'DOWN',
+      (monitor) => getMonitorViewStatus(monitor) === "DOWN",
     ).length;
     const paused = monitors.filter(
-      (monitor) => getMonitorViewStatus(monitor) === 'PAUSED',
+      (monitor) => getMonitorViewStatus(monitor) === "PAUSED",
     ).length;
     const responseTimes = monitors
       .map((monitor) => monitor.lastResponseTime)
-      .filter((value): value is number => typeof value === 'number');
+      .filter((value): value is number => typeof value === "number");
     const averageResponseTime =
       responseTimes.length > 0
         ? `${Math.round(
             responseTimes.reduce((sum, value) => sum + value, 0) /
               responseTimes.length,
           )} ms`
-        : '—';
+        : "—";
 
     return {
       total,
@@ -190,7 +189,13 @@ export default function MonitorsPage() {
         type: filters.type as MonitorTypeFilter,
       }),
     );
-  }, [filters.location, filters.search, filters.status, filters.type, monitors]);
+  }, [
+    filters.location,
+    filters.search,
+    filters.status,
+    filters.type,
+    monitors,
+  ]);
 
   const {
     page,
@@ -210,48 +215,44 @@ export default function MonitorsPage() {
     () => pageItems.map((monitor) => monitor.id),
     [pageItems],
   );
+
   const filteredMonitorIds = useMemo(
     () => filteredMonitors.map((monitor) => monitor.id),
     [filteredMonitors],
   );
+
   const selectedMonitors = useMemo(
-    () =>
-      monitors.filter((monitor) => selectedMonitorIds.includes(monitor.id)),
+    () => monitors.filter((monitor) => selectedMonitorIds.includes(monitor.id)),
     [monitors, selectedMonitorIds],
   );
+
   const areAllCurrentPageSelected =
     currentPageIds.length > 0 &&
     currentPageIds.every((id) => selectedMonitorIds.includes(id));
+
   const hasSomeCurrentPageSelected =
     !areAllCurrentPageSelected &&
     currentPageIds.some((id) => selectedMonitorIds.includes(id));
 
   useEffect(() => {
-    if (!selectAllRef.current) {
-      return;
-    }
-
+    if (!selectAllRef.current) return;
     selectAllRef.current.indeterminate = hasSomeCurrentPageSelected;
   }, [hasSomeCurrentPageSelected]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      const tagName = target?.tagName ?? '';
+      const tagName = target?.tagName ?? "";
       const isTypingTarget =
-        tagName === 'INPUT' ||
-        tagName === 'TEXTAREA' ||
-        tagName === 'SELECT' ||
+        tagName === "INPUT" ||
+        tagName === "TEXTAREA" ||
+        tagName === "SELECT" ||
         target?.isContentEditable;
 
-      if (isTypingTarget) {
-        return;
-      }
+      if (isTypingTarget) return;
 
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a') {
-        if (filteredMonitorIds.length === 0) {
-          return;
-        }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+        if (filteredMonitorIds.length === 0) return;
 
         event.preventDefault();
         setSelectedMonitorIds((current) =>
@@ -261,23 +262,23 @@ export default function MonitorsPage() {
         return;
       }
 
-      if (event.key === 'Escape' && selectedMonitorIds.length > 0) {
+      if (event.key === "Escape" && selectedMonitorIds.length > 0) {
         event.preventDefault();
         clearSelection();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
 
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [filteredMonitorIds, selectedMonitorIds.length]);
 
   const setSuccess = (text: string) => {
-    setFeedback({ type: 'success', text });
+    setFeedback({ type: "success", text });
   };
 
   const setFailure = (text: string) => {
-    setFeedback({ type: 'error', text });
+    setFeedback({ type: "error", text });
   };
 
   const toggleMonitorSelection = (
@@ -303,6 +304,7 @@ export default function MonitorsPage() {
             startIndex < endIndex
               ? [startIndex, endIndex]
               : [endIndex, startIndex];
+
           const rangeIds = filteredMonitorIds.slice(from, to + 1);
           const nextSelection = options.additive ? [...current] : [...current];
 
@@ -314,6 +316,7 @@ export default function MonitorsPage() {
         ? current.filter((item) => item !== id)
         : [...current, id];
     });
+
     lastSelectedMonitorIdRef.current = id;
   };
 
@@ -338,10 +341,10 @@ export default function MonitorsPage() {
       setFeedback(null);
       await runMonitorCheck(id);
       await loadMonitors();
-      setSuccess('Comprobacion ejecutada correctamente.');
+      setSuccess("Comprobación ejecutada correctamente.");
     } catch (currentError) {
       console.error(`Error running monitor check for ${id}`, currentError);
-      setFailure('No se pudo ejecutar la comprobacion.');
+      setFailure("No se pudo ejecutar la comprobación.");
     } finally {
       setCheckingId(null);
     }
@@ -353,33 +356,30 @@ export default function MonitorsPage() {
       setFeedback(null);
       await toggleMonitorActive(id);
       await loadMonitors();
-      setSuccess('Estado del monitor actualizado.');
+      setSuccess("Estado del monitor actualizado.");
     } catch (currentError) {
       console.error(`Error toggling monitor ${id}`, currentError);
-      setFailure('No se pudo actualizar el estado del monitor.');
+      setFailure("No se pudo actualizar el estado del monitor.");
     } finally {
       setTogglingId(null);
     }
   };
 
   const handleOpenEdit = (monitor: Monitor) => {
+    setOpenMenuMonitorId(null);
     setEditingMonitor(monitor);
     setEditError(null);
   };
 
   const handleCloseEdit = () => {
-    if (isSavingEdit) {
-      return;
-    }
+    if (isSavingEdit) return;
 
     setEditingMonitor(null);
     setEditError(null);
   };
 
   const handleSaveEdit = async (data: UpdateMonitorInput) => {
-    if (!editingMonitor) {
-      return;
-    }
+    if (!editingMonitor) return;
 
     try {
       setIsSavingEdit(true);
@@ -388,27 +388,23 @@ export default function MonitorsPage() {
       await updateMonitor(editingMonitor.id, data);
       await loadMonitors();
       setEditingMonitor(null);
-      setSuccess('Monitor actualizado correctamente.');
+      setSuccess("Monitor actualizado correctamente.");
     } catch (currentError: any) {
-      setEditError(currentError.message ?? 'No se pudo guardar el monitor.');
+      setEditError(currentError.message ?? "No se pudo guardar el monitor.");
     } finally {
       setIsSavingEdit(false);
     }
   };
 
   const handleOpenDelete = () => {
-    if (selectedMonitorIds.length === 0) {
-      return;
-    }
+    if (selectedMonitorIds.length === 0) return;
 
     setDeleteError(null);
     setIsDeleteModalOpen(true);
   };
 
   const handleCloseDelete = () => {
-    if (isDeleting) {
-      return;
-    }
+    if (isDeleting) return;
 
     setDeleteError(null);
     setIsDeleteModalOpen(false);
@@ -426,12 +422,12 @@ export default function MonitorsPage() {
       await loadMonitors();
       setSuccess(
         deletedCount === 1
-          ? 'Monitor eliminado correctamente.'
+          ? "Monitor eliminado correctamente."
           : `${deletedCount} monitores eliminados correctamente.`,
       );
     } catch (currentError: any) {
       setDeleteError(
-        currentError.message ?? 'No se pudieron eliminar los monitores.',
+        currentError.message ?? "No se pudieron eliminar los monitores.",
       );
     } finally {
       setIsDeleting(false);
@@ -441,40 +437,16 @@ export default function MonitorsPage() {
   return (
     <>
       <main style={styles.main}>
-        <header style={styles.topbar}>
-          <div>
-            <h1 style={styles.title}>Webs monitorizadas</h1>
-            <p style={styles.subtitle}>
-              Gestiona y consulta el estado de todas las webs que tienes
-              monitorizadas.
-            </p>
-          </div>
-
-          <div style={styles.topActions}>
-            <div style={styles.datePill}>
-              <CalendarIcon size={15} />
-              24 may 2024 00:00 — 24 may 2024 23:59
-            </div>
-            <button
-              type="button"
-              style={styles.iconButton}
-              onClick={() => void loadMonitors()}
-              disabled={refreshing}
-              title="Refrescar lista"
-            >
-              <RefreshIcon size={16} />
-            </button>
-            <div style={styles.bell}>
-              <BellIcon size={16} />
-              {stats.down > 0 && <span style={styles.bellBadge}>{stats.down}</span>}
-            </div>
-            <div style={styles.avatar}>AS</div>
-            <Link to="/monitors/create" style={styles.primaryButton}>
-              <PlusIcon size={16} />
-              Añadir web
-            </Link>
-          </div>
-        </header>
+        <AppTopbar
+          title="Webs monitorizadas"
+          subtitle="Gestiona y consulta el estado de todas las webs que tienes monitorizadas."
+          onRefresh={loadMonitors}
+          cta={{
+            icon: <PlusIcon size={16} />,
+            label: "Nuevo monitor",
+            to: "/monitors/create",
+          }}
+        />
 
         <section style={styles.kpiGrid}>
           <KpiCard
@@ -520,7 +492,7 @@ export default function MonitorsPage() {
               style={styles.search}
               placeholder="Buscar por nombre o URL..."
               value={filters.search}
-              onChange={(event) => setFilter('search', event.target.value)}
+              onChange={(event) => setFilter("search", event.target.value)}
             />
 
             <label style={styles.filterGroup}>
@@ -528,7 +500,7 @@ export default function MonitorsPage() {
               <select
                 style={styles.select}
                 value={filters.status}
-                onChange={(event) => setFilter('status', event.target.value)}
+                onChange={(event) => setFilter("status", event.target.value)}
               >
                 <option value="ALL">Todos</option>
                 <option value="UP">Operativas</option>
@@ -543,7 +515,7 @@ export default function MonitorsPage() {
               <select
                 style={styles.select}
                 value={filters.type}
-                onChange={(event) => setFilter('type', event.target.value)}
+                onChange={(event) => setFilter("type", event.target.value)}
               >
                 <option value="ALL">Todos</option>
                 <option value="HTTP">HTTP</option>
@@ -556,7 +528,7 @@ export default function MonitorsPage() {
               <select
                 style={styles.select}
                 value={filters.location}
-                onChange={(event) => setFilter('location', event.target.value)}
+                onChange={(event) => setFilter("location", event.target.value)}
               >
                 <option value="ALL">Todas</option>
                 {locationOptions.map((location) => (
@@ -586,14 +558,14 @@ export default function MonitorsPage() {
             <div style={styles.bulkToolbar}>
               <div>
                 <strong style={styles.bulkTitle}>
-                  {selectedMonitorIds.length}{' '}
+                  {selectedMonitorIds.length}{" "}
                   {selectedMonitorIds.length === 1
-                    ? 'web seleccionada'
-                    : 'webs seleccionadas'}
+                    ? "web seleccionada"
+                    : "webs seleccionadas"}
                 </strong>
                 <p style={styles.bulkCopy}>
                   Atajos: `Ctrl/Cmd + A` selecciona visibles. `Esc` limpia.
-                  `Shift + click` amplia rango.
+                  `Shift + click` amplía rango.
                 </p>
               </div>
 
@@ -603,8 +575,9 @@ export default function MonitorsPage() {
                   style={styles.secondaryButton}
                   onClick={clearSelection}
                 >
-                  Limpiar seleccion
+                  Limpiar selección
                 </button>
+
                 <button
                   type="button"
                   style={styles.dangerButton}
@@ -613,8 +586,8 @@ export default function MonitorsPage() {
                 >
                   <TrashIcon size={15} />
                   {selectedMonitorIds.length === 1
-                    ? 'Eliminar seleccionada'
-                    : 'Eliminar seleccionadas'}
+                    ? "Eliminar seleccionada"
+                    : "Eliminar seleccionadas"}
                 </button>
               </div>
             </div>
@@ -623,7 +596,7 @@ export default function MonitorsPage() {
           {feedback && (
             <div
               style={
-                feedback.type === 'success'
+                feedback.type === "success"
                   ? styles.feedbackSuccess
                   : styles.feedbackError
               }
@@ -633,11 +606,13 @@ export default function MonitorsPage() {
           )}
 
           {loading ? (
-            <p style={styles.empty}>Cargando webs monitorizadas...</p>
+            <LoadingState variant="table" label="Cargando webs monitorizadas" rows={7} />
           ) : error ? (
             <p style={styles.empty}>{error}</p>
           ) : filteredMonitors.length === 0 ? (
-            <p style={styles.empty}>No hay webs que coincidan con los filtros.</p>
+            <p style={styles.empty}>
+              No hay webs que coincidan con los filtros.
+            </p>
           ) : (
             <table style={styles.table}>
               <thead>
@@ -657,7 +632,7 @@ export default function MonitorsPage() {
                   <th style={styles.th}>Tiempo de respuesta</th>
                   <th style={styles.th}>Alertas</th>
                   <th style={styles.th}>Última comprobación</th>
-                  <th style={styles.th}>Acciones</th>
+                  <th style={styles.thActions}>Acciones</th>
                 </tr>
               </thead>
 
@@ -672,7 +647,9 @@ export default function MonitorsPage() {
                       style={{
                         ...styles.tr,
                         ...(isSelected ? styles.trSelected : {}),
-                        ...(hoveredMonitorId === monitor.id ? styles.trHover : {}),
+                        ...(hoveredMonitorId === monitor.id
+                          ? styles.trHover
+                          : {}),
                       }}
                       onClick={() => navigate(`/monitors/${monitor.id}`)}
                       onMouseEnter={() => setHoveredMonitorId(monitor.id)}
@@ -704,7 +681,9 @@ export default function MonitorsPage() {
                             <GlobeIcon size={18} />
                           </span>
                           <div>
-                            <strong>{monitor.name}</strong>
+                            <strong style={styles.monitorName}>
+                              {monitor.name}
+                            </strong>
                             <div style={styles.url}>{monitor.target}</div>
                           </div>
                         </div>
@@ -729,12 +708,12 @@ export default function MonitorsPage() {
                         <span
                           style={{
                             ...styles.alertBadge,
-                            ...(viewStatus === 'DOWN'
+                            ...(viewStatus === "DOWN"
                               ? styles.alertBadgeDanger
                               : {}),
                           }}
                         >
-                          {viewStatus === 'DOWN' ? 1 : 0}
+                          {viewStatus === "DOWN" ? 1 : 0}
                         </span>
                       </td>
 
@@ -742,7 +721,7 @@ export default function MonitorsPage() {
                         {formatRelativeDate(monitor.lastCheckedAt)}
                       </td>
 
-                      <td style={styles.td}>
+                      <td style={styles.tdActions}>
                         <div
                           style={styles.actions}
                           onClick={(event) => event.stopPropagation()}
@@ -750,45 +729,83 @@ export default function MonitorsPage() {
                           <button
                             type="button"
                             style={styles.actionButton}
-                            onClick={() => void handleRunCheck(monitor.id)}
-                            disabled={checkingId === monitor.id}
-                            title="Comprobar ahora"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setOpenMenuMonitorId((current) =>
+                                current === monitor.id ? null : monitor.id,
+                              );
+                            }}
+                            title="Acciones"
                           >
-                            <ActivityIcon size={15} />
+                            <MoreHorizontalIcon size={16} />
                           </button>
-                          <button
-                            type="button"
-                            style={styles.actionButton}
-                            onClick={() => handleOpenEdit(monitor)}
-                            title="Editar monitor"
-                          >
-                            <EditIcon size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            style={styles.actionButton}
-                            onClick={() => navigate(`/monitors/${monitor.id}`)}
-                            title="Ver detalle"
-                          >
-                            <MonitorIcon size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            style={styles.actionButton}
-                            onClick={() => void handleToggleActive(monitor.id)}
-                            disabled={togglingId === monitor.id}
-                            title={
-                              monitor.isActive
-                                ? 'Pausar monitor'
-                                : 'Reanudar monitor'
-                            }
-                          >
-                            {monitor.isActive ? (
-                              <PauseIcon size={15} />
-                            ) : (
-                              <PlayIcon size={15} />
-                            )}
-                          </button>
+
+                          {openMenuMonitorId === monitor.id && (
+                            <div style={styles.actionMenu}>
+                              <button
+                                type="button"
+                                style={styles.actionMenuItem}
+                                onClick={() => {
+                                  setOpenMenuMonitorId(null);
+                                  void handleRunCheck(monitor.id);
+                                }}
+                                disabled={checkingId === monitor.id}
+                              >
+                                {checkingId !== monitor.id && <ActivityIcon size={15} />}
+                                {checkingId === monitor.id ? (
+                                  <LoadingState variant="button" label="Comprobando monitor" />
+                                ) : (
+                                  "Comprobar ahora"
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                style={styles.actionMenuItem}
+                                onClick={() => handleOpenEdit(monitor)}
+                              >
+                                <EditIcon size={15} />
+                                Editar monitor
+                              </button>
+
+                              <button
+                                type="button"
+                                style={styles.actionMenuItem}
+                                onClick={() => {
+                                  setOpenMenuMonitorId(null);
+                                  navigate(`/monitors/${monitor.id}`);
+                                }}
+                              >
+                                <MonitorIcon size={15} />
+                                Ver detalle
+                              </button>
+
+                              <button
+                                type="button"
+                                style={styles.actionMenuItem}
+                                onClick={() => {
+                                  setOpenMenuMonitorId(null);
+                                  void handleToggleActive(monitor.id);
+                                }}
+                                disabled={togglingId === monitor.id}
+                              >
+                                {togglingId !== monitor.id && (
+                                  monitor.isActive ? (
+                                    <PauseIcon size={15} />
+                                  ) : (
+                                    <PlayIcon size={15} />
+                                  )
+                                )}
+                                {togglingId === monitor.id ? (
+                                  <LoadingState variant="button" label="Actualizando monitor" />
+                                ) : monitor.isActive ? (
+                                  "Pausar monitor"
+                                ) : (
+                                  "Reanudar monitor"
+                                )}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -800,7 +817,7 @@ export default function MonitorsPage() {
 
           <div style={styles.pagination}>
             <span style={styles.paginationText}>
-              Mostrando {rangeStart} a {rangeEnd} de {filteredMonitors.length}{' '}
+              Mostrando {rangeStart} a {rangeEnd} de {filteredMonitors.length}{" "}
               webs
             </span>
 
@@ -893,12 +910,13 @@ function DeleteSelectedModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
-    <div style={styles.modalOverlay} onClick={!isDeleting ? onCancel : undefined}>
+    <div
+      style={styles.modalOverlay}
+      onClick={!isDeleting ? onCancel : undefined}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -909,13 +927,15 @@ function DeleteSelectedModal({
         <div style={styles.confirmIconWrap}>
           <TrashIcon size={20} />
         </div>
+
         <h2 id="delete-monitors-title" style={styles.confirmTitle}>
           Confirmar eliminación
         </h2>
+
         <p style={styles.confirmCopy}>
           {monitors.length === 1
-            ? 'Esta web se eliminara de forma permanente junto con su historial.'
-            : 'Las webs seleccionadas se eliminaran de forma permanente junto con su historial.'}
+            ? "Esta web se eliminará de forma permanente junto con su historial."
+            : "Las webs seleccionadas se eliminarán de forma permanente junto con su historial."}
         </p>
 
         <div style={styles.confirmList}>
@@ -925,6 +945,7 @@ function DeleteSelectedModal({
               <span style={styles.confirmListUrl}>{monitor.target}</span>
             </div>
           ))}
+
           {monitors.length > 4 && (
             <div style={styles.confirmListMore}>
               +{monitors.length - 4} webs adicionales
@@ -943,13 +964,18 @@ function DeleteSelectedModal({
           >
             Cancelar
           </button>
+
           <button
             type="button"
             style={styles.dangerButton}
             onClick={onConfirm}
             disabled={isDeleting}
           >
-            {isDeleting ? 'Eliminando...' : 'Eliminar seleccionadas'}
+            {isDeleting ? (
+              <LoadingState variant="button" label="Eliminando monitores" />
+            ) : (
+              "Eliminar seleccionadas"
+            )}
           </button>
         </div>
       </div>
@@ -968,7 +994,7 @@ function KpiCard({
   title: string;
   value: string | number;
   note: string;
-  tone: 'green' | 'blue' | 'orange' | 'purple';
+  tone: "green" | "blue" | "orange" | "purple";
 }) {
   const colors = {
     green: uiTheme.colors.success,
@@ -1001,9 +1027,9 @@ function KpiCard({
 }
 
 function StatusBadge({ status }: { status: MonitorViewStatus }) {
-  const isUp = status === 'UP';
-  const isDown = status === 'DOWN';
-  const isPaused = status === 'PAUSED';
+  const isUp = status === "UP";
+  const isDown = status === "DOWN";
+  const isPaused = status === "PAUSED";
 
   return (
     <span
@@ -1013,25 +1039,35 @@ function StatusBadge({ status }: { status: MonitorViewStatus }) {
           ? toneStyles.green.background
           : isDown
             ? toneStyles.red.background
-            : toneStyles.slate.background,
+            : isPaused
+              ? uiTheme.colors.primarySoft
+              : toneStyles.slate.background,
         color: isUp
           ? toneStyles.green.color
           : isDown
             ? toneStyles.red.color
-            : toneStyles.slate.color,
+            : isPaused
+              ? uiTheme.colors.primary
+              : toneStyles.slate.color,
       }}
     >
       <span style={styles.badgeDot} />
-      {isUp ? 'Operativo' : isDown ? 'Problema' : isPaused ? 'Pausada' : 'Pendiente'}
+      {isUp
+        ? "Operativo"
+        : isDown
+          ? "Problema"
+          : isPaused
+            ? "Pausada"
+            : "Pendiente"}
     </span>
   );
 }
 
 function MiniSparkline({ status }: { status: MonitorViewStatus }) {
   const color =
-    status === 'DOWN'
+    status === "DOWN"
       ? uiTheme.colors.danger
-      : status === 'PAUSED'
+      : status === "PAUSED"
         ? uiTheme.colors.slate
         : uiTheme.colors.success;
 
@@ -1048,9 +1084,9 @@ function MiniSparkline({ status }: { status: MonitorViewStatus }) {
 }
 
 function getUptimeLabel(status: MonitorViewStatus) {
-  if (status === 'UP') return '100.0%';
-  if (status === 'DOWN') return '0.0%';
-  return '—';
+  if (status === "PAUSED") return "Pausada";
+  if (status === "UNKNOWN") return "—";
+  return "Último estado";
 }
 
 function formatRatio(value: number, total: number) {
@@ -1058,114 +1094,98 @@ function formatRatio(value: number, total: number) {
 }
 
 function formatResponseTime(value?: number | null) {
-  return typeof value === 'number' ? `${value} ms` : '—';
+  return typeof value === "number" ? `${value} ms` : "—";
 }
 
 function formatRelativeDate(value?: string | null) {
-  if (!value) return '—';
+  if (!value) return "—";
 
   const timestamp = new Date(value).getTime();
 
-  if (Number.isNaN(timestamp)) return '—';
+  if (Number.isNaN(timestamp)) return "—";
 
   const diffMinutes = Math.round((Date.now() - timestamp) / 60000);
 
-  if (diffMinutes <= 1) return 'Hace 1 min';
+  if (diffMinutes <= 1) return "Hace 1 min";
   if (diffMinutes < 60) return `Hace ${diffMinutes} min`;
 
   const diffHours = Math.round(diffMinutes / 60);
 
   if (diffHours < 24) return `Hace ${diffHours} h`;
 
-  return new Date(value).toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
+  return new Date(value).toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
   });
 }
 
 const styles: Record<string, CSSProperties> = {
   main: pageMain,
-  topbar: topbarBase,
-  topActions: topActionsBase,
-  title: pageTitle,
-  subtitle: pageSubtitle,
-  datePill: datePillBase,
-  iconButton: iconButtonBase,
-  bell: { ...iconButtonBase, position: 'relative' },
-  bellBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    background: uiTheme.colors.primary,
-    color: '#fff',
-    borderRadius: 999,
-    width: 18,
-    height: 18,
-    display: 'grid',
-    placeItems: 'center',
-    fontSize: 10,
-  },
-  avatar: {
-    ...avatarBase,
-    width: 38,
-    height: 38,
-    display: 'grid',
-    placeItems: 'center',
-    fontWeight: 900,
-    fontSize: 13,
-  },
   primaryButton: {
     ...primaryButtonBase,
-    textDecoration: 'none',
-    padding: '0 16px',
+    textDecoration: "none",
+    padding: "0 16px",
     borderRadius: uiTheme.radii.sm,
-    fontWeight: 800,
+    fontWeight: 600,
     fontSize: 14,
     minHeight: 40,
-    display: 'inline-flex',
-    alignItems: 'center',
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
 
   kpiGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+    display: "grid",
+    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
     gap: 16,
     marginBottom: 20,
   },
   kpiCard: {
     ...kpiCardBase,
-    display: 'flex',
-    gap: 16,
-    alignItems: 'center',
-    minHeight: 100,
+    display: "flex",
+    gap: 14,
+    alignItems: "center",
+    minHeight: 94,
   },
   kpiIcon: {
-    width: 54,
-    height: 54,
-    borderRadius: 14,
-    display: 'grid',
-    placeItems: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    display: "grid",
+    placeItems: "center",
     flexShrink: 0,
+    lineHeight: 1,
   },
   kpiTitle: {
     margin: 0,
+    fontSize: 12,
+    fontWeight: 500,
     color: uiTheme.colors.text,
-    fontWeight: 800,
-    fontSize: 13,
   },
-  kpiValue: { display: 'block', marginTop: 8, fontSize: 27, lineHeight: 1 },
-  kpiNote: { margin: '8px 0 0', color: uiTheme.colors.muted, fontSize: 11 },
+  kpiValue: {
+    display: "block",
+    marginTop: 7,
+    fontSize: 24,
+    fontWeight: 700,
+    lineHeight: 1,
+  },
+  kpiNote: {
+    margin: "7px 0 0",
+    color: uiTheme.colors.muted,
+    fontSize: 11,
+  },
 
   card: { ...tableCardBase, borderRadius: uiTheme.radii.md },
   filters: {
-    display: 'grid',
+    display: "grid",
     gridTemplateColumns:
-      'minmax(280px, 1.8fr) minmax(150px, 0.9fr) minmax(150px, 0.9fr) minmax(150px, 0.9fr) auto 40px',
+      "minmax(280px, 1.8fr) minmax(150px, 0.9fr) minmax(150px, 0.9fr) minmax(150px, 0.9fr) auto 40px",
     gap: 14,
     padding: 20,
-    alignItems: 'end',
+    alignItems: "end",
+    borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
   search: inputBase,
   filterGroup: filterGroupBase,
@@ -1174,28 +1194,28 @@ const styles: Record<string, CSSProperties> = {
     ...secondaryButtonBase,
     height: 40,
     borderRadius: uiTheme.radii.sm,
-    fontWeight: 800,
-    padding: '0 14px',
-    cursor: 'pointer',
+    fontWeight: 600,
+    padding: "0 14px",
+    cursor: "pointer",
     fontSize: 13,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 6,
   },
   dangerButton: {
     border: `1px solid ${uiTheme.colors.danger}`,
     background: uiTheme.colors.danger,
-    color: '#fff',
+    color: "#fff",
     height: 40,
     borderRadius: uiTheme.radii.sm,
-    fontWeight: 800,
-    padding: '0 14px',
-    cursor: 'pointer',
+    fontWeight: 600,
+    padding: "0 14px",
+    cursor: "pointer",
     fontSize: 13,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 6,
   },
   filterIconButton: {
@@ -1203,130 +1223,181 @@ const styles: Record<string, CSSProperties> = {
     width: 40,
     height: 40,
     borderRadius: uiTheme.radii.sm,
-    cursor: 'pointer',
-    display: 'grid',
-    placeItems: 'center',
+    cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
+    lineHeight: 1,
   },
   bulkToolbar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
     gap: 16,
-    padding: '0 20px 18px',
+    padding: "0 20px 18px",
   },
   bulkTitle: {
-    display: 'block',
+    display: "block",
     color: uiTheme.colors.text,
     fontSize: 14,
   },
   bulkCopy: {
-    margin: '6px 0 0',
+    margin: "6px 0 0",
     color: uiTheme.colors.muted,
     fontSize: 12,
   },
   bulkActions: {
-    display: 'flex',
-    alignItems: 'center',
+    display: "flex",
+    alignItems: "center",
     gap: 10,
   },
   feedbackSuccess: {
-    margin: '0 20px 18px',
+    margin: "0 20px 18px",
     borderRadius: uiTheme.radii.sm,
     border: `1px solid ${uiTheme.colors.success}`,
     background: uiTheme.colors.successSoft,
     color: uiTheme.colors.success,
-    padding: '12px 14px',
+    padding: "12px 14px",
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   feedbackError: {
-    margin: '0 20px 18px',
+    margin: "0 20px 18px",
     borderRadius: uiTheme.radii.sm,
     border: `1px solid ${uiTheme.colors.danger}`,
     background: uiTheme.colors.dangerSoft,
     color: uiTheme.colors.danger,
-    padding: '12px 14px',
+    padding: "12px 14px",
     fontSize: 13,
-    fontWeight: 700,
+    fontWeight: 500,
   },
 
-  table: { width: '100%', borderCollapse: 'collapse' },
+  table: { width: "100%", borderCollapse: "collapse" },
   checkboxHeader: {
     width: 52,
-    textAlign: 'center',
-    padding: '14px 8px 14px 18px',
+    textAlign: "center",
+    padding: "14px 8px",
     color: uiTheme.colors.muted,
     fontSize: 12,
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
-    fontWeight: 800,
+    fontWeight: 600,
+    verticalAlign: "middle",
+  },
+  checkboxCell: {
+    width: 52,
+    padding: "15px 8px",
+    textAlign: "center",
+    verticalAlign: "middle",
   },
   th: {
-    textAlign: 'left',
-    padding: '14px 18px',
+    textAlign: "left",
+    padding: "14px 18px",
     color: uiTheme.colors.muted,
     fontSize: 12,
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
-    fontWeight: 800,
+    fontWeight: 600,
+    letterSpacing: "-0.005em",
+    verticalAlign: "middle",
+  },
+  thActions: {
+    textAlign: "right",
+    padding: "14px 18px",
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+    borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
+    borderBottom: `1px solid ${uiTheme.colors.border}`,
+    fontWeight: 600,
+    letterSpacing: "-0.005em",
+    verticalAlign: "middle",
   },
   tr: {
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
-    cursor: 'pointer',
-    background: '#fff',
+    cursor: "pointer",
+    background: "#fff",
+    transition: "background 0.15s ease",
   },
-  trHover: { background: uiTheme.colors.background },
-  trSelected: { background: uiTheme.colors.primarySoft },
-  checkboxCell: {
-    padding: '15px 8px 15px 18px',
-    textAlign: 'center',
-    verticalAlign: 'middle',
+  trHover: {
+    background: "#F1F5F9",
+  },
+  trSelected: {
+    background: uiTheme.colors.primarySoft,
   },
   td: {
-    padding: '15px 18px',
+    padding: "15px 18px",
     fontSize: 13,
+    fontWeight: 400,
     color: uiTheme.colors.text,
-    verticalAlign: 'middle',
+    verticalAlign: "middle",
   },
-  webCell: { display: 'flex', alignItems: 'center', gap: 14 },
+  tdActions: {
+    padding: "15px 18px",
+    fontSize: 13,
+    fontWeight: 400,
+    color: uiTheme.colors.text,
+    verticalAlign: "middle",
+    textAlign: "right",
+    position: "relative",
+  },
+  webCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+  },
   webIcon: {
     width: 38,
     height: 38,
     borderRadius: uiTheme.radii.sm,
     background: uiTheme.colors.primarySoft,
-    display: 'grid',
-    placeItems: 'center',
+    display: "grid",
+    placeItems: "center",
     color: uiTheme.colors.primary,
     flexShrink: 0,
+    lineHeight: 1,
   },
-  url: { marginTop: 4, color: uiTheme.colors.muted, fontSize: 12 },
-  badge: {
-    padding: '5px 10px',
-    borderRadius: 999,
+  monitorName: {
+    fontWeight: 600,
+    fontSize: 13,
+    lineHeight: 1.2,
+  },
+  url: {
+    marginTop: 4,
+    color: uiTheme.colors.muted,
     fontSize: 12,
-    fontWeight: 800,
-    whiteSpace: 'nowrap',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
+    opacity: 0.75,
+    maxWidth: 360,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  badge: {
+    padding: "4px 8px",
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
   },
   badgeDot: {
     width: 7,
     height: 7,
     borderRadius: 999,
-    background: 'currentColor',
-    display: 'inline-block',
+    background: "currentColor",
+    display: "inline-block",
+    flexShrink: 0,
   },
-  uptimeCell: { display: 'flex', alignItems: 'center', gap: 12 },
+  uptimeCell: { display: "flex", alignItems: "center", gap: 12 },
   alertBadge: {
-    display: 'inline-grid',
-    placeItems: 'center',
+    display: "inline-grid",
+    placeItems: "center",
     minWidth: 22,
     height: 22,
     borderRadius: 6,
     background: uiTheme.colors.surfaceSoft,
     color: uiTheme.colors.muted,
-    fontWeight: 800,
+    fontWeight: 600,
     fontSize: 12,
   },
   alertBadgeDanger: {
@@ -1334,84 +1405,116 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.danger,
   },
   actions: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 8,
-    whiteSpace: 'nowrap',
+    position: "relative",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   actionButton: {
     ...controlBase,
-    width: 32,
-    height: 32,
-    cursor: 'pointer',
-    borderRadius: uiTheme.radii.sm,
-    display: 'grid',
-    placeItems: 'center',
-    flexShrink: 0,
-    color: '#475569',
+    width: 34,
+    height: 34,
+    cursor: "pointer",
+    borderRadius: 10,
+    display: "grid",
+    placeItems: "center",
+    color: "#475569",
+    background: "#fff",
+    border: `1px solid ${uiTheme.colors.border}`,
+    padding: 0,
+    lineHeight: 1,
+  },
+  actionMenu: {
+    position: "absolute",
+    top: 40,
+    right: 0,
+    zIndex: 30,
+    width: 190,
+    padding: 6,
+    borderRadius: 12,
+    background: "#fff",
+    border: `1px solid ${uiTheme.colors.border}`,
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.14)",
+    display: "grid",
+    gap: 4,
+  },
+  actionMenuItem: {
+    border: 0,
+    background: "transparent",
+    color: uiTheme.colors.text,
+    minHeight: 36,
+    padding: "0 10px",
+    borderRadius: 8,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: 9,
+    fontSize: 12,
+    fontWeight: 500,
+    textAlign: "left",
   },
 
   pagination: {
     ...paginationBase,
     gap: 12,
-    padding: '14px 20px',
+    padding: "14px 20px",
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
-  paginationText: { justifySelf: 'start' },
+  paginationText: { justifySelf: "start" },
   pages: {
-    justifySelf: 'center',
-    display: 'flex',
-    alignItems: 'center',
+    justifySelf: "center",
+    display: "flex",
+    alignItems: "center",
     gap: 10,
     color: uiTheme.colors.text,
   },
   pageActiveButton: pageActiveButtonBase,
   pageNumberButton: {
-    border: '1px solid transparent',
-    background: 'transparent',
-    color: '#475569',
+    border: "1px solid transparent",
+    background: "transparent",
+    color: "#475569",
     minWidth: 36,
-    textAlign: 'center',
-    cursor: 'pointer',
-    padding: '7px 11px',
+    textAlign: "center",
+    cursor: "pointer",
+    padding: "7px 11px",
   },
   pageArrow: pageArrowBase,
   pageArrowLeft: {
-    transform: 'rotate(180deg)',
-    display: 'grid',
-    placeItems: 'center',
+    transform: "rotate(180deg)",
+    display: "grid",
+    placeItems: "center",
   },
-  pageSizeWrap: { justifySelf: 'end' },
+  pageSizeWrap: { justifySelf: "end" },
   selectFake: {
     ...selectFakeBase,
-    display: 'inline-flex',
-    alignItems: 'center',
+    display: "inline-flex",
+    alignItems: "center",
     gap: 10,
     minWidth: 122,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   pageSizeChevron: {
-    transform: 'rotate(90deg)',
-    display: 'grid',
-    placeItems: 'center',
+    transform: "rotate(90deg)",
+    display: "grid",
+    placeItems: "center",
     color: uiTheme.colors.slate,
   },
   empty: { padding: 20, color: uiTheme.colors.muted, fontSize: 13 },
+
   modalOverlay: {
-    position: 'fixed',
+    position: "fixed",
     inset: 0,
-    background: 'rgba(15, 23, 42, 0.45)',
-    display: 'grid',
-    placeItems: 'center',
+    background: "rgba(15, 23, 42, 0.45)",
+    display: "grid",
+    placeItems: "center",
     padding: 24,
     zIndex: 35,
   },
   confirmModal: {
     ...surfaceCard,
-    width: 'min(520px, 100%)',
+    width: "min(520px, 100%)",
     padding: 24,
-    display: 'grid',
+    display: "grid",
     gap: 16,
   },
   confirmIconWrap: {
@@ -1420,8 +1523,8 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 14,
     background: uiTheme.colors.dangerSoft,
     color: uiTheme.colors.danger,
-    display: 'grid',
-    placeItems: 'center',
+    display: "grid",
+    placeItems: "center",
   },
   confirmTitle: {
     margin: 0,
@@ -1434,13 +1537,13 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.5,
   },
   confirmList: {
-    display: 'grid',
+    display: "grid",
     gap: 10,
   },
   confirmListItem: {
     ...surfaceCard,
-    padding: '12px 14px',
-    display: 'grid',
+    padding: "12px 14px",
+    display: "grid",
     gap: 4,
   },
   confirmListUrl: {
@@ -1450,11 +1553,16 @@ const styles: Record<string, CSSProperties> = {
   confirmListMore: {
     color: uiTheme.colors.muted,
     fontSize: 12,
-    fontWeight: 700,
+    fontWeight: 500,
   },
   confirmActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
+    display: "flex",
+    justifyContent: "flex-end",
     gap: 12,
+  },
+  cardTitle: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 600,
   },
 };

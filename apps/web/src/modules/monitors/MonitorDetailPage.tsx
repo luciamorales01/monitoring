@@ -22,12 +22,15 @@ import {
   getMonitorStatusToast,
   type MonitorStatusToast,
 } from "../../shared/monitorStatusToast";
+import AppTopbar from "../../shared/AppTopbar";
+import LoadingState from "../../shared/LoadingState";
 import {
   ActivityIcon,
   ClockIcon,
   GlobeIcon,
   PauseIcon,
   PlayIcon,
+  PlusIcon,
 } from "../../shared/uiIcons";
 
 export default function MonitorDetailPage() {
@@ -46,8 +49,10 @@ export default function MonitorDetailPage() {
       getMonitor(monitorId),
       getMonitorChecks(monitorId),
     ]);
+
     setMonitor(monitorData);
     setChecks(checksData);
+
     return { monitor: monitorData, checks: checksData };
   };
 
@@ -69,6 +74,7 @@ export default function MonitorDetailPage() {
     try {
       setChecking(true);
       await runMonitorCheck(monitorId);
+
       const { monitor: updatedMonitor } = await loadData();
       setToast(getMonitorStatusToast(updatedMonitor.currentStatus));
     } catch {
@@ -96,10 +102,12 @@ export default function MonitorDetailPage() {
   const checksAsc = useMemo(() => [...checks].reverse(), [checks]);
   const latestCheck = checks[0] ?? null;
   const latestChecks = checks.slice(0, 10);
+
   const configuredLocations = useMemo(() => {
     const locations = monitor?.locations ?? [];
     return locations.length > 0 ? locations : ["default"];
   }, [monitor]);
+
   const checksByLocation = useMemo(() => {
     return checks.reduce<Record<string, MonitorCheck[]>>((acc, check) => {
       const location = check.location ?? "default";
@@ -112,6 +120,7 @@ export default function MonitorDetailPage() {
       return acc;
     }, {});
   }, [checks]);
+
   const locationSummaries = useMemo(() => {
     const locations = Array.from(
       new Set([...configuredLocations, ...Object.keys(checksByLocation)]),
@@ -138,9 +147,11 @@ export default function MonitorDetailPage() {
     const total = checks.length;
     const upChecks = checks.filter((check) => check.status === "UP").length;
     const downChecks = checks.filter((check) => check.status === "DOWN").length;
+
     const responseTimes = checks
       .map((check) => check.responseTimeMs)
       .filter((value): value is number => value !== null);
+
     const averageResponseTime =
       responseTimes.length > 0
         ? Math.round(
@@ -159,37 +170,80 @@ export default function MonitorDetailPage() {
       totalChecks: total,
       failures: downChecks,
       lastCheck: latestCheck ? formatDateTime(latestCheck.checkedAt) : "-",
+      lastCheckRelative: latestCheck
+        ? formatRelativeTime(latestCheck.checkedAt)
+        : "Sin checks",
     };
   }, [checks, latestCheck]);
 
   if (loading) {
-    return <main style={styles.main}>Cargando monitor...</main>;
+    return (
+      <main style={styles.main}>
+        <LoadingState variant="page" label="Cargando monitor" />
+      </main>
+    );
   }
 
   if (!monitor) {
     return <main style={styles.main}>Monitor no encontrado</main>;
   }
 
+  const isDown = status === "DOWN";
+  const isPaused = !monitor.isActive;
+
   return (
     <main style={styles.main}>
+      <AppTopbar
+        title="Detalle de monitor"
+        subtitle={monitor.name}
+        onRefresh={loadData}
+        cta={{
+          icon: <PlusIcon size={16} />,
+          label: "Nuevo monitor",
+          to: "/monitors/create",
+        }}
+      />
+
       <div style={styles.breadcrumb}>
         <Link to="/dashboard" style={styles.breadcrumbLink}>
           Webs monitorizadas
         </Link>
-        <span>&gt;</span>
+        <span>/</span>
         <strong>{monitor.name}</strong>
       </div>
 
+      {isDown && (
+        <section style={styles.alertBanner}>
+          <div>
+            <strong>Monitor caído</strong>
+            <p>
+              La última comprobación ha fallado. Revisa el endpoint, el código
+              esperado o la conectividad desde las ubicaciones configuradas.
+            </p>
+          </div>
+          <span style={styles.alertMeta}>
+            Último check: {stats.lastCheckRelative}
+          </span>
+        </section>
+      )}
+
       <section style={styles.heroCard}>
         <div style={styles.heroLeft}>
-          <div style={styles.monitorIcon}>
+          <div
+            style={{
+              ...styles.monitorIcon,
+              background: getStatusSoftBackground(status),
+              color: getStatusColor(status),
+            }}
+          >
             <GlobeIcon size={26} />
           </div>
 
-          <div>
+          <div style={styles.heroText}>
             <div style={styles.titleRow}>
               <h1 style={styles.title}>{monitor.name}</h1>
               <StatusBadge status={status} />
+              {isPaused && <span style={styles.pausedBadge}>Pausado</span>}
             </div>
 
             <a
@@ -201,46 +255,59 @@ export default function MonitorDetailPage() {
               {monitor.target}
             </a>
 
-            <p style={styles.meta}>
-              ID: MON-{String(monitor.id).padStart(4, "0")}
-            </p>
+            <div style={styles.metaRow}>
+              <span>ID: MON-{String(monitor.id).padStart(4, "0")}</span>
+              <span>Tipo: {monitor.type}</span>
+              <span>Frecuencia: {monitor.frequencySeconds}s</span>
+              <span>Timeout: {monitor.timeoutSeconds}s</span>
+            </div>
           </div>
         </div>
 
-        <div style={styles.heroInfo}>
-          <p>Tipo: {monitor.type}</p>
-          <p>Frecuencia: {monitor.frequencySeconds}s</p>
-          <p>Timeout: {monitor.timeoutSeconds}s</p>
-          <p>Ultimo check: {stats.lastCheck}</p>
-        </div>
+        <div style={styles.heroRight}>
+          <div style={styles.lastCheckBox}>
+            <span>Último check</span>
+            <strong>{stats.lastCheckRelative}</strong>
+            <small>{stats.lastCheck}</small>
+          </div>
 
-        <div style={styles.heroActions}>
-          <button
-            type="button"
-            style={styles.primaryButton}
-            onClick={handleRunCheck}
-            disabled={checking}
-          >
-            <ActivityIcon size={15} />
-            {checking ? "Comprobando..." : "Comprobar ahora"}
-          </button>
-          <button
-            type="button"
-            style={styles.secondaryButton}
-            onClick={handleToggleActive}
-            disabled={toggling}
-          >
-            {monitor.isActive ? (
-              <PauseIcon size={15} />
-            ) : (
-              <PlayIcon size={15} />
-            )}
-            {toggling
-              ? "Actualizando..."
-              : monitor.isActive
-                ? "Pausar monitor"
-                : "Reanudar monitor"}
-          </button>
+          <div style={styles.heroActions}>
+            <button
+              type="button"
+              style={styles.primaryButton}
+              onClick={handleRunCheck}
+              disabled={checking}
+            >
+              {!checking && <ActivityIcon size={15} />}
+              {checking ? (
+                <LoadingState variant="button" label="Comprobando monitor" />
+              ) : (
+                "Comprobar ahora"
+              )}
+            </button>
+
+            <button
+              type="button"
+              style={styles.secondaryButton}
+              onClick={handleToggleActive}
+              disabled={toggling}
+            >
+              {!toggling && (
+                monitor.isActive ? (
+                  <PauseIcon size={15} />
+                ) : (
+                  <PlayIcon size={15} />
+                )
+              )}
+              {toggling ? (
+                <LoadingState variant="button" label="Actualizando monitor" />
+              ) : monitor.isActive ? (
+                "Pausar"
+              ) : (
+                "Reanudar"
+              )}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -248,19 +315,36 @@ export default function MonitorDetailPage() {
         <KpiCard
           title="Disponibilidad"
           value={stats.availability}
-          tone="green"
+          description="Según checks registrados"
+          tone={isDown ? "red" : "green"}
         />
+
         <KpiCard
           title="Tiempo medio"
           value={stats.averageResponseTime}
-          tone="purple"
+          description="Latencia promedio"
+          tone="blue"
         />
-        <KpiCard title="Checks totales" value={stats.totalChecks} tone="blue" />
-        <KpiCard title="Fallos" value={stats.failures} tone="orange" />
+
+        <KpiCard
+          title="Checks totales"
+          value={stats.totalChecks}
+          description="Histórico guardado"
+          tone="slate"
+        />
+
+        <KpiCard
+          title="Fallos"
+          value={stats.failures}
+          description="Checks con caída"
+          tone={stats.failures > 0 ? "red" : "green"}
+        />
+
         <KpiCard
           title="Estado actual"
           value={getStatusLabel(status)}
-          tone={status === "DOWN" ? "orange" : "green"}
+          description={isPaused ? "Monitor pausado" : "Monitor activo"}
+          tone={isDown ? "red" : status === "UP" ? "green" : "orange"}
         />
       </section>
 
@@ -271,10 +355,10 @@ export default function MonitorDetailPage() {
               <div style={styles.emptyIcon}>
                 <ClockIcon size={24} />
               </div>
-              <strong>Aun no hay checks registrados</strong>
+              <strong>Aún no hay checks registrados</strong>
               <p>
-                Ejecuta una comprobacion manual o espera al scheduler para ver
-                historico real.
+                Ejecuta una comprobación manual o espera al scheduler para ver
+                datos reales del monitor.
               </p>
             </div>
           </section>
@@ -288,8 +372,13 @@ export default function MonitorDetailPage() {
           <section style={styles.grid}>
             <div style={styles.cardLarge}>
               <div style={styles.cardHeader}>
-                <h2 style={styles.cardTitle}>Estado de checks</h2>
-                <span style={styles.helperText}>Ultimos 50 registros</span>
+                <div>
+                  <h2 style={styles.cardTitle}>Estado de checks</h2>
+                  <p style={styles.cardSubtitle}>
+                    Últimos estados registrados por el monitor
+                  </p>
+                </div>
+                <span style={styles.helperText}>Últimos 50 registros</span>
               </div>
 
               <StatusHistoryChart checks={checksAsc} />
@@ -302,7 +391,7 @@ export default function MonitorDetailPage() {
                   )}
                 />
                 <Metric
-                  label="Caidas"
+                  label="Caídas"
                   value={String(
                     checks.filter((check) => check.status === "DOWN").length,
                   )}
@@ -312,7 +401,7 @@ export default function MonitorDetailPage() {
                   value={formatShortDate(checksAsc[0]?.checkedAt)}
                 />
                 <Metric
-                  label="Ultimo check"
+                  label="Último check"
                   value={formatShortDate(latestCheck?.checkedAt)}
                 />
               </div>
@@ -320,7 +409,12 @@ export default function MonitorDetailPage() {
 
             <div style={styles.cardLarge}>
               <div style={styles.cardHeader}>
-                <h2 style={styles.cardTitle}>Tiempo de respuesta</h2>
+                <div>
+                  <h2 style={styles.cardTitle}>Tiempo de respuesta</h2>
+                  <p style={styles.cardSubtitle}>
+                    Evolución de latencia en milisegundos
+                  </p>
+                </div>
                 <span style={styles.helperText}>responseTimeMs</span>
               </div>
 
@@ -328,28 +422,31 @@ export default function MonitorDetailPage() {
 
               <div style={styles.summaryGrid}>
                 <Metric
-                  label="Ultimo"
+                  label="Último"
                   value={formatDuration(latestCheck?.responseTimeMs ?? null)}
                 />
                 <Metric label="Media" value={stats.averageResponseTime} />
                 <Metric
-                  label="Maximo"
+                  label="Máximo"
                   value={formatDuration(getMaxResponseTime(checks))}
                 />
                 <Metric
-                  label="Minimo"
+                  label="Mínimo"
                   value={formatDuration(getMinResponseTime(checks))}
                 />
               </div>
             </div>
 
             <div style={styles.infoCard}>
-              <h2 style={styles.cardTitle}>Informacion</h2>
+              <div style={styles.cardHeaderCompact}>
+                <h2 style={styles.cardTitle}>Información</h2>
+                <StatusBadge status={status} />
+              </div>
 
-              <InfoRow label="URL" value={monitor.target} />
+              <InfoRow label="URL" value={monitor.target} strong />
               <InfoRow label="Protocolo" value={monitor.type} />
               <InfoRow
-                label="Codigo esperado"
+                label="Código esperado"
                 value={String(monitor.expectedStatusCode)}
               />
               <InfoRow label="Timeout" value={`${monitor.timeoutSeconds}s`} />
@@ -361,9 +458,9 @@ export default function MonitorDetailPage() {
                     : "default"
                 }
               />
-              <InfoRow label="Ultimo estado" value={getStatusLabel(status)} />
+              <InfoRow label="Último estado" value={getStatusLabel(status)} />
               <InfoRow
-                label="Ultimo codigo"
+                label="Último código"
                 value={
                   latestCheck?.statusCode ? String(latestCheck.statusCode) : "-"
                 }
@@ -378,16 +475,21 @@ export default function MonitorDetailPage() {
           <section style={styles.bottomGrid}>
             <div style={styles.card}>
               <div style={styles.cardHeader}>
-                <h2 style={styles.cardTitle}>Ultimos checks</h2>
+                <div>
+                  <h2 style={styles.cardTitle}>Últimos checks</h2>
+                  <p style={styles.cardSubtitle}>
+                    Registros más recientes del monitor
+                  </p>
+                </div>
                 <span style={styles.helperText}>Orden descendente</span>
               </div>
 
               <div style={styles.tableHeader}>
                 <span>Hora</span>
-                <span>Ubicacion</span>
+                <span>Ubicación</span>
                 <span>Estado</span>
                 <span>Tiempo</span>
-                <span>Codigo</span>
+                <span>Código</span>
               </div>
 
               {latestChecks.map((check) => (
@@ -406,8 +508,12 @@ export default function MonitorDetailPage() {
 
             <div style={styles.card}>
               <div style={styles.cardHeader}>
-                <h2 style={styles.cardTitle}>Timeline</h2>
-                <span style={styles.helperText}>Ultimos eventos</span>
+                <div>
+                  <h2 style={styles.cardTitle}>Timeline</h2>
+                  <p style={styles.cardSubtitle}>
+                    Últimos eventos técnicos registrados
+                  </p>
+                </div>
               </div>
 
               <div style={styles.timeline}>
@@ -416,17 +522,22 @@ export default function MonitorDetailPage() {
                     <div style={styles.timelineMarkerWrap}>
                       <StatusDot status={check.status} />
                     </div>
+
                     <div>
                       <strong style={styles.timelineTitle}>
                         {check.location ?? "default"} ·{" "}
                         {getStatusLabel(check.status)} ·{" "}
                         {formatDuration(check.responseTimeMs)}
                       </strong>
+
                       <p style={styles.timelineMeta}>
                         {formatDateTime(check.checkedAt)}
                       </p>
+
                       {check.errorMessage ? (
-                        <p style={styles.timelineError}>{check.errorMessage}</p>
+                        <p style={styles.timelineError}>
+                          {check.errorMessage}
+                        </p>
                       ) : null}
                     </div>
                   </div>
@@ -440,16 +551,8 @@ export default function MonitorDetailPage() {
       {toast && (
         <div
           style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            padding: "12px 16px",
-            borderRadius: 8,
-            color: "#fff",
-            fontWeight: 600,
+            ...styles.toast,
             background: toast.type === "ok" ? "#16a34a" : "#dc2626",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-            zIndex: 999,
           }}
         >
           {toast.text}
@@ -462,49 +565,40 @@ export default function MonitorDetailPage() {
 function KpiCard({
   title,
   value,
+  description,
   tone,
 }: {
   title: string;
   value: string | number;
-  tone: "green" | "blue" | "orange" | "purple";
+  description: string;
+  tone: "green" | "blue" | "orange" | "red" | "slate";
 }) {
-  const colors = {
-    green: uiTheme.colors.success,
-    blue: uiTheme.colors.primary,
-    orange: uiTheme.colors.warning,
-    purple: uiTheme.colors.primary,
-  };
-
   return (
-    <div style={styles.kpiCard}>
+    <div
+      style={{
+        ...styles.kpiCard,
+        borderColor: getToneBorder(tone),
+      }}
+    >
       <p style={styles.kpiTitle}>{title}</p>
-      <strong style={{ ...styles.kpiValue, color: colors[tone] }}>
+      <strong style={{ ...styles.kpiValue, color: getToneColor(tone) }}>
         {value}
       </strong>
+      <span style={styles.kpiDescription}>{description}</span>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: MonitorStatus }) {
-  const isUp = status === "UP";
-  const isDown = status === "DOWN";
-
   return (
     <span
       style={{
         ...styles.badge,
-        background: isUp
-          ? toneStyles.green.background
-          : isDown
-            ? toneStyles.red.background
-            : toneStyles.slate.background,
-        color: isUp
-          ? toneStyles.green.color
-          : isDown
-            ? toneStyles.red.color
-            : toneStyles.slate.color,
+        background: getStatusSoftBackground(status),
+        color: getStatusColor(status),
       }}
     >
+      <StatusDot status={status} />
       {getStatusLabel(status)}
     </span>
   );
@@ -515,12 +609,7 @@ function StatusDot({ status }: { status: MonitorStatus }) {
     <span
       style={{
         ...styles.statusDot,
-        background:
-          status === "UP"
-            ? uiTheme.colors.success
-            : status === "DOWN"
-              ? "#dc2626"
-              : uiTheme.colors.slate,
+        background: getStatusColor(status),
       }}
     />
   );
@@ -535,11 +624,26 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
   return (
     <div style={styles.infoRow}>
       <span>{label}</span>
-      <strong>{value}</strong>
+      <strong
+        style={{
+          fontWeight: strong ? 700 : 600,
+          wordBreak: "break-word",
+        }}
+      >
+        {value}
+      </strong>
     </div>
   );
 }
@@ -561,48 +665,76 @@ function LocationChecksCard({
   return (
     <>
       <div style={styles.cardHeader}>
-        <h2 style={styles.cardTitle}>Comprobaciones desde ubicaciones</h2>
+        <div>
+          <h2 style={styles.cardTitle}>Comprobaciones por ubicación</h2>
+          <p style={styles.cardSubtitle}>
+            Estado distribuido según cada localización configurada
+          </p>
+        </div>
+
         <span style={styles.helperText}>
-          {hasCheckData ? "Datos reales por ubicacion" : "Sin datos todavia"}
+          {hasCheckData ? "Datos reales por ubicación" : "Sin datos todavía"}
         </span>
       </div>
 
       {!hasCheckData ? (
         <div style={styles.locationEmpty}>
-          <strong>Sin resultados por ubicacion</strong>
+          <strong>Sin resultados por ubicación</strong>
           <p>
-            Este monitor aun no tiene checks ejecutados desde ninguna ubicacion.
+            Este monitor todavía no tiene checks ejecutados desde ninguna
+            ubicación.
           </p>
         </div>
       ) : (
         <div style={styles.locationList}>
-          {locationSummaries.map((summary) => (
-            <div key={summary.location} style={styles.locationRow}>
-              <div>
-                <strong style={styles.locationName}>{summary.location}</strong>
-                <p style={styles.locationMeta}>
-                  {summary.latestCheck
-                    ? `Ultimo check ${formatDateTime(summary.latestCheck.checkedAt)}`
-                    : "Sin checks"}
-                </p>
-              </div>
+          {locationSummaries.map((summary) => {
+            const latestStatus = summary.latestCheck?.status ?? "UNKNOWN";
+            const availability =
+              summary.totalChecks > 0
+                ? Math.round((summary.upChecks / summary.totalChecks) * 100)
+                : 0;
 
-              <div style={styles.locationStats}>
-                <span style={styles.locationStat}>{summary.upChecks} ok</span>
-                <span style={styles.locationStat}>
-                  {summary.downChecks} down
-                </span>
-                <span style={styles.locationStat}>
-                  {summary.totalChecks} total
-                </span>
-              </div>
+            return (
+              <div key={summary.location} style={styles.locationRow}>
+                <div>
+                  <strong style={styles.locationName}>
+                    {summary.location}
+                  </strong>
+                  <p style={styles.locationMeta}>
+                    {summary.latestCheck
+                      ? `Último check ${formatDateTime(summary.latestCheck.checkedAt)}`
+                      : "Sin checks"}
+                  </p>
+                </div>
 
-              <span style={styles.statusInline}>
-                <StatusDot status={summary.latestCheck?.status ?? "UNKNOWN"} />
-                {getStatusLabel(summary.latestCheck?.status ?? "UNKNOWN")}
-              </span>
-            </div>
-          ))}
+                <div style={styles.locationProgressWrap}>
+                  <div style={styles.locationProgressTrack}>
+                    <div
+                      style={{
+                        ...styles.locationProgressFill,
+                        width: `${availability}%`,
+                        background: getStatusColor(latestStatus),
+                      }}
+                    />
+                  </div>
+                  <span style={styles.locationMeta}>
+                    {availability}% disponibilidad
+                  </span>
+                </div>
+
+                <div style={styles.locationStats}>
+                  <span style={styles.locationStat}>{summary.upChecks} ok</span>
+                  <span style={styles.locationStat}>
+                    {summary.downChecks} down
+                  </span>
+                  <span style={styles.statusInline}>
+                    <StatusDot status={latestStatus} />
+                    {getStatusLabel(latestStatus)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </>
@@ -610,73 +742,37 @@ function LocationChecksCard({
 }
 
 function StatusHistoryChart({ checks }: { checks: MonitorCheck[] }) {
-  const width = 720;
-  const height = 210;
+  const visibleChecks = checks.slice(-50);
 
-  if (checks.length === 0) {
+  if (visibleChecks.length === 0) {
     return <EmptyChart label="Sin datos de estado" />;
   }
 
-  const points = checks.map((check, index) => {
-    const x =
-      checks.length === 1 ? width / 2 : (index / (checks.length - 1)) * width;
-    const y = check.status === "UP" ? 40 : 160;
-    return `${x} ${y}`;
-  });
-
-  const areaPoints = [`0 210`, ...points, `${width} 210`].join(" L");
-
   return (
-    <svg
-      width="100%"
-      height="210"
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-    >
-      <rect x="0" y="0" width={width} height={height} rx="16" fill="#fbfdff" />
-      <line
-        x1="0"
-        y1="40"
-        x2={width}
-        y2="40"
-        stroke="#dbe3ef"
-        strokeDasharray="4 6"
-      />
-      <line
-        x1="0"
-        y1="100"
-        x2={width}
-        y2="100"
-        stroke="#dbe3ef"
-        strokeDasharray="4 6"
-      />
-      <line
-        x1="0"
-        y1="160"
-        x2={width}
-        y2="160"
-        stroke="#dbe3ef"
-        strokeDasharray="4 6"
-      />
-      <path
-        d={`M ${points.join(" L ")}`}
-        fill="none"
-        stroke={uiTheme.colors.success}
-        strokeWidth="2"
-      />
-      <path
-        d={`M ${areaPoints} Z`}
-        fill={uiTheme.colors.success}
-        opacity="0.06"
-      />
-    </svg>
+    <div style={styles.statusTimelineChart}>
+      {visibleChecks.map((check) => (
+        <div
+          key={check.id}
+          title={`${formatDateTime(check.checkedAt)} · ${getStatusLabel(
+            check.status,
+          )}`}
+          style={{
+            ...styles.statusTimelineItem,
+            background: getStatusColor(check.status),
+            opacity: check.status === "UNKNOWN" ? 0.45 : 1,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
 function ResponseTimeChart({ checks }: { checks: MonitorCheck[] }) {
   const width = 720;
   const height = 210;
-  const values = checks
+
+  const visibleChecks = checks.slice(-50);
+  const values = visibleChecks
     .map((check) => check.responseTimeMs)
     .filter((value): value is number => value !== null);
 
@@ -685,15 +781,27 @@ function ResponseTimeChart({ checks }: { checks: MonitorCheck[] }) {
   }
 
   const maxValue = Math.max(...values, 1);
-  const points = checks.map((check, index) => {
+
+  const points = visibleChecks.map((check, index) => {
     const x =
-      checks.length === 1 ? width / 2 : (index / (checks.length - 1)) * width;
+      visibleChecks.length === 1
+        ? width / 2
+        : (index / (visibleChecks.length - 1)) * width;
+
     const value = check.responseTimeMs ?? maxValue;
     const y = 25 + ((maxValue - value) / maxValue) * 145;
-    return `${x} ${Math.min(185, Math.max(25, y))}`;
+
+    return {
+      x,
+      y: Math.min(185, Math.max(25, y)),
+      check,
+    };
   });
 
-  const areaPoints = [`0 210`, ...points, `${width} 210`].join(" L");
+  const path = points.map((point) => `${point.x} ${point.y}`).join(" L ");
+  const areaPath = [`0 210`, ...points.map((p) => `${p.x} ${p.y}`), `${width} 210`].join(
+    " L",
+  );
 
   return (
     <svg
@@ -703,41 +811,43 @@ function ResponseTimeChart({ checks }: { checks: MonitorCheck[] }) {
       preserveAspectRatio="none"
     >
       <rect x="0" y="0" width={width} height={height} rx="16" fill="#fbfdff" />
-      <line
-        x1="0"
-        y1="40"
-        x2={width}
-        y2="40"
-        stroke="#dbe3ef"
-        strokeDasharray="4 6"
-      />
-      <line
-        x1="0"
-        y1="90"
-        x2={width}
-        y2="90"
-        stroke="#dbe3ef"
-        strokeDasharray="4 6"
-      />
-      <line
-        x1="0"
-        y1="140"
-        x2={width}
-        y2="140"
-        stroke="#dbe3ef"
-        strokeDasharray="4 6"
-      />
+
+      {[40, 90, 140].map((y) => (
+        <line
+          key={y}
+          x1="0"
+          y1={y}
+          x2={width}
+          y2={y}
+          stroke="#dbe3ef"
+          strokeDasharray="4 6"
+        />
+      ))}
+
       <path
-        d={`M ${points.join(" L ")}`}
+        d={`M ${areaPath} Z`}
+        fill={uiTheme.colors.primary}
+        opacity="0.08"
+      />
+
+      <path
+        d={`M ${path}`}
         fill="none"
         stroke={uiTheme.colors.primary}
-        strokeWidth="2"
+        strokeWidth="2.5"
       />
-      <path
-        d={`M ${areaPoints} Z`}
-        fill={uiTheme.colors.primary}
-        opacity="0.06"
-      />
+
+      {points.map((point) =>
+        point.check.status === "DOWN" ? (
+          <circle
+            key={point.check.id}
+            cx={point.x}
+            cy={point.y}
+            r="5"
+            fill="#dc2626"
+          />
+        ) : null,
+      )}
     </svg>
   );
 }
@@ -747,9 +857,7 @@ function EmptyChart({ label }: { label: string }) {
 }
 
 function formatDateTime(value?: string | null) {
-  if (!value) {
-    return "-";
-  }
+  if (!value) return "-";
 
   return new Intl.DateTimeFormat("es-ES", {
     dateStyle: "short",
@@ -758,9 +866,7 @@ function formatDateTime(value?: string | null) {
 }
 
 function formatShortDate(value?: string | null) {
-  if (!value) {
-    return "-";
-  }
+  if (!value) return "-";
 
   return new Intl.DateTimeFormat("es-ES", {
     dateStyle: "short",
@@ -768,28 +874,69 @@ function formatShortDate(value?: string | null) {
   }).format(new Date(value));
 }
 
+function formatRelativeTime(value?: string | null) {
+  if (!value) return "Sin checks";
+
+  const date = new Date(value);
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.round(diffMs / 60000);
+
+  if (diffMinutes < 1) return "Ahora mismo";
+  if (diffMinutes < 60) return `Hace ${diffMinutes} min`;
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `Hace ${diffHours} h`;
+
+  const diffDays = Math.round(diffHours / 24);
+  return `Hace ${diffDays} días`;
+}
+
 function formatDuration(value: number | null) {
-  if (value === null) {
-    return "-";
-  }
-
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(2)} s`;
-  }
-
+  if (value === null) return "-";
+  if (value >= 1000) return `${(value / 1000).toFixed(2)} s`;
   return `${value} ms`;
 }
 
 function getStatusLabel(status: MonitorStatus) {
-  if (status === "UP") {
-    return "Operativo";
-  }
-
-  if (status === "DOWN") {
-    return "Caido";
-  }
-
+  if (status === "UP") return "Operativo";
+  if (status === "DOWN") return "Caído";
   return "Pendiente";
+}
+
+function getStatusColor(status: MonitorStatus) {
+  if (status === "UP") return uiTheme.colors.success;
+  if (status === "DOWN") return "#dc2626";
+  return uiTheme.colors.slate;
+}
+
+function getStatusSoftBackground(status: MonitorStatus) {
+  if (status === "UP") return toneStyles.green.background;
+  if (status === "DOWN") return toneStyles.red.background;
+  return toneStyles.slate.background;
+}
+
+function getToneColor(tone: "green" | "blue" | "orange" | "red" | "slate") {
+  const colors = {
+    green: uiTheme.colors.success,
+    blue: uiTheme.colors.primary,
+    orange: uiTheme.colors.warning,
+    red: "#dc2626",
+    slate: uiTheme.colors.text,
+  };
+
+  return colors[tone];
+}
+
+function getToneBorder(tone: "green" | "blue" | "orange" | "red" | "slate") {
+  const colors = {
+    green: "rgba(22, 163, 74, 0.22)",
+    blue: "rgba(37, 99, 235, 0.22)",
+    orange: "rgba(245, 158, 11, 0.24)",
+    red: "rgba(220, 38, 38, 0.24)",
+    slate: "rgba(148, 163, 184, 0.22)",
+  };
+
+  return colors[tone];
 }
 
 function getMaxResponseTime(checks: MonitorCheck[]) {
@@ -809,123 +956,272 @@ function getMinResponseTime(checks: MonitorCheck[]) {
 }
 
 const styles: Record<string, CSSProperties> = {
-  main: pageMain,
+  main: {
+    ...pageMain,
+    paddingBottom: 48,
+  },
+
   breadcrumb: {
     display: "flex",
     gap: 10,
     alignItems: "center",
     color: uiTheme.colors.muted,
     fontSize: 13,
-    marginBottom: 22,
+    marginBottom: 18,
   },
-  breadcrumbLink: { color: uiTheme.colors.primary, textDecoration: "none" },
+
+  breadcrumbLink: {
+    color: uiTheme.colors.primary,
+    textDecoration: "none",
+    fontWeight: 600,
+  },
+
+  alertBanner: {
+    border: "1px solid rgba(220, 38, 38, 0.18)",
+    background:
+      "linear-gradient(135deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.98))",
+    borderRadius: uiTheme.radii.md,
+    padding: "16px 18px",
+    marginBottom: 16,
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 18,
+    alignItems: "center",
+    boxShadow: "0 12px 30px rgba(220, 38, 38, 0.08)",
+  },
+
+  alertMeta: {
+    color: "#991b1b",
+    fontSize: 13,
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  },
+
   heroCard: {
     ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
+    borderRadius: 22,
     padding: 24,
-    display: "grid",
-    gridTemplateColumns: "1.2fr 1fr auto",
+    display: "flex",
+    justifyContent: "space-between",
     gap: 24,
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 18,
+    border: `1px solid ${uiTheme.colors.border}`,
+    boxShadow: "0 16px 40px rgba(15, 23, 42, 0.06)",
   },
-  heroLeft: { display: "flex", gap: 20, alignItems: "center" },
+
+  heroLeft: {
+    display: "flex",
+    gap: 20,
+    alignItems: "center",
+    minWidth: 0,
+  },
+
+  heroText: {
+    minWidth: 0,
+  },
+
   monitorIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: uiTheme.radii.lg,
-    background: uiTheme.colors.primarySoft,
-    color: uiTheme.colors.primary,
+    width: 62,
+    height: 62,
+    borderRadius: 20,
     display: "grid",
     placeItems: "center",
+    flexShrink: 0,
   },
-  titleRow: { display: "flex", alignItems: "center", gap: 12 },
-  title: pageTitle,
+
+  titleRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+
+  title: {
+    ...pageTitle,
+    margin: 0,
+    fontSize: 27,
+    letterSpacing: "-0.04em",
+  },
+
   url: {
     display: "block",
     marginTop: 8,
     color: uiTheme.colors.primary,
     textDecoration: "none",
     fontSize: 13,
+    fontWeight: 500,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    maxWidth: 620,
   },
-  meta: { margin: "12px 0 0", color: uiTheme.colors.muted, fontSize: 12 },
-  heroInfo: { color: uiTheme.colors.text, fontSize: 13, lineHeight: 1.8 },
-  heroActions: { display: "flex", gap: 10 },
+
+  metaRow: {
+    marginTop: 12,
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+  },
+
+  heroRight: {
+    display: "flex",
+    gap: 18,
+    alignItems: "center",
+    flexShrink: 0,
+  },
+
+  lastCheckBox: {
+    display: "grid",
+    gap: 3,
+    minWidth: 150,
+    padding: "12px 14px",
+    borderRadius: 16,
+    background: uiTheme.colors.background,
+    border: `1px solid ${uiTheme.colors.surfaceSoft}`,
+  },
+
+  heroActions: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+  },
+
   primaryButton: {
     ...primaryButtonBase,
-    borderRadius: uiTheme.radii.sm,
-    padding: "0 14px",
-    fontWeight: 800,
+    borderRadius: 13,
+    padding: "0 16px",
+    fontWeight: 700,
     cursor: "pointer",
-    minHeight: 40,
+    minHeight: 42,
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
+    boxShadow: "0 14px 26px rgba(37, 99, 235, 0.22)",
   },
+
   secondaryButton: {
     ...secondaryButtonBase,
-    borderRadius: uiTheme.radii.sm,
-    padding: "0 14px",
-    fontWeight: 800,
+    borderRadius: 13,
+    padding: "0 16px",
+    fontWeight: 700,
     cursor: "pointer",
-    minHeight: 40,
+    minHeight: 42,
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
   },
+
   kpiGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
     gap: 14,
     marginBottom: 14,
   },
+
   kpiCard: {
     ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
+    borderRadius: 18,
     padding: 18,
-    minHeight: 94,
+    minHeight: 110,
     display: "grid",
     alignContent: "center",
-    gap: 8,
+    gap: 7,
+    border: "1px solid transparent",
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.045)",
   },
+
   kpiTitle: {
     margin: 0,
-    color: uiTheme.colors.text,
-    fontWeight: 800,
+    color: uiTheme.colors.muted,
+    fontWeight: 700,
     fontSize: 12,
   },
-  kpiValue: { display: "block", fontSize: 24, lineHeight: 1.1 },
+
+  kpiValue: {
+    display: "block",
+    fontSize: 26,
+    lineHeight: 1.1,
+    letterSpacing: "-0.03em",
+  },
+
+  kpiDescription: {
+    color: uiTheme.colors.muted,
+    fontSize: 11,
+  },
+
   grid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 310px",
+    gridTemplateColumns: "1fr 1fr 320px",
     gap: 14,
     marginBottom: 14,
   },
-  bottomGrid: { display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 14 },
+
+  bottomGrid: {
+    display: "grid",
+    gridTemplateColumns: "1.25fr 1fr",
+    gap: 14,
+    marginTop: 14,
+  },
+
   cardLarge: {
     ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
+    borderRadius: 20,
     padding: 20,
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.045)",
   },
+
   card: {
     ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
+    borderRadius: 20,
     padding: 20,
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.045)",
   },
+
   infoCard: {
     ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
+    borderRadius: 20,
     padding: 20,
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.045)",
   },
+
   cardHeader: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 14,
     marginBottom: 14,
   },
-  cardTitle: { margin: 0, fontSize: 16, fontWeight: 800 },
-  helperText: { color: uiTheme.colors.muted, fontSize: 12 },
+
+  cardHeaderCompact: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 12,
+  },
+
+  cardTitle: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 800,
+    letterSpacing: "-0.02em",
+  },
+
+  cardSubtitle: {
+    margin: "5px 0 0",
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+  },
+
+  helperText: {
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+    whiteSpace: "nowrap",
+  },
+
   summaryGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(4, 1fr)",
@@ -933,20 +1229,23 @@ const styles: Record<string, CSSProperties> = {
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     paddingTop: 14,
   },
+
   metric: {
     display: "grid",
-    gap: 6,
+    gap: 5,
     color: uiTheme.colors.muted,
     fontSize: 11,
   },
+
   infoRow: {
     display: "grid",
     gridTemplateColumns: "110px 1fr",
     gap: 10,
-    padding: "11px 0",
+    padding: "12px 0",
     fontSize: 12,
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
+
   emptyState: {
     minHeight: 220,
     display: "grid",
@@ -955,33 +1254,68 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.muted,
     fontSize: 13,
   },
+
   emptyIcon: {
     width: 60,
     height: 60,
-    borderRadius: uiTheme.radii.lg,
+    borderRadius: 20,
     background: uiTheme.colors.primarySoft,
     color: uiTheme.colors.primary,
     display: "grid",
     placeItems: "center",
   },
+
   badge: {
-    padding: "5px 9px",
+    padding: "6px 10px",
     borderRadius: 999,
     fontSize: 11,
     fontWeight: 800,
     whiteSpace: "nowrap",
     display: "inline-flex",
     alignItems: "center",
+    gap: 7,
   },
+
+  pausedBadge: {
+    padding: "6px 10px",
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 800,
+    color: "#92400e",
+    background: "#fef3c7",
+  },
+
   chartEmpty: {
     height: 210,
     display: "grid",
     placeItems: "center",
     color: uiTheme.colors.slate,
     border: "1px dashed #cbd5e1",
-    borderRadius: 8,
+    borderRadius: 16,
     background: uiTheme.colors.background,
   },
+
+  statusTimelineChart: {
+    minHeight: 210,
+    padding: 18,
+    borderRadius: 16,
+    background:
+      "linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 1))",
+    border: `1px solid ${uiTheme.colors.surfaceSoft}`,
+    display: "flex",
+    alignItems: "stretch",
+    gap: 5,
+    overflow: "hidden",
+    marginBottom: 14,
+  },
+
+  statusTimelineItem: {
+    flex: 1,
+    minWidth: 5,
+    borderRadius: 999,
+    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.08)",
+  },
+
   tableHeader: {
     display: "grid",
     gridTemplateColumns: "1.5fr 0.9fr 1fr 0.8fr 0.7fr",
@@ -992,6 +1326,7 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 700,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
   },
+
   tableRow: {
     display: "grid",
     gridTemplateColumns: "1.5fr 0.9fr 1fr 0.8fr 0.7fr",
@@ -1001,15 +1336,27 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 12,
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
-  statusInline: { display: "inline-flex", alignItems: "center", gap: 8 },
+
+  statusInline: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    fontWeight: 700,
+  },
+
   statusDot: {
     display: "inline-block",
-    width: 10,
-    height: 10,
+    width: 9,
+    height: 9,
     borderRadius: 999,
     flexShrink: 0,
   },
-  timeline: { display: "grid", gap: 14 },
+
+  timeline: {
+    display: "grid",
+    gap: 14,
+  },
+
   timelineItem: {
     display: "grid",
     gridTemplateColumns: "20px 1fr",
@@ -1018,14 +1365,30 @@ const styles: Record<string, CSSProperties> = {
     paddingBottom: 12,
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
-  timelineMarkerWrap: { paddingTop: 4 },
-  timelineTitle: { fontSize: 13 },
+
+  timelineMarkerWrap: {
+    paddingTop: 4,
+  },
+
+  timelineTitle: {
+    fontSize: 13,
+  },
+
   timelineMeta: {
     margin: "4px 0 0",
     color: uiTheme.colors.muted,
     fontSize: 12,
   },
-  timelineError: { margin: "6px 0 0", color: "#b91c1c", fontSize: 12 },
+
+  timelineError: {
+    margin: "7px 0 0",
+    color: "#b91c1c",
+    fontSize: 12,
+    padding: "8px 10px",
+    background: "#fef2f2",
+    borderRadius: 10,
+  },
+
   locationEmpty: {
     minHeight: 140,
     display: "grid",
@@ -1034,31 +1397,74 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.muted,
     fontSize: 13,
   },
-  locationList: { display: "grid", gap: 12 },
+
+  locationList: {
+    display: "grid",
+    gap: 12,
+  },
+
   locationRow: {
     display: "grid",
-    gridTemplateColumns: "1.1fr 1fr auto",
-    gap: 12,
+    gridTemplateColumns: "1fr 1fr auto",
+    gap: 18,
     alignItems: "center",
-    padding: "12px 0",
+    padding: "14px 0",
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
-  locationName: { fontSize: 14 },
+
+  locationName: {
+    fontSize: 14,
+  },
+
   locationMeta: {
     margin: "4px 0 0",
     color: uiTheme.colors.muted,
     fontSize: 12,
   },
+
+  locationProgressWrap: {
+    display: "grid",
+    gap: 7,
+  },
+
+  locationProgressTrack: {
+    height: 8,
+    borderRadius: 999,
+    background: uiTheme.colors.background,
+    overflow: "hidden",
+  },
+
+  locationProgressFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+
   locationStats: {
     display: "flex",
     gap: 8,
     flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "flex-end",
     color: uiTheme.colors.muted,
     fontSize: 12,
   },
+
   locationStat: {
-    padding: "4px 8px",
+    padding: "5px 9px",
     borderRadius: 999,
     background: uiTheme.colors.background,
+    fontWeight: 700,
+  },
+
+  toast: {
+    position: "fixed",
+    bottom: 20,
+    right: 20,
+    padding: "12px 16px",
+    borderRadius: 12,
+    color: "#fff",
+    fontWeight: 700,
+    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+    zIndex: 999,
   },
 };

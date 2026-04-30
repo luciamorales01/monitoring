@@ -21,13 +21,3 @@ export function getUniqueOptions(values: Array<string | null | undefined>) {
   );
 }
 
-export function isDateWithinLastDays(value: string, days: number) {
-  const timestamp = new Date(value).getTime();
-
-  if (Number.isNaN(timestamp)) {
-    return false;
-  }
-
-  const diffDays = (Date.now() - timestamp) / (1000 * 60 * 60 * 24);
-  return diffDays < days;
-}

@@ -1,20 +1,13 @@
 import { type CSSProperties } from 'react';
 import {
-  avatarBase,
-  datePillBase,
-  iconButtonBase,
   pageMain,
-  pageSubtitle,
-  pageTitle,
   secondaryButtonBase,
   surfaceCard,
-  topActionsBase,
-  topbarBase,
   uiTheme,
 } from '../../theme/commonStyles';
+import AppTopbar from '../../shared/AppTopbar';
 import {
   BellIcon,
-  CalendarIcon,
   ChevronRightIcon,
   CloudIcon,
   CodeIcon,
@@ -22,7 +15,6 @@ import {
   HardDriveIcon,
   MailIcon,
   MonitorIcon,
-  RefreshIcon,
   SettingsIcon,
   ShieldIcon,
   UsersIcon,
@@ -69,27 +61,11 @@ export default function SettingsPage() {
 
   return (
     <main style={styles.main}>
-      <header style={styles.topbar}>
-        <div>
-          <h1 style={styles.title}>Configuración</h1>
-          <p style={styles.subtitle}>
-            Personaliza la aplicación, gestiona preferencias y configura el sistema.
-          </p>
-        </div>
-
-        <div style={styles.topActions}>
-          <div style={styles.datePill}>
-            <CalendarIcon size={15} />
-            24 may 2024 00:00 — 24 may 2024 23:59
-          </div>
-          <button type="button" style={styles.iconButton} onClick={() => handlePlaceholderAction('refresh')}>
-            <RefreshIcon size={16} />
-          </button>
-          <div style={styles.bell}><BellIcon size={16} /><span style={styles.bellBadge}>3</span></div>
-          <div style={styles.avatar}>AS</div>
-          <span style={styles.adminText}>Admin</span>
-        </div>
-      </header>
+      <AppTopbar
+        title="Configuracion"
+        subtitle="Personaliza la aplicacion, gestiona preferencias y configura el sistema."
+        onRefresh={() => handlePlaceholderAction('refresh')}
+      />
 
       <section style={styles.layout}>
         <div style={styles.left}>
@@ -131,8 +107,8 @@ export default function SettingsPage() {
             <InfoRow label="Entorno" value="Producción" />
             <InfoRow label="Región" value="Europe (Madrid)" />
             <InfoRow label="Base de datos" value="PostgreSQL 15" />
-            <InfoRow label="Último backup" value="24 may 2024, 02:15" />
-            <InfoRow label="Próximo mantenimiento" value="26 may 2024, 01:00 - 03:00" />
+            <InfoRow label="Backups" value="Activos" />
+            <InfoRow label="Mantenimiento" value="Programado" />
             <button type="button" style={styles.fullButton} onClick={() => handlePlaceholderAction('system-logs')}>
               Ver logs del sistema
             </button>
@@ -251,16 +227,6 @@ const activityColors = ['#dbeafe', '#eff6ff', '#dbeafe'];
 
 const styles: Record<string, CSSProperties> = {
   main: pageMain,
-  topbar: topbarBase,
-  topActions: topActionsBase,
-  title: pageTitle,
-  subtitle: pageSubtitle,
-  datePill: datePillBase,
-  iconButton: iconButtonBase,
-  bell: { ...iconButtonBase, position: 'relative' },
-  bellBadge: { position: 'absolute', top: -6, right: -6, background: uiTheme.colors.primary, color: '#fff', borderRadius: 999, width: 18, height: 18, display: 'grid', placeItems: 'center', fontSize: 10 },
-  avatar: { ...avatarBase, width: 38, height: 38, display: 'grid', placeItems: 'center', fontWeight: 900, fontSize: 13 },
-  adminText: { color: uiTheme.colors.text, fontSize: 13 },
 
   layout: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 18 },
   left: { display: 'grid', gap: 18 },
@@ -275,7 +241,7 @@ const styles: Record<string, CSSProperties> = {
   tileIcon: { width: 54, height: 54, borderRadius: 14, display: 'grid', placeItems: 'center', marginBottom: 22 },
   tileTitle: { margin: 0, fontSize: 15, fontWeight: 800 },
   tileText: { color: uiTheme.colors.muted, fontSize: 12, lineHeight: 1.55, minHeight: 48 },
-  configureButton: { border: 0, background: 'transparent', color: uiTheme.colors.primary, padding: 0, fontWeight: 800, cursor: 'pointer', fontSize: 12 },
+  configureButton: { border: 0, background: 'transparent', color: uiTheme.colors.primary, padding: 0, fontWeight: 600, cursor: 'pointer', fontSize: 12 },
 
   settingRowButton: { display: 'grid', gridTemplateColumns: '40px 1fr 20px', gap: 12, alignItems: 'center', padding: '14px 0', borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, borderTop: 0, borderLeft: 0, borderRight: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' },
   settingRowCopy: { color: uiTheme.colors.text },
@@ -285,10 +251,10 @@ const styles: Record<string, CSSProperties> = {
   sideTitle: { margin: '0 0 16px', fontSize: 15, fontWeight: 800 },
 
   infoRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, padding: '11px 0', fontSize: 12, color: uiTheme.colors.text },
-  fullButton: { ...secondaryButtonBase, width: '100%', marginTop: 14, borderRadius: uiTheme.radii.sm, padding: '10px 12px', fontWeight: 700, cursor: 'pointer' },
+  fullButton: { ...secondaryButtonBase, width: '100%', marginTop: 14, borderRadius: uiTheme.radii.sm, padding: '10px 12px', fontWeight: 500, cursor: 'pointer' },
   quickRowButton: { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, borderTop: 0, borderLeft: 0, borderRight: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', fontSize: 13 },
   quickArrow: { color: uiTheme.colors.muted, display: 'grid', placeItems: 'center' },
   activityRow: { display: 'grid', gridTemplateColumns: '30px 1fr auto', gap: 10, alignItems: 'center', padding: '10px 0', fontSize: 11 },
   activityIcon: { width: 28, height: 28, borderRadius: 999, display: 'grid', placeItems: 'center', color: uiTheme.colors.primary },
-  linkButton: { marginTop: 12, border: 0, background: 'transparent', color: uiTheme.colors.primary, fontWeight: 800, cursor: 'pointer' },
+  linkButton: { marginTop: 12, border: 0, background: 'transparent', color: uiTheme.colors.primary, fontWeight: 600, cursor: 'pointer' },
 };
