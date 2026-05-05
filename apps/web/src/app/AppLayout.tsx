@@ -28,6 +28,7 @@ const navItems = [
     to: "/incidents",
   },
   { icon: <SettingsIcon size={16} />, label: "Configuración", to: "/settings" },
+  { icon: <UsersIcon size={16} />, label: "Mi perfil", to: "/profile" },
   { icon: <UsersIcon size={16} />, label: "Usuarios", to: "/users" },
 ];
 

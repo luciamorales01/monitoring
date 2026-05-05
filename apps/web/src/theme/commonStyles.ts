@@ -151,7 +151,7 @@ export const tableRowBase: CSSProperties = {
 };
 
 export const tableHoverRowBase: CSSProperties = {
-  background: '#F1F5F9', // 🔥 mejor hover
+  background: colors.surfaceSoft,
 };
 
 export const tableCellBase: CSSProperties = {

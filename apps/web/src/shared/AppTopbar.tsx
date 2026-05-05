@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { Link, useNavigate } from 'react-router-dom';
 import { getActiveIncidents, type Incident } from './incidentApi';
 import { tokenStorage } from './tokenStorage';
-import { AlertTriangleIcon, BellIcon, PlusIcon, RefreshIcon, SettingsIcon, UsersIcon } from './uiIcons';
+import { AlertTriangleIcon, BellIcon, PlusIcon, RefreshIcon, SearchIcon, SettingsIcon, UsersIcon } from './uiIcons';
 import { useAsyncAction } from './useAsyncAction';
 import LoadingState from './LoadingState';
 import {
@@ -24,20 +24,40 @@ type TopbarCta = {
   to?: string;
 };
 
+type TopbarUserSummary = {
+  initials: string;
+  name: string;
+  role: string;
+};
+
 type AppTopbarProps = {
+  breadcrumb?: ReactNode;
   cta?: TopbarCta;
   eyebrow?: ReactNode;
   onRefresh: () => Promise<unknown> | unknown;
+  onSearchChange?: (value: string) => void;
+  searchPlaceholder?: string;
+  searchValue?: string;
+  showRefreshButton?: boolean;
+  showSearch?: boolean;
   subtitle?: string;
   title: string;
+  userSummary?: TopbarUserSummary;
 };
 
 export default function AppTopbar({
+  breadcrumb,
   cta,
   eyebrow,
   onRefresh,
+  onSearchChange,
+  searchPlaceholder = 'Buscar',
+  searchValue = '',
+  showRefreshButton = true,
+  showSearch = false,
   subtitle,
   title,
+  userSummary,
 }: AppTopbarProps) {
   const navigate = useNavigate();
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -97,22 +117,40 @@ export default function AppTopbar({
       <div>
         {eyebrow ? <div style={styles.eyebrow}>{eyebrow}</div> : null}
         <h1 style={styles.title}>{title}</h1>
+        {breadcrumb ? <div style={styles.breadcrumb}>{breadcrumb}</div> : null}
         {subtitle ? <p style={styles.subtitle}>{subtitle}</p> : null}
       </div>
 
       <div style={styles.topActions}>
-        <button
-          type="button"
-          style={{
-            ...styles.iconButton,
-            ...(isRefreshing ? styles.iconButtonLoading : {}),
-          }}
-          onClick={() => void runRefresh()}
-          disabled={isRefreshing}
-          title="Refrescar"
-        >
-          {isRefreshing ? <LoadingState variant="button" label="Refrescando" /> : <RefreshIcon size={16} />}
-        </button>
+        {showRefreshButton ? (
+          <button
+            type="button"
+            style={{
+              ...styles.iconButton,
+              ...(isRefreshing ? styles.iconButtonLoading : {}),
+            }}
+            onClick={() => void runRefresh()}
+            disabled={isRefreshing}
+            title="Refrescar"
+          >
+            {isRefreshing ? <LoadingState variant="button" label="Refrescando" /> : <RefreshIcon size={16} />}
+          </button>
+        ) : null}
+
+        {showSearch ? (
+          <label style={styles.searchField}>
+            <span style={styles.searchIcon}>
+              <SearchIcon size={16} />
+            </span>
+            <input
+              type="search"
+              value={searchValue}
+              onChange={(event) => onSearchChange?.(event.target.value)}
+              placeholder={searchPlaceholder}
+              style={styles.searchInput}
+            />
+          </label>
+        ) : null}
 
         <div style={styles.menuRoot} onClick={(event) => event.stopPropagation()}>
           <button
@@ -166,7 +204,7 @@ export default function AppTopbar({
         <div style={styles.menuRoot} onClick={(event) => event.stopPropagation()}>
           <button
             type="button"
-            style={styles.avatarButton}
+            style={userSummary ? styles.userButton : styles.avatarButton}
             onClick={() => {
               setUserOpen((current) => !current);
               setNotificationsOpen(false);
@@ -174,12 +212,22 @@ export default function AppTopbar({
             aria-expanded={userOpen}
             title="Usuario"
           >
-            AS
+            {userSummary ? (
+              <>
+                <span style={styles.userAvatar}>{userSummary.initials}</span>
+                <span style={styles.userCopy}>
+                  <strong style={styles.userName}>{userSummary.name}</strong>
+                  <small style={styles.userRole}>{userSummary.role}</small>
+                </span>
+              </>
+            ) : (
+              'AS'
+            )}
           </button>
 
           {userOpen ? (
             <div style={styles.userDropdown}>
-              <Link to="/users" style={styles.userMenuItem}>
+              <Link to="/profile" style={styles.userMenuItem}>
                 <UsersIcon size={15} />
                 Perfil
               </Link>
@@ -223,6 +271,15 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.muted,
     fontSize: 13,
   },
+  breadcrumb: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    color: uiTheme.colors.muted,
+    fontSize: 13,
+    fontWeight: 500,
+  },
   iconButton: {
     ...iconButtonBase,
     position: 'relative',
@@ -263,6 +320,67 @@ const styles: Record<string, CSSProperties> = {
     border: 'none',
     cursor: 'pointer',
     fontSize: 13,
+  },
+  userButton: {
+    border: `1px solid ${uiTheme.colors.border}`,
+    background: uiTheme.colors.surface,
+    color: uiTheme.colors.text,
+    borderRadius: uiTheme.radii.pill,
+    minHeight: 46,
+    padding: '5px 8px 5px 6px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 10,
+    cursor: 'pointer',
+    boxShadow: uiTheme.shadows.card,
+  },
+  userAvatar: {
+    ...avatarBase,
+    width: 34,
+    height: 34,
+    fontSize: 12,
+    flexShrink: 0,
+  },
+  userCopy: {
+    display: 'grid',
+    textAlign: 'left',
+    gap: 2,
+    minWidth: 0,
+  },
+  userName: {
+    fontSize: 13,
+    lineHeight: 1.1,
+  },
+  userRole: {
+    color: uiTheme.colors.muted,
+    fontSize: 11,
+    lineHeight: 1.1,
+  },
+  searchField: {
+    minWidth: 220,
+    height: 40,
+    display: 'grid',
+    gridTemplateColumns: '34px 1fr',
+    alignItems: 'center',
+    border: `1px solid ${uiTheme.colors.borderStrong}`,
+    borderRadius: uiTheme.radii.pill,
+    background: uiTheme.colors.surface,
+    overflow: 'hidden',
+    boxShadow: uiTheme.shadows.card,
+  },
+  searchIcon: {
+    display: 'grid',
+    placeItems: 'center',
+    color: uiTheme.colors.muted,
+  },
+  searchInput: {
+    border: 0,
+    outline: 'none',
+    background: 'transparent',
+    color: uiTheme.colors.text,
+    fontSize: 13,
+    fontFamily: 'inherit',
+    padding: '0 14px 0 0',
   },
   primaryButton: {
     ...primaryButtonBase,

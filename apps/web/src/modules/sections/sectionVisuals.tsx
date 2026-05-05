@@ -9,6 +9,7 @@ import {
   MonitorIcon,
 } from '../../shared/uiIcons';
 import type { SectionIcon } from '../../shared/sectionsStore';
+import { uiTheme } from '../../theme/commonStyles';
 
 export const sectionIconOptions: Array<{
   key: SectionIcon;
@@ -19,44 +20,44 @@ export const sectionIconOptions: Array<{
   {
     key: 'folder',
     label: 'General',
-    color: '#2563eb',
-    background: '#eff6ff',
+    color: uiTheme.colors.primary,
+    background: uiTheme.colors.primarySoft,
   },
   {
     key: 'globe',
     label: 'Web',
-    color: '#0284c7',
-    background: '#ecfeff',
+    color: uiTheme.colors.primaryDark,
+    background: '#f5f3ff',
   },
   {
     key: 'monitor',
     label: 'Aplicaciones',
-    color: '#14b8a6',
-    background: '#ecfeff',
+    color: uiTheme.colors.primaryLight,
+    background: '#f3e8ff',
   },
   {
     key: 'database',
     label: 'Datos',
-    color: '#9333ea',
+    color: '#7c3aed',
     background: '#faf5ff',
   },
   {
     key: 'cloud',
     label: 'Infra',
-    color: '#f59e0b',
-    background: '#fff7ed',
+    color: '#8b5cf6',
+    background: '#f5f3ff',
   },
   {
     key: 'code',
     label: 'Backend',
-    color: '#22c55e',
-    background: '#ecfdf5',
+    color: '#6d28d9',
+    background: '#ede9fe',
   },
   {
     key: 'drive',
     label: 'Sistemas',
-    color: '#ef4444',
-    background: '#fef2f2',
+    color: '#5b21b6',
+    background: '#f3e8ff',
   },
 ];
 

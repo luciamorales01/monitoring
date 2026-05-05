@@ -164,7 +164,7 @@ export default function ReportsPage() {
           }
 
           .reports-row:hover {
-            background: #f1f5f9;
+            background: ${uiTheme.colors.surfaceSoft};
           }
 
           .reports-action:hover {
@@ -588,8 +588,8 @@ function MiniLineChart({ values }: { values: number[] }) {
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={styles.lineChart}>
         <defs>
           <linearGradient id="availabilityFillReports" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#2563eb" stopOpacity="0.20" />
-            <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
+            <stop offset="0%" stopColor={uiTheme.colors.primary} stopOpacity="0.20" />
+            <stop offset="100%" stopColor={uiTheme.colors.primary} stopOpacity="0.02" />
           </linearGradient>
         </defs>
 
@@ -614,7 +614,7 @@ function MiniLineChart({ values }: { values: number[] }) {
         <polyline
           points={points}
           fill="none"
-          stroke="#2563eb"
+          stroke={uiTheme.colors.primary}
           strokeWidth="2.6"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -684,7 +684,7 @@ function SkeletonBlock({ height }: { height: number }) {
       style={{
         height,
         borderRadius: 16,
-        background: "linear-gradient(90deg, #f1f5f9, #f8fafc, #f1f5f9)",
+        background: `linear-gradient(90deg, ${uiTheme.colors.surfaceSoft}, ${uiTheme.colors.background}, ${uiTheme.colors.surfaceSoft})`,
       }}
     />
   );
@@ -963,7 +963,7 @@ const styles: Record<string, CSSProperties> = {
   regionBar: {
     height: 7,
     borderRadius: 999,
-    background: "#eaf1ff",
+    background: uiTheme.colors.primarySoft,
     overflow: "hidden",
   },
 

@@ -831,7 +831,7 @@ const styles: Record<string, CSSProperties> = {
     background: uiTheme.colors.warningSoft,
   },
   kpiIconpurple: {
-    color: '#9333ea',
+    color: uiTheme.colors.primaryDark,
     background: '#faf5ff',
   },
   alertDot: {

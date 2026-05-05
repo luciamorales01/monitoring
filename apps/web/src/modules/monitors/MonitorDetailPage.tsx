@@ -819,7 +819,7 @@ function ResponseTimeChart({ checks }: { checks: MonitorCheck[] }) {
           y1={y}
           x2={width}
           y2={y}
-          stroke="#dbe3ef"
+          stroke={uiTheme.colors.borderStrong}
           strokeDasharray="4 6"
         />
       ))}
@@ -930,7 +930,7 @@ function getToneColor(tone: "green" | "blue" | "orange" | "red" | "slate") {
 function getToneBorder(tone: "green" | "blue" | "orange" | "red" | "slate") {
   const colors = {
     green: "rgba(22, 163, 74, 0.22)",
-    blue: "rgba(37, 99, 235, 0.22)",
+    blue: "rgba(109, 40, 217, 0.22)",
     orange: "rgba(245, 158, 11, 0.24)",
     red: "rgba(220, 38, 38, 0.24)",
     slate: "rgba(148, 163, 184, 0.22)",
@@ -1099,7 +1099,7 @@ const styles: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
-    boxShadow: "0 14px 26px rgba(37, 99, 235, 0.22)",
+    boxShadow: "0 14px 26px rgba(109, 40, 217, 0.22)",
   },
 
   secondaryButton: {

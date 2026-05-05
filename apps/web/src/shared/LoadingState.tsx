@@ -58,7 +58,7 @@ export default function LoadingState({
 
 const shimmer = {
   background:
-    'linear-gradient(90deg, #eef2f7 0%, #f8fafc 45%, #eef2f7 100%)',
+    'linear-gradient(90deg, #f3efff 0%, #f8f7ff 45%, #f3efff 100%)',
   backgroundSize: '220% 100%',
 } satisfies CSSProperties;
 

@@ -177,7 +177,7 @@ export default function UsersPage() {
     const readonlyPercent = 100 - adminPercent - editorPercent;
 
     return {
-      donut: `conic-gradient(${uiTheme.colors.primary} 0 ${adminPercent}%, #60a5fa ${adminPercent}% ${adminPercent + editorPercent}%, ${uiTheme.colors.warning} ${adminPercent + editorPercent}% ${adminPercent + editorPercent + readonlyPercent}%)`,
+      donut: `conic-gradient(${uiTheme.colors.primary} 0 ${adminPercent}%, ${uiTheme.colors.primaryLight} ${adminPercent}% ${adminPercent + editorPercent}%, ${uiTheme.colors.warning} ${adminPercent + editorPercent}% ${adminPercent + editorPercent + readonlyPercent}%)`,
       adminLabel: `${stats.admins} (${formatPercent(stats.admins, users.length)})`,
       editorLabel: `${stats.editors} (${formatPercent(stats.editors, users.length)})`,
       readonlyLabel: `${stats.readonly} (${formatPercent(stats.readonly, users.length)})`,
@@ -463,7 +463,7 @@ export default function UsersPage() {
 
                 <div style={styles.legend}>
                   <Legend color={uiTheme.colors.primary} label="Administradores" value={roleDistribution.adminLabel} />
-                  <Legend color="#60a5fa" label="Editores" value={roleDistribution.editorLabel} />
+                  <Legend color={uiTheme.colors.primaryLight} label="Editores" value={roleDistribution.editorLabel} />
                   <Legend color={uiTheme.colors.warning} label="Solo lectura" value={roleDistribution.readonlyLabel} />
                 </div>
               </div>
@@ -706,7 +706,7 @@ function KpiCard({
 function RoleBadge({ role }: { role: UserRoleLabel }) {
   const styleByRole = {
     Administrador: { background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary },
-    Editor: { background: '#dbeafe', color: '#1d4ed8' },
+    Editor: { background: uiTheme.colors.primarySoft, color: uiTheme.colors.primaryDark },
     'Solo lectura': { background: uiTheme.colors.warningSoft, color: uiTheme.colors.warning },
   };
 
@@ -728,7 +728,7 @@ function MiniSparkline() {
   return (
     <svg width="78" height="26" viewBox="0 0 78 26">
       <rect x="0" y="0" width="78" height="26" rx="10" fill="#fbfdff" />
-      <path d="M0 18 L8 11 L17 14 L26 6 L35 16 L43 9 L52 13 L62 5 L78 12" fill="none" stroke="#2563eb" strokeWidth="1.8" />
+      <path d="M0 18 L8 11 L17 14 L26 6 L35 16 L43 9 L52 13 L62 5 L78 12" fill="none" stroke={uiTheme.colors.primary} strokeWidth="1.8" />
     </svg>
   );
 }
@@ -825,8 +825,8 @@ function formatTime(value: string) {
     minute: '2-digit',
   });
 }
-const avatarColors = ['#2563eb', '#1d4ed8', '#60a5fa', '#0ea5e9', '#f59e0b', '#3b82f6', '#94a3b8', '#1e40af'];
-const activityColors = ['#dbeafe', '#eff6ff', '#dbeafe', '#eff6ff', '#dbeafe'];
+const avatarColors = ['#6d28d9', '#5b21b6', '#8b5cf6', '#7c3aed', '#a78bfa', '#c4b5fd', '#94a3b8', '#6d28d9'];
+const activityColors = ['#ede9fe', '#f5f3ff', '#ede9fe', '#f5f3ff', '#ede9fe'];
 
 const styles: Record<string, CSSProperties> = {
   main: pageMain,
@@ -943,11 +943,11 @@ const styles: Record<string, CSSProperties> = {
   },
   tr: {
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
-    background: '#fff',
+    background: uiTheme.colors.surface,
     transition: 'background 0.15s ease',
   },
   trHover: {
-    background: '#F1F5F9',
+    background: uiTheme.colors.surfaceSoft,
   },
   td: {
     padding: '13px 16px',

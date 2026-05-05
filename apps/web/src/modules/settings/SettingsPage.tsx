@@ -223,7 +223,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const activityColors = ['#dbeafe', '#eff6ff', '#dbeafe'];
+const activityColors = ['#ede9fe', '#f5f3ff', '#ede9fe'];
 
 const styles: Record<string, CSSProperties> = {
   main: pageMain,

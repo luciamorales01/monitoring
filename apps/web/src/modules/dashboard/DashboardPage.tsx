@@ -256,7 +256,7 @@ export default function DashboardPage() {
                 y1="25"
                 x2="720"
                 y2="25"
-                stroke="#dbe3ef"
+                stroke={uiTheme.colors.borderStrong}
                 strokeDasharray="4 6"
               />
               <line
@@ -264,7 +264,7 @@ export default function DashboardPage() {
                 y1="70"
                 x2="720"
                 y2="70"
-                stroke="#dbe3ef"
+                stroke={uiTheme.colors.borderStrong}
                 strokeDasharray="4 6"
               />
               <line
@@ -272,7 +272,7 @@ export default function DashboardPage() {
                 y1="115"
                 x2="720"
                 y2="115"
-                stroke="#dbe3ef"
+                stroke={uiTheme.colors.borderStrong}
                 strokeDasharray="4 6"
               />
               <line
@@ -280,18 +280,18 @@ export default function DashboardPage() {
                 y1="160"
                 x2="720"
                 y2="160"
-                stroke="#dbe3ef"
+                stroke={uiTheme.colors.borderStrong}
                 strokeDasharray="4 6"
               />
               <path
                 d="M0 68 C45 62, 70 72, 110 60 C160 45, 230 60, 285 54 C335 48, 390 60, 430 95 C455 125, 485 70, 535 54 C590 40, 640 55, 680 60 C700 62, 690 118, 720 82"
                 fill="none"
-                stroke="#2563eb"
+                stroke={uiTheme.colors.primary}
                 strokeWidth="2"
               />
               <path
                 d="M0 68 C45 62, 70 72, 110 60 C160 45, 230 60, 285 54 C335 48, 390 60, 430 95 C455 125, 485 70, 535 54 C590 40, 640 55, 680 60 C700 62, 690 118, 720 82 L720 210 L0 210 Z"
-                fill="#2563eb"
+                fill={uiTheme.colors.primary}
                 opacity="0.06"
               />
             </svg>
@@ -860,7 +860,7 @@ const styles: Record<string, CSSProperties> = {
     background: "#fff",
   },
   trHover: {
-    background: "#F1F5F9",
+    background: uiTheme.colors.surfaceSoft,
   },
   td: {
     padding: "12px 10px",
@@ -942,8 +942,8 @@ const styles: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
-    background: "#fff",
-    border: "1px solid #E2E8F0",
+    background: uiTheme.colors.surface,
+    border: `1px solid ${uiTheme.colors.borderStrong}`,
     boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
   },
 
@@ -963,7 +963,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 12,
     alignItems: "center",
     padding: "13px 0",
-    borderBottom: "1px solid #f1f5f9",
+    borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
   alertRowInteractive: {
     cursor: "pointer",
@@ -994,7 +994,7 @@ const styles: Record<string, CSSProperties> = {
   mapMock: {
     height: 140,
     borderRadius: uiTheme.radii.sm,
-    background: "radial-gradient(circle at top left, #eff6ff 0%, #ffffff 58%)",
+    background: `radial-gradient(circle at top left, ${uiTheme.colors.primarySoft} 0%, ${uiTheme.colors.surface} 58%)`,
     margin: "14px 0",
     position: "relative",
     overflow: "hidden",
@@ -1006,7 +1006,7 @@ const styles: Record<string, CSSProperties> = {
     height: 7,
     borderRadius: 999,
     background: uiTheme.colors.primary,
-    boxShadow: "0 0 0 4px rgba(37, 99, 235, 0.12)",
+    boxShadow: "0 0 0 4px rgba(109, 40, 217, 0.12)",
   },
   regionRow: {
     display: "grid",

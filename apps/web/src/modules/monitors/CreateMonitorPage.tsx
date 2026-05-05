@@ -953,7 +953,7 @@ const styles: Record<string, CSSProperties> = {
     width: 34,
     height: 34,
     borderRadius: 999,
-    border: `1px solid #bfdbfe`,
+    border: `1px solid ${uiTheme.colors.primaryLight}`,
     display: 'grid',
     placeItems: 'center',
     color: uiTheme.colors.primary,
@@ -1076,7 +1076,7 @@ const styles: Record<string, CSSProperties> = {
     padding: 16,
     border: `1px solid ${uiTheme.colors.border}`,
     borderRadius: uiTheme.radii.sm,
-    background: '#f8fbff',
+    background: uiTheme.colors.iconSoft,
   },
   toggleRowCard: {
     display: 'grid',
@@ -1101,7 +1101,7 @@ const styles: Record<string, CSSProperties> = {
   inlineCard: {
     border: `1px solid ${uiTheme.colors.border}`,
     borderRadius: uiTheme.radii.sm,
-    background: '#f8fbff',
+    background: uiTheme.colors.iconSoft,
   },
   sectionBlock: {
     display: 'grid',
@@ -1248,8 +1248,8 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 7,
   },
   testCard: {
-    border: `1px solid #bfdbfe`,
-    background: '#f8fbff',
+    border: `1px solid ${uiTheme.colors.primaryLight}`,
+    background: uiTheme.colors.iconSoft,
     borderRadius: uiTheme.radii.md,
     padding: 20,
   },

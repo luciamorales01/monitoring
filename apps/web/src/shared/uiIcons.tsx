@@ -340,6 +340,63 @@ export function MailIcon(props: IconProps) {
   );
 }
 
+export function PhoneIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M7.5 5.5h3l1 3-1.8 1.8a13.7 13.7 0 0 0 4 4l1.8-1.8 3 1v3c0 .8-.7 1.5-1.5 1.5A12.5 12.5 0 0 1 5.5 7c0-.8.7-1.5 1.5-1.5Z" />
+    </IconBase>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="4" y="6" width="16" height="14" rx="2" />
+      <path d="M8 4v4" />
+      <path d="M16 4v4" />
+      <path d="M4 10h16" />
+    </IconBase>
+  );
+}
+
+export function MapPinIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 20s5.5-5.2 5.5-9.6A5.5 5.5 0 1 0 6.5 10.4C6.5 14.8 12 20 12 20Z" />
+      <circle cx="12" cy="10" r="2.1" />
+    </IconBase>
+  );
+}
+
+export function LockIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="5" y="10" width="14" height="10" rx="2" />
+      <path d="M8 10V8a4 4 0 1 1 8 0v2" />
+    </IconBase>
+  );
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M12 4v10" />
+      <path d="m8 10 4 4 4-4" />
+      <path d="M5 19h14" />
+    </IconBase>
+  );
+}
+
+export function LogOutIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M10 17H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h4" />
+      <path d="M14 8l5 4-5 4" />
+      <path d="M9 12h10" />
+    </IconBase>
+  );
+}
+
 export function ChevronRightIcon(props: IconProps) {
   return (
     <IconBase {...props}>

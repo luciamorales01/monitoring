@@ -1,4 +1,5 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import ForgotPasswordPage from '../modules/auth/ForgotPasswordPage';
 import LoginPage from '../modules/auth/LoginPage';
 import RegisterPage from '../modules/auth/RegisterPage';
 import CreateMonitorPage from '../modules/monitors/CreateMonitorPage';
@@ -14,10 +15,14 @@ import SectionsPage from '../modules/sections/SectionsPage';
 import UsersPage from '../modules/users/UsersPage';
 import SettingsPage from '../modules/settings/SettingsPage';
 import ReportsPage from '../modules/reports/ReportsPage';
+import ProfilePage from '../modules/profile/ProfilePage';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
-  { path: '/register', element: <RegisterPage /> },
+  { path: '/registro', element: <RegisterPage /> },
+  { path: '/register', element: <Navigate to="/registro" replace /> },
+  { path: '/recuperar-password', element: <ForgotPasswordPage /> },
+  { path: '/mi-perfil', element: <Navigate to="/profile" replace /> },
   {
     path: '/',
     element: (
@@ -37,6 +42,7 @@ export const router = createBrowserRouter([
       { path: 'reports', element: <ReportsPage /> },
       { path: 'users', element: <UsersPage /> },
       { path: 'settings', element: <SettingsPage/> },
+      { path: 'profile', element: <ProfilePage /> },
     ],
   },
 ]);

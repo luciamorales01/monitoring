@@ -22,11 +22,14 @@ export function register(data: {
   name: string;
   email: string;
   password: string;
-  organizationName: string;
+  organizationName?: string;
 }) {
   return apiClient<AuthResponse>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      ...data,
+      organizationName: data.organizationName ?? data.name,
+    }),
   });
 }
 

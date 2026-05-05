@@ -4,6 +4,7 @@ import { matchesSearchTerm, normalizeSearchTerm } from '../../shared/filterUtils
 import { getIncidents, type Incident } from '../../shared/incidentApi';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
+import { uiTheme } from '../../theme/commonStyles';
 
 export default function IncidentDetailPage() {
   const { id } = useParams();
@@ -60,13 +61,13 @@ export default function IncidentDetailPage() {
       title: 'Primera alerta asociada',
     },
     {
-      color: '#2563eb',
+      color: uiTheme.colors.primary,
       text: `La incidencia se ha marcado como ${isOpen ? 'abierta' : 'resuelta'}.`,
       time: formatDate(incident.resolvedAt ?? incident.startedAt),
       title: `Estado cambiado a ${isOpen ? 'Abierta' : 'Resuelta'}`,
     },
     {
-      color: '#2563eb',
+      color: uiTheme.colors.primary,
       text: 'Se está investigando la causa raíz del problema.',
       time: 'Hace 20 min',
       title: 'Nota añadida',
@@ -296,7 +297,7 @@ const styles: Record<string, CSSProperties> = {
   main: { flex: 1, padding: '24px 28px', background: '#f8fafc' },
   breadcrumbLink: { color: '#64748b', textDecoration: 'none' },
   searchBar: { display: 'flex', justifyContent: 'flex-end', marginTop: -12, marginBottom: 20 },
-  search: { height: 40, border: '1px solid #dbe3ef', borderRadius: 10, padding: '0 14px', fontSize: 13 },
+  search: { height: 40, border: `1px solid ${uiTheme.colors.borderStrong}`, borderRadius: 10, padding: '0 14px', fontSize: 13 },
 
   layout: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 },
   content: { display: 'grid', gap: 14 },
@@ -312,11 +313,11 @@ const styles: Record<string, CSSProperties> = {
   title: { margin: '14px 0 8px', fontSize: 28, fontWeight: 600, color: '#0f172a' },
   subtitle: { margin: 0, color: '#64748b', fontSize: 15 },
   metaRow: { display: 'flex', gap: 10, marginTop: 20 },
-  metaPill: { border: '1px solid #dbe3ef', borderRadius: 8, padding: '9px 12px', background: '#fff', color: '#475569', fontSize: 12 },
+  metaPill: { border: `1px solid ${uiTheme.colors.borderStrong}`, borderRadius: 8, padding: '9px 12px', background: uiTheme.colors.surface, color: '#475569', fontSize: 12 },
 
-  tabs: { display: 'flex', gap: 26, borderBottom: '1px solid #dbe3ef', marginTop: 6 },
+  tabs: { display: 'flex', gap: 26, borderBottom: `1px solid ${uiTheme.colors.borderStrong}`, marginTop: 6 },
   tab: { padding: '12px 0', color: '#64748b', fontWeight: 500, fontSize: 13 },
-  tabActive: { padding: '12px 0', color: '#2563eb', fontWeight: 600, fontSize: 13, borderBottom: '2px solid #2563eb' },
+  tabActive: { padding: '12px 0', color: uiTheme.colors.primary, fontWeight: 600, fontSize: 13, borderBottom: `2px solid ${uiTheme.colors.primary}` },
 
   card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, boxShadow: '0 8px 24px rgba(15,23,42,.035)' },
   cardTitle: { margin: '0 0 14px', fontSize: 16, fontWeight: 800 },
@@ -325,7 +326,7 @@ const styles: Record<string, CSSProperties> = {
   monitorBox: { display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: 14, alignItems: 'center' },
   monitorIcon: { width: 44, height: 44, borderRadius: 10, background: '#dcfce7', color: '#10b981', display: 'grid', placeItems: 'center', fontSize: 24 },
   monitorUrl: { margin: '4px 0 0', color: '#64748b', fontSize: 13 },
-  monitorButton: { border: '1px solid #dbe3ef', borderRadius: 8, padding: '10px 14px', textDecoration: 'none', color: '#2563eb', fontWeight: 800 },
+  monitorButton: { border: `1px solid ${uiTheme.colors.borderStrong}`, borderRadius: 8, padding: '10px 14px', textDecoration: 'none', color: uiTheme.colors.primary, fontWeight: 800 },
 
   timeline: { display: 'grid', gap: 18 },
   timelineItem: { display: 'grid', gridTemplateColumns: '20px 1fr auto', gap: 12, alignItems: 'start', color: '#334155' },
@@ -335,11 +336,11 @@ const styles: Record<string, CSSProperties> = {
   sideTitle: { margin: '0 0 16px', fontSize: 16, fontWeight: 800 },
   infoRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, padding: '12px 0', color: '#64748b', fontSize: 13 },
   dangerText: { color: '#ef4444' },
-  primaryButton: { width: '100%', height: 42, border: 0, borderRadius: 8, background: '#2563eb', color: '#fff', fontWeight: 600, marginBottom: 10 },
-  secondaryButton: { width: '100%', height: 42, border: '1px solid #dbe3ef', borderRadius: 8, background: '#fff', color: '#2563eb', fontWeight: 600, marginBottom: 10 },
+  primaryButton: { width: '100%', height: 42, border: 0, borderRadius: 8, background: uiTheme.colors.primary, color: '#fff', fontWeight: 600, marginBottom: 10 },
+  secondaryButton: { width: '100%', height: 42, border: `1px solid ${uiTheme.colors.borderStrong}`, borderRadius: 8, background: uiTheme.colors.surface, color: uiTheme.colors.primary, fontWeight: 600, marginBottom: 10 },
   dangerButton: { width: '100%', height: 42, border: '1px solid #fecaca', borderRadius: 8, background: '#fff', color: '#ef4444', fontWeight: 800 },
   tags: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  tag: { padding: '7px 10px', borderRadius: 8, background: '#eff6ff', color: '#2563eb', fontSize: 12, fontWeight: 700 },
-  linkButton: { marginTop: 14, border: 0, background: 'transparent', color: '#2563eb', fontWeight: 800 },
+  tag: { padding: '7px 10px', borderRadius: 8, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary, fontSize: 12, fontWeight: 700 },
+  linkButton: { marginTop: 14, border: 0, background: 'transparent', color: uiTheme.colors.primary, fontWeight: 800 },
   empty: { color: '#64748b' },
 };

@@ -1318,7 +1318,7 @@ const styles: Record<string, CSSProperties> = {
     transition: "background 0.15s ease",
   },
   trHover: {
-    background: "#F1F5F9",
+    background: uiTheme.colors.surfaceSoft,
   },
   trSelected: {
     background: uiTheme.colors.primarySoft,
