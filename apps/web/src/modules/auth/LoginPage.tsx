@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { login } from './authApi';
 import AuthLayout from './AuthLayout';
 import { tokenStorage } from '../../shared/tokenStorage';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberSession, setRememberSession] = useState(true);
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -24,8 +26,9 @@ export default function LoginPage() {
 
     try {
       const res = await login({ email: email.trim(), password });
-      tokenStorage.set(res.accessToken);
-      navigate('/dashboard', { replace: true });
+      tokenStorage.set(res.accessToken, rememberSession ? 'local' : 'session');
+      const redirectTo = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/dashboard';
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       setSubmitError(
         err instanceof Error ? err.message : 'No se pudo iniciar sesión.',
@@ -73,7 +76,11 @@ export default function LoginPage() {
 
         <div className="login-options">
           <label className="remember">
-            <input type="checkbox" defaultChecked />
+            <input
+              type="checkbox"
+              checked={rememberSession}
+              onChange={(event) => setRememberSession(event.target.checked)}
+            />
             Recordarme
           </label>
 

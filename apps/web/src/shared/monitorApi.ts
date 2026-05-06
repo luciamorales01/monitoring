@@ -60,37 +60,37 @@ export const createMonitor = async (data: CreateMonitorInput) => {
 };
 
 export const updateMonitor = async (id: number, data: UpdateMonitorInput) => {
-  return apiClient<Monitor>(`/monitors/${id}`, {
+  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 };
 
 export const deleteMonitor = async (id: number) => {
-  return apiClient<Monitor>(`/monitors/${id}`, {
+  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`, {
     method: 'DELETE',
   });
 };
 
 export const runMonitorCheck = async (id: number) => {
-  return apiClient(`/monitors/${id}/run-check`, {
+  return apiClient(`/monitors/${encodeURIComponent(String(id))}/run-check`, {
     method: 'POST',
   });
 };
 
 export const toggleMonitorActive = async (id: number) => {
-  return apiClient<Monitor>(`/monitors/${id}/toggle-active`, {
+  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}/toggle-active`, {
     method: 'PATCH',
   });
 };
 
 export const getMonitor = async (id: number) => {
-  return apiClient<Monitor>(`/monitors/${id}`);
+  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`);
 };
 
 export const getMonitorChecks = async (
   id: number,
   order: 'asc' | 'desc' = 'desc',
 ) => {
-  return apiClient<MonitorCheck[]>(`/monitors/${id}/checks?order=${order}`);
+  return apiClient<MonitorCheck[]>(`/monitors/${encodeURIComponent(String(id))}/checks?order=${encodeURIComponent(order)}`);
 };

@@ -33,6 +33,8 @@ import {
   PlusIcon,
 } from "../../shared/uiIcons";
 
+type PeriodFilter = "1h" | "24h" | "7d" | "30d" | "all";
+
 export default function MonitorDetailPage() {
   const { id } = useParams();
   const monitorId = Number(id);
@@ -43,6 +45,9 @@ export default function MonitorDetailPage() {
   const [checking, setChecking] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [toast, setToast] = useState<MonitorStatusToast>(null);
+
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
+  const [locationFilter, setLocationFilter] = useState("all");
 
   const loadData = async () => {
     const [monitorData, checksData] = await Promise.all([
@@ -99,7 +104,6 @@ export default function MonitorDetailPage() {
   };
 
   const status = monitor?.currentStatus ?? "UNKNOWN";
-  const checksAsc = useMemo(() => [...checks].reverse(), [checks]);
   const latestCheck = checks[0] ?? null;
   const latestChecks = checks.slice(0, 10);
 
@@ -107,6 +111,36 @@ export default function MonitorDetailPage() {
     const locations = monitor?.locations ?? [];
     return locations.length > 0 ? locations : ["default"];
   }, [monitor]);
+
+  const locationOptions = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...configuredLocations,
+        ...checks.map((check) => check.location ?? "default"),
+      ]),
+    );
+  }, [checks, configuredLocations]);
+
+  const filteredChecks = useMemo(() => {
+    const now = Date.now();
+
+    return checks.filter((check) => {
+      const location = check.location ?? "default";
+
+      if (locationFilter !== "all" && location !== locationFilter) {
+        return false;
+      }
+
+      if (periodFilter === "all") return true;
+
+      const checkedAt = new Date(check.checkedAt).getTime();
+      const periodMs = getPeriodMs(periodFilter);
+
+      return now - checkedAt <= periodMs;
+    });
+  }, [checks, locationFilter, periodFilter]);
+
+  const checksAsc = useMemo(() => [...filteredChecks].reverse(), [filteredChecks]);
 
   const checksByLocation = useMemo(() => {
     return checks.reduce<Record<string, MonitorCheck[]>>((acc, check) => {
@@ -148,25 +182,14 @@ export default function MonitorDetailPage() {
     const upChecks = checks.filter((check) => check.status === "UP").length;
     const downChecks = checks.filter((check) => check.status === "DOWN").length;
 
-    const responseTimes = checks
-      .map((check) => check.responseTimeMs)
-      .filter((value): value is number => value !== null);
-
-    const averageResponseTime =
-      responseTimes.length > 0
-        ? Math.round(
-            responseTimes.reduce((sum, value) => sum + value, 0) /
-              responseTimes.length,
-          )
-        : null;
+    const responseTimes = getResponseTimes(checks);
+    const averageResponseTime = getAverage(responseTimes);
 
     return {
       availability:
         total > 0 ? `${((upChecks / total) * 100).toFixed(1)}%` : "-",
       averageResponseTime:
-        averageResponseTime !== null
-          ? formatDuration(averageResponseTime)
-          : "-",
+        averageResponseTime !== null ? formatDuration(averageResponseTime) : "-",
       totalChecks: total,
       failures: downChecks,
       lastCheck: latestCheck ? formatDateTime(latestCheck.checkedAt) : "-",
@@ -175,6 +198,29 @@ export default function MonitorDetailPage() {
         : "Sin checks",
     };
   }, [checks, latestCheck]);
+
+  const filteredStats = useMemo(() => {
+    const total = filteredChecks.length;
+    const up = filteredChecks.filter((check) => check.status === "UP").length;
+    const down = filteredChecks.filter((check) => check.status === "DOWN").length;
+    const unknown = filteredChecks.filter(
+      (check) => check.status !== "UP" && check.status !== "DOWN",
+    ).length;
+
+    const responseTimes = getResponseTimes(filteredChecks);
+
+    return {
+      total,
+      up,
+      down,
+      unknown,
+      average: getAverage(responseTimes),
+      p95: getPercentile(responseTimes, 95),
+      max: responseTimes.length > 0 ? Math.max(...responseTimes) : null,
+      min: responseTimes.length > 0 ? Math.min(...responseTimes) : null,
+      uptime: total > 0 ? `${((up / total) * 100).toFixed(1)}%` : "-",
+    };
+  }, [filteredChecks]);
 
   if (loading) {
     return (
@@ -292,13 +338,12 @@ export default function MonitorDetailPage() {
               onClick={handleToggleActive}
               disabled={toggling}
             >
-              {!toggling && (
-                monitor.isActive ? (
+              {!toggling &&
+                (monitor.isActive ? (
                   <PauseIcon size={15} />
                 ) : (
                   <PlayIcon size={15} />
-                )
-              )}
+                ))}
               {toggling ? (
                 <LoadingState variant="button" label="Actualizando monitor" />
               ) : monitor.isActive ? (
@@ -318,28 +363,24 @@ export default function MonitorDetailPage() {
           description="Según checks registrados"
           tone={isDown ? "red" : "green"}
         />
-
         <KpiCard
           title="Tiempo medio"
           value={stats.averageResponseTime}
           description="Latencia promedio"
           tone="blue"
         />
-
         <KpiCard
           title="Checks totales"
           value={stats.totalChecks}
           description="Histórico guardado"
           tone="slate"
         />
-
         <KpiCard
           title="Fallos"
           value={stats.failures}
           description="Checks con caída"
           tone={stats.failures > 0 ? "red" : "green"}
         />
-
         <KpiCard
           title="Estado actual"
           value={getStatusLabel(status)}
@@ -369,41 +410,69 @@ export default function MonitorDetailPage() {
         </>
       ) : (
         <>
+          <section style={styles.chartToolbarCard}>
+            <div>
+              <strong style={styles.toolbarTitle}>Vista de gráficas</strong>
+              <p style={styles.cardSubtitle}>
+                Filtra el histórico por periodo y ubicación.
+              </p>
+            </div>
+
+            <div style={styles.toolbarControls}>
+              <SegmentedControl
+                value={periodFilter}
+                onChange={setPeriodFilter}
+                options={[
+                  { label: "1h", value: "1h" },
+                  { label: "24h", value: "24h" },
+                  { label: "7 días", value: "7d" },
+                  { label: "30 días", value: "30d" },
+                  { label: "Todo", value: "all" },
+                ]}
+              />
+
+              <select
+                value={locationFilter}
+                onChange={(event) => setLocationFilter(event.target.value)}
+                style={styles.select}
+              >
+                <option value="all">Todas las ubicaciones</option>
+                {locationOptions.map((location) => (
+                  <option key={location} value={location}>
+                    {location}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </section>
+
           <section style={styles.grid}>
             <div style={styles.cardLarge}>
               <div style={styles.cardHeader}>
                 <div>
-                  <h2 style={styles.cardTitle}>Estado de checks</h2>
+                  <h2 style={styles.cardTitle}>Disponibilidad</h2>
                   <p style={styles.cardSubtitle}>
-                    Últimos estados registrados por el monitor
+                    Últimos estados registrados sin mezclar latencia.
                   </p>
                 </div>
-                <span style={styles.helperText}>Últimos 50 registros</span>
+                <span style={styles.helperText}>
+                  {filteredStats.total} registros
+                </span>
               </div>
 
               <StatusHistoryChart checks={checksAsc} />
 
+              <div style={styles.legendRow}>
+                <LegendItem status="UP" label="Operativo" />
+                <LegendItem status="DOWN" label="Caído" />
+                <LegendItem status="UNKNOWN" label="Pendiente" />
+              </div>
+
               <div style={styles.summaryGrid}>
-                <Metric
-                  label="Operativos"
-                  value={String(
-                    checks.filter((check) => check.status === "UP").length,
-                  )}
-                />
-                <Metric
-                  label="Caídas"
-                  value={String(
-                    checks.filter((check) => check.status === "DOWN").length,
-                  )}
-                />
-                <Metric
-                  label="Primer check"
-                  value={formatShortDate(checksAsc[0]?.checkedAt)}
-                />
-                <Metric
-                  label="Último check"
-                  value={formatShortDate(latestCheck?.checkedAt)}
-                />
+                <Metric label="Operativos" value={String(filteredStats.up)} />
+                <Metric label="Caídas" value={String(filteredStats.down)} />
+                <Metric label="Pendientes" value={String(filteredStats.unknown)} />
+                <Metric label="Uptime" value={filteredStats.uptime} />
               </div>
             </div>
 
@@ -412,27 +481,30 @@ export default function MonitorDetailPage() {
                 <div>
                   <h2 style={styles.cardTitle}>Tiempo de respuesta</h2>
                   <p style={styles.cardSubtitle}>
-                    Evolución de latencia en milisegundos
+                    Latencia de checks con respuesta válida.
                   </p>
                 </div>
-                <span style={styles.helperText}>responseTimeMs</span>
+                <span style={styles.helperText}>ms</span>
               </div>
 
-              <ResponseTimeChart checks={checksAsc} />
+              <ResponseTimeChart
+                checks={checksAsc}
+                timeoutMs={monitor.timeoutSeconds * 1000}
+              />
 
               <div style={styles.summaryGrid}>
                 <Metric
                   label="Último"
                   value={formatDuration(latestCheck?.responseTimeMs ?? null)}
                 />
-                <Metric label="Media" value={stats.averageResponseTime} />
+                <Metric
+                  label="Media"
+                  value={formatDuration(filteredStats.average)}
+                />
+                <Metric label="P95" value={formatDuration(filteredStats.p95)} />
                 <Metric
                   label="Máximo"
-                  value={formatDuration(getMaxResponseTime(checks))}
-                />
-                <Metric
-                  label="Mínimo"
-                  value={formatDuration(getMinResponseTime(checks))}
+                  value={formatDuration(filteredStats.max)}
                 />
               </div>
             </div>
@@ -452,11 +524,7 @@ export default function MonitorDetailPage() {
               <InfoRow label="Timeout" value={`${monitor.timeoutSeconds}s`} />
               <InfoRow
                 label="Ubicaciones"
-                value={
-                  configuredLocations.length > 0
-                    ? configuredLocations.join(", ")
-                    : "default"
-                }
+                value={configuredLocations.join(", ")}
               />
               <InfoRow label="Último estado" value={getStatusLabel(status)} />
               <InfoRow
@@ -478,7 +546,7 @@ export default function MonitorDetailPage() {
                 <div>
                   <h2 style={styles.cardTitle}>Últimos checks</h2>
                   <p style={styles.cardSubtitle}>
-                    Registros más recientes del monitor
+                    Registros más recientes del monitor.
                   </p>
                 </div>
                 <span style={styles.helperText}>Orden descendente</span>
@@ -511,7 +579,7 @@ export default function MonitorDetailPage() {
                 <div>
                   <h2 style={styles.cardTitle}>Timeline</h2>
                   <p style={styles.cardSubtitle}>
-                    Últimos eventos técnicos registrados
+                    Últimos eventos técnicos registrados.
                   </p>
                 </div>
               </div>
@@ -574,12 +642,7 @@ function KpiCard({
   tone: "green" | "blue" | "orange" | "red" | "slate";
 }) {
   return (
-    <div
-      style={{
-        ...styles.kpiCard,
-        borderColor: getToneBorder(tone),
-      }}
-    >
+    <div style={{ ...styles.kpiCard, borderColor: getToneBorder(tone) }}>
       <p style={styles.kpiTitle}>{title}</p>
       <strong style={{ ...styles.kpiValue, color: getToneColor(tone) }}>
         {value}
@@ -668,7 +731,7 @@ function LocationChecksCard({
         <div>
           <h2 style={styles.cardTitle}>Comprobaciones por ubicación</h2>
           <p style={styles.cardSubtitle}>
-            Estado distribuido según cada localización configurada
+            Estado distribuido según cada localización configurada.
           </p>
         </div>
 
@@ -697,12 +760,12 @@ function LocationChecksCard({
             return (
               <div key={summary.location} style={styles.locationRow}>
                 <div>
-                  <strong style={styles.locationName}>
-                    {summary.location}
-                  </strong>
+                  <strong style={styles.locationName}>{summary.location}</strong>
                   <p style={styles.locationMeta}>
                     {summary.latestCheck
-                      ? `Último check ${formatDateTime(summary.latestCheck.checkedAt)}`
+                      ? `Último check ${formatDateTime(
+                          summary.latestCheck.checkedAt,
+                        )}`
                       : "Sin checks"}
                   </p>
                 </div>
@@ -745,84 +808,184 @@ function StatusHistoryChart({ checks }: { checks: MonitorCheck[] }) {
   const visibleChecks = checks.slice(-50);
 
   if (visibleChecks.length === 0) {
-    return <EmptyChart label="Sin datos de estado" />;
+    return <EmptyChart label="Sin datos de estado para este filtro" />;
   }
 
   return (
-    <div style={styles.statusTimelineChart}>
-      {visibleChecks.map((check) => (
-        <div
-          key={check.id}
-          title={`${formatDateTime(check.checkedAt)} · ${getStatusLabel(
-            check.status,
-          )}`}
-          style={{
-            ...styles.statusTimelineItem,
-            background: getStatusColor(check.status),
-            opacity: check.status === "UNKNOWN" ? 0.45 : 1,
-          }}
-        />
-      ))}
+    <div style={styles.statusChartWrap}>
+      <div style={styles.statusTimelineTrack}>
+        {visibleChecks.map((check) => {
+          const isDown = check.status === "DOWN";
+
+          return (
+            <div
+              key={check.id}
+              title={`${formatDateTime(check.checkedAt)} · ${getStatusLabel(
+                check.status,
+              )} · ${check.location ?? "default"} · código ${
+                check.statusCode ?? "-"
+              } · ${formatDuration(check.responseTimeMs)}`}
+              style={{
+                ...styles.statusTimelineSegment,
+                height: isDown ? 84 : 46,
+                background: getStatusColor(check.status),
+                opacity: check.status === "UNKNOWN" ? 0.5 : 1,
+              }}
+            />
+          );
+        })}
+      </div>
+
+      <div style={styles.statusEventRow}>
+        {visibleChecks.map((check) => (
+          <div key={check.id} style={styles.statusEventSlot}>
+            {check.status === "DOWN" ? (
+              <span
+                title={check.errorMessage || "Check fallido"}
+                style={styles.statusEventMarker}
+              />
+            ) : null}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-function ResponseTimeChart({ checks }: { checks: MonitorCheck[] }) {
+function ResponseTimeChart({
+  checks,
+  timeoutMs,
+}: {
+  checks: MonitorCheck[];
+  timeoutMs: number;
+}) {
   const width = 720;
-  const height = 210;
+  const height = 230;
+  const padding = {
+    top: 24,
+    right: 16,
+    bottom: 34,
+    left: 42,
+  };
 
   const visibleChecks = checks.slice(-50);
-  const values = visibleChecks
-    .map((check) => check.responseTimeMs)
-    .filter((value): value is number => value !== null);
+  const validChecks = visibleChecks.filter(
+    (check) => check.responseTimeMs !== null,
+  );
 
-  if (values.length === 0) {
-    return <EmptyChart label="Sin tiempos de respuesta" />;
+  if (validChecks.length === 0) {
+    return <EmptyChart label="Sin tiempos de respuesta para este filtro" />;
   }
 
-  const maxValue = Math.max(...values, 1);
+  const values = validChecks.map((check) => check.responseTimeMs as number);
+  const maxValue = Math.max(...values, timeoutMs, 1);
+  const minValue = Math.min(...values, 0);
 
-  const points = visibleChecks.map((check, index) => {
-    const x =
-      visibleChecks.length === 1
-        ? width / 2
-        : (index / (visibleChecks.length - 1)) * width;
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
 
-    const value = check.responseTimeMs ?? maxValue;
-    const y = 25 + ((maxValue - value) / maxValue) * 145;
+  const getX = (index: number) =>
+    visibleChecks.length === 1
+      ? padding.left + chartWidth / 2
+      : padding.left + (index / (visibleChecks.length - 1)) * chartWidth;
 
-    return {
-      x,
-      y: Math.min(185, Math.max(25, y)),
-      check,
-    };
-  });
+  const getY = (value: number) => {
+    const ratio = (value - minValue) / Math.max(maxValue - minValue, 1);
+    return padding.top + chartHeight - ratio * chartHeight;
+  };
+
+  const points = visibleChecks
+    .map((check, index) => {
+      if (check.responseTimeMs === null) return null;
+
+      return {
+        x: getX(index),
+        y: getY(check.responseTimeMs),
+        check,
+      };
+    })
+    .filter(
+      (
+        point,
+      ): point is {
+        x: number;
+        y: number;
+        check: MonitorCheck;
+      } => point !== null,
+    );
 
   const path = points.map((point) => `${point.x} ${point.y}`).join(" L ");
-  const areaPath = [`0 210`, ...points.map((p) => `${p.x} ${p.y}`), `${width} 210`].join(
-    " L",
-  );
+  const areaPath = [
+    `${points[0].x} ${padding.top + chartHeight}`,
+    ...points.map((point) => `${point.x} ${point.y}`),
+    `${points[points.length - 1].x} ${padding.top + chartHeight}`,
+  ].join(" L ");
+
+  const timeoutY = getY(timeoutMs);
+  const average = getAverage(values);
+  const averageY = average !== null ? getY(average) : null;
 
   return (
     <svg
       width="100%"
-      height="210"
+      height={height}
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="none"
+      role="img"
+      aria-label="Gráfica de tiempo de respuesta"
     >
       <rect x="0" y="0" width={width} height={height} rx="16" fill="#fbfdff" />
 
-      {[40, 90, 140].map((y) => (
+      {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+        const y = padding.top + ratio * chartHeight;
+
+        return (
+          <line
+            key={ratio}
+            x1={padding.left}
+            y1={y}
+            x2={width - padding.right}
+            y2={y}
+            stroke={uiTheme.colors.borderStrong}
+            strokeDasharray="4 6"
+          />
+        );
+      })}
+
+      {timeoutY >= padding.top && timeoutY <= padding.top + chartHeight ? (
+        <>
+          <line
+            x1={padding.left}
+            y1={timeoutY}
+            x2={width - padding.right}
+            y2={timeoutY}
+            stroke="#dc2626"
+            strokeDasharray="6 6"
+            opacity="0.75"
+          />
+          <text
+            x={width - padding.right - 72}
+            y={timeoutY - 7}
+            fontSize="11"
+            fill="#991b1b"
+            fontWeight="700"
+          >
+            Timeout
+          </text>
+        </>
+      ) : null}
+
+      {averageY !== null ? (
         <line
-          key={y}
-          x1="0"
-          y1={y}
-          x2={width}
-          y2={y}
-          stroke={uiTheme.colors.borderStrong}
-          strokeDasharray="4 6"
+          x1={padding.left}
+          y1={averageY}
+          x2={width - padding.right}
+          y2={averageY}
+          stroke={uiTheme.colors.slate}
+          strokeDasharray="3 7"
+          opacity="0.35"
         />
-      ))}
+      ) : null}
 
       <path
         d={`M ${areaPath} Z`}
@@ -834,21 +997,94 @@ function ResponseTimeChart({ checks }: { checks: MonitorCheck[] }) {
         d={`M ${path}`}
         fill="none"
         stroke={uiTheme.colors.primary}
-        strokeWidth="2.5"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
 
-      {points.map((point) =>
-        point.check.status === "DOWN" ? (
+      {points.map((point) => {
+        const isIncident =
+          point.check.status === "DOWN" ||
+          (point.check.responseTimeMs ?? 0) >= timeoutMs;
+
+        return isIncident ? (
           <circle
             key={point.check.id}
             cx={point.x}
             cy={point.y}
             r="5"
-            fill="#dc2626"
-          />
-        ) : null,
-      )}
+            fill={point.check.status === "DOWN" ? "#dc2626" : "#f59e0b"}
+          >
+            <title>
+              {`${formatDateTime(point.check.checkedAt)} · ${
+                point.check.location ?? "default"
+              } · ${getStatusLabel(point.check.status)} · ${formatDuration(
+                point.check.responseTimeMs,
+              )}`}
+            </title>
+          </circle>
+        ) : null;
+      })}
+
+      <text x="8" y={padding.top + 4} fontSize="11" fill={uiTheme.colors.muted}>
+        {formatDuration(maxValue)}
+      </text>
+      <text
+        x="8"
+        y={padding.top + chartHeight}
+        fontSize="11"
+        fill={uiTheme.colors.muted}
+      >
+        0 ms
+      </text>
     </svg>
+  );
+}
+
+function SegmentedControl<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: React.Dispatch<React.SetStateAction<T>>;
+  options: Array<{ label: string; value: T }>;
+}) {
+  return (
+    <div style={styles.segmentedControl}>
+      {options.map((option) => {
+        const active = option.value === value;
+
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            style={{
+              ...styles.segmentedButton,
+              ...(active ? styles.segmentedButtonActive : null),
+            }}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function LegendItem({
+  status,
+  label,
+}: {
+  status: MonitorStatus;
+  label: string;
+}) {
+  return (
+    <span style={styles.legendItem}>
+      <StatusDot status={status} />
+      {label}
+    </span>
   );
 }
 
@@ -862,15 +1098,6 @@ function formatDateTime(value?: string | null) {
   return new Intl.DateTimeFormat("es-ES", {
     dateStyle: "short",
     timeStyle: "medium",
-  }).format(new Date(value));
-}
-
-function formatShortDate(value?: string | null) {
-  if (!value) return "-";
-
-  return new Intl.DateTimeFormat("es-ES", {
-    dateStyle: "short",
-    timeStyle: "short",
   }).format(new Date(value));
 }
 
@@ -892,9 +1119,9 @@ function formatRelativeTime(value?: string | null) {
 }
 
 function formatDuration(value: number | null) {
-  if (value === null) return "-";
+  if (value === null || Number.isNaN(value)) return "-";
   if (value >= 1000) return `${(value / 1000).toFixed(2)} s`;
-  return `${value} ms`;
+  return `${Math.round(value)} ms`;
 }
 
 function getStatusLabel(status: MonitorStatus) {
@@ -939,20 +1166,41 @@ function getToneBorder(tone: "green" | "blue" | "orange" | "red" | "slate") {
   return colors[tone];
 }
 
-function getMaxResponseTime(checks: MonitorCheck[]) {
-  const values = checks
+function getResponseTimes(checks: MonitorCheck[]) {
+  return checks
     .map((check) => check.responseTimeMs)
     .filter((value): value is number => value !== null);
-
-  return values.length > 0 ? Math.max(...values) : null;
 }
 
-function getMinResponseTime(checks: MonitorCheck[]) {
-  const values = checks
-    .map((check) => check.responseTimeMs)
-    .filter((value): value is number => value !== null);
+function getAverage(values: number[]) {
+  if (values.length === 0) return null;
 
-  return values.length > 0 ? Math.min(...values) : null;
+  return Math.round(
+    values.reduce((sum, value) => sum + value, 0) / values.length,
+  );
+}
+
+function getPercentile(values: number[], percentile: number) {
+  if (values.length === 0) return null;
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.ceil((percentile / 100) * sorted.length) - 1;
+
+  return sorted[Math.max(0, Math.min(sorted.length - 1, index))];
+}
+
+function getPeriodMs(period: PeriodFilter) {
+  const hour = 60 * 60 * 1000;
+
+  const periods: Record<PeriodFilter, number> = {
+    "1h": hour,
+    "24h": 24 * hour,
+    "7d": 7 * 24 * hour,
+    "30d": 30 * 24 * hour,
+    all: Number.POSITIVE_INFINITY,
+  };
+
+  return periods[period];
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -1152,6 +1400,67 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 11,
   },
 
+  chartToolbarCard: {
+    ...surfaceCard,
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 14,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 16,
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.045)",
+  },
+
+  toolbarTitle: {
+    fontSize: 14,
+  },
+
+  toolbarControls: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+
+  segmentedControl: {
+    display: "inline-flex",
+    gap: 4,
+    padding: 4,
+    borderRadius: 999,
+    background: uiTheme.colors.background,
+    border: `1px solid ${uiTheme.colors.surfaceSoft}`,
+  },
+
+  segmentedButton: {
+    border: "none",
+    background: "transparent",
+    borderRadius: 999,
+    padding: "7px 11px",
+    fontSize: 12,
+    fontWeight: 700,
+    color: uiTheme.colors.muted,
+    cursor: "pointer",
+  },
+
+  segmentedButtonActive: {
+    background: "#fff",
+    color: uiTheme.colors.primary,
+    boxShadow: "0 6px 16px rgba(15, 23, 42, 0.08)",
+  },
+
+  select: {
+    minHeight: 36,
+    borderRadius: 999,
+    border: `1px solid ${uiTheme.colors.surfaceSoft}`,
+    background: "#fff",
+    color: uiTheme.colors.text,
+    padding: "0 12px",
+    fontSize: 12,
+    fontWeight: 700,
+    outline: "none",
+  },
+
   grid: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr 320px",
@@ -1286,7 +1595,7 @@ const styles: Record<string, CSSProperties> = {
   },
 
   chartEmpty: {
-    height: 210,
+    height: 230,
     display: "grid",
     placeItems: "center",
     color: uiTheme.colors.slate,
@@ -1295,25 +1604,69 @@ const styles: Record<string, CSSProperties> = {
     background: uiTheme.colors.background,
   },
 
-  statusTimelineChart: {
-    minHeight: 210,
+  statusChartWrap: {
+    height: 230,
     padding: 18,
     borderRadius: 16,
     background:
       "linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 1))",
     border: `1px solid ${uiTheme.colors.surfaceSoft}`,
-    display: "flex",
-    alignItems: "stretch",
-    gap: 5,
-    overflow: "hidden",
-    marginBottom: 14,
+    marginBottom: 12,
+    display: "grid",
+    gridTemplateRows: "1fr 18px",
+    gap: 10,
   },
 
-  statusTimelineItem: {
+  statusTimelineTrack: {
+    display: "flex",
+    alignItems: "end",
+    gap: 4,
+    minHeight: 150,
+  },
+
+  statusTimelineSegment: {
     flex: 1,
     minWidth: 5,
-    borderRadius: 999,
+    borderRadius: "999px 999px 8px 8px",
     boxShadow: "0 8px 18px rgba(15, 23, 42, 0.08)",
+    transition: "height 160ms ease, opacity 160ms ease",
+  },
+
+  statusEventRow: {
+    display: "flex",
+    gap: 4,
+    alignItems: "center",
+  },
+
+  statusEventSlot: {
+    flex: 1,
+    minWidth: 5,
+    display: "grid",
+    placeItems: "center",
+  },
+
+  statusEventMarker: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    background: "#dc2626",
+    boxShadow: "0 0 0 4px rgba(220, 38, 38, 0.1)",
+  },
+
+  legendRow: {
+    display: "flex",
+    gap: 12,
+    alignItems: "center",
+    marginBottom: 14,
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+  },
+
+  legendItem: {
+    display: "inline-flex",
+    gap: 7,
+    alignItems: "center",
+    fontWeight: 700,
   },
 
   tableHeader: {
@@ -1467,4 +1820,4 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
     zIndex: 999,
   },
-};
+}; 

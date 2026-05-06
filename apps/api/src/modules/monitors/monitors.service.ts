@@ -1,8 +1,11 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import {
   CheckResult,
   IncidentStatus,
@@ -37,7 +40,9 @@ type MonitorCheckBatchResult = {
 export class MonitorsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(dto: CreateMonitorDto, user: AuthenticatedUser) {
+  async create(dto: CreateMonitorDto, user: AuthenticatedUser) {
+    await this.assertPublicHttpTarget(dto.target);
+
     return this.prisma.monitor.create({
       data: {
         name: dto.name,
@@ -102,6 +107,10 @@ export class MonitorsService {
     this.ensureMonitorAccess(monitor.organizationId, user);
 
     const data: Prisma.MonitorUpdateInput = {};
+
+    if (dto.target !== undefined) {
+      await this.assertPublicHttpTarget(dto.target);
+    }
 
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.type !== undefined) data.type = dto.type;
@@ -224,8 +233,11 @@ export class MonitorsService {
     );
 
     try {
+      await this.assertPublicHttpTarget(monitor.target);
+
       const response = await fetch(monitor.target, {
         method: 'GET',
+        redirect: 'manual',
         signal: controller.signal,
       });
       const isUp = response.status === monitor.expectedStatusCode;
@@ -256,6 +268,78 @@ export class MonitorsService {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+
+  private async assertPublicHttpTarget(target: string) {
+    let parsedUrl: URL;
+
+    try {
+      parsedUrl = new URL(target);
+    } catch {
+      throw new BadRequestException('URL del monitor no válida');
+    }
+
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+      throw new BadRequestException('Solo se permiten URLs HTTP o HTTPS');
+    }
+
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    if (this.isBlockedHostname(hostname)) {
+      throw new BadRequestException('El destino del monitor no está permitido');
+    }
+
+    const addresses = isIP(hostname)
+      ? [{ address: hostname }]
+      : await lookup(hostname, { all: true, verbatim: true });
+
+    if (addresses.length === 0) {
+      throw new BadRequestException('No se pudo resolver el destino del monitor');
+    }
+
+    if (addresses.some(({ address }) => this.isPrivateAddress(address))) {
+      throw new BadRequestException('El destino del monitor no está permitido');
+    }
+  }
+
+  private isBlockedHostname(hostname: string) {
+    return (
+      hostname === 'localhost' ||
+      hostname.endsWith('.localhost') ||
+      hostname === '0.0.0.0' ||
+      hostname === '::'
+    );
+  }
+
+  private isPrivateAddress(address: string) {
+    if (isIP(address) === 4) {
+      const parts = address.split('.').map(Number);
+      const [first, second] = parts;
+
+      return (
+        first === 10 ||
+        first === 127 ||
+        (first === 169 && second === 254) ||
+        (first === 172 && second >= 16 && second <= 31) ||
+        (first === 192 && second === 168) ||
+        (first === 100 && second >= 64 && second <= 127) ||
+        first === 0
+      );
+    }
+
+    if (isIP(address) === 6) {
+      const normalized = address.toLowerCase();
+
+      return (
+        normalized === '::1' ||
+        normalized.startsWith('fc') ||
+        normalized.startsWith('fd') ||
+        normalized.startsWith('fe80:')
+      );
+    }
+
+    return true;
   }
 
   private async persistCheckResults(

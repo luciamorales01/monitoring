@@ -41,29 +41,33 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    const organization = await this.prisma.organization.create({
-      data: {
-        name: dto.organizationName,
-        slug,
-      },
-    });
+    const { user } = await this.prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.create({
+        data: {
+          name: dto.organizationName,
+          slug,
+        },
+      });
 
-    const user = await this.prisma.user.create({
-      data: {
-        name: dto.name,
-        email: dto.email,
-        passwordHash,
-        role: UserRole.OWNER,
-        organizationId: organization.id,
-      },
+      const user = await tx.user.create({
+        data: {
+          name: dto.name,
+          email: dto.email,
+          passwordHash,
+          role: UserRole.OWNER,
+          organizationId: organization.id,
+        },
+      });
+
+      return { organization, user };
     });
 
     const accessToken = await this.signToken(
-  user.id,
-  user.email,
-  user.role,
-  user.organizationId,
-);
+      user.id,
+      user.email,
+      user.role,
+      user.organizationId,
+    );
 
     return {
       accessToken,
@@ -93,11 +97,11 @@ export class AuthService {
     }
 
     const accessToken = await this.signToken(
-  user.id,
-  user.email,
-  user.role,
-  user.organizationId,
-);
+      user.id,
+      user.email,
+      user.role,
+      user.organizationId,
+    );
 
     return {
       accessToken,
@@ -138,16 +142,16 @@ export class AuthService {
   }
 
   private async signToken(
-  userId: number,
-  email: string,
-  role: UserRole,
-  organizationId: number,
-) {
-  return this.jwtService.signAsync({
-    sub: userId,
-    email,
-    role,
-    organizationId,
-  });
-}
+    userId: number,
+    email: string,
+    role: UserRole,
+    organizationId: number,
+  ) {
+    return this.jwtService.signAsync({
+      sub: userId,
+      email,
+      role,
+      organizationId,
+    });
+  }
 }

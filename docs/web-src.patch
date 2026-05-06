@@ -1,0 +1,1501 @@
+diff -ru web_orig/src/App.tsx web_phase/src/App.tsx
+--- web_orig/src/App.tsx	2026-05-05 13:50:48.000000000 +0000
++++ web_phase/src/App.tsx	2026-05-06 08:36:27.000000000 +0000
+@@ -1,26 +1,6 @@
+-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+-import ForgotPasswordPage from './modules/auth/ForgotPasswordPage';
+-import LoginPage from './modules/auth/LoginPage';
+-import RegisterPage from './modules/auth/RegisterPage';
++import { RouterProvider } from 'react-router-dom';
++import { router } from './app/router';
+ 
+-function App() {
+-  return (
+-    <BrowserRouter>
+-      <Routes>
+-        <Route path="/" element={<Navigate to="/login" />} />
+-
+-        <Route path="/login" element={<LoginPage />} />
+-        <Route path="/registro" element={<RegisterPage />} />
+-        <Route path="/register" element={<Navigate to="/registro" replace />} />
+-        <Route
+-          path="/recuperar-password"
+-          element={<ForgotPasswordPage />}
+-        />
+-
+-        <Route path="*" element={<Navigate to="/login" />} />
+-      </Routes>
+-    </BrowserRouter>
+-  );
++export default function App() {
++  return <RouterProvider router={router} />;
+ }
+-
+-export default App;
+diff -ru web_orig/src/app/AppLayout.tsx web_phase/src/app/AppLayout.tsx
+--- web_orig/src/app/AppLayout.tsx	2026-05-05 14:11:10.000000000 +0000
++++ web_phase/src/app/AppLayout.tsx	2026-05-06 08:37:31.000000000 +0000
+@@ -1,291 +1,299 @@
+-import { useEffect, useState } from "react";
+-import { Link, Outlet, useLocation } from "react-router-dom";
+-import { getActiveIncidents } from "../shared/incidentApi";
+-import { surfaceCard, uiTheme } from "../theme/commonStyles";
+-import {
+-  AlertTriangleIcon,
+-  BrandMark,
+-  FolderIcon,
+-  HomeIcon,
+-  MonitorIcon,
+-  ReportIcon,
+-  SettingsIcon,
+-  UsersIcon,
+-} from "../shared/uiIcons";
+-
+-const navItems = [
+-  { icon: <HomeIcon size={16} />, label: "Dashboard", to: "/dashboard" },
+-  {
+-    icon: <MonitorIcon size={16} />,
+-    label: "Webs monitorizadas",
+-    to: "/monitors",
+-  },
+-  { icon: <FolderIcon size={16} />, label: "Secciones", to: "/sections" },
++import { useEffect, useState } from "react";
++import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
++import { getActiveIncidents } from "../shared/incidentApi";
++import { appEnv } from "../shared/env";
++import { surfaceCard, uiTheme } from "../theme/commonStyles";
++import {
++  AlertTriangleIcon,
++  BrandMark,
++  FolderIcon,
++  HomeIcon,
++  MonitorIcon,
++  ReportIcon,
++  SettingsIcon,
++  UsersIcon,
++} from "../shared/uiIcons";
++
++const navItems = [
++  { icon: <HomeIcon size={16} />, label: "Dashboard", to: "/dashboard" },
++  {
++    icon: <MonitorIcon size={16} />,
++    label: "Webs monitorizadas",
++    to: "/monitors",
++  },
++  { icon: <FolderIcon size={16} />, label: "Secciones", to: "/sections" },
+   { icon: <ReportIcon size={16} />, label: "Informes", to: "/reports" },
+-  {
+-    icon: <AlertTriangleIcon size={16} />,
+-    label: "Incidencias",
+-    to: "/incidents",
+-  },
+-  { icon: <SettingsIcon size={16} />, label: "Configuración", to: "/settings" },
++  {
++    icon: <AlertTriangleIcon size={16} />,
++    label: "Incidencias",
++    to: "/incidents",
++  },
++  { icon: <SettingsIcon size={16} />, label: "Configuración", to: "/settings" },
+   { icon: <UsersIcon size={16} />, label: "Mi perfil", to: "/profile" },
+   { icon: <UsersIcon size={16} />, label: "Usuarios", to: "/users" },
+ ];
+-
+-export default function AppLayout() {
+-  const location = useLocation();
+-  const [activeIncidentsCount, setActiveIncidentsCount] = useState(0);
+-
+-  const isActive = (path?: string) => {
+-    if (!path) return false;
+-    return location.pathname === path;
+-  };
+-
+-  useEffect(() => {
+-    let cancelled = false;
+-
+-    const refreshActiveIncidents = async () => {
+-      try {
+-        const incidents = await getActiveIncidents();
+-        if (!cancelled) setActiveIncidentsCount(incidents.length);
+-      } catch {
+-        if (!cancelled) setActiveIncidentsCount(0);
+-      }
+-    };
+-
+-    refreshActiveIncidents();
+-    const intervalId = window.setInterval(refreshActiveIncidents, 10000);
+-
+-    return () => {
+-      cancelled = true;
+-      window.clearInterval(intervalId);
+-    };
+-  }, [location.pathname]);
+-
+-  const hasActiveIncidents = activeIncidentsCount > 0;
+-
+-  return (
+-    <div style={styles.page}>
+-      <aside style={styles.sidebar}>
+-        <div style={styles.logo}>
+-          <span style={styles.logoIcon}>
+-            <BrandMark size={18} />
+-          </span>
+-          <span>Monitoring TFG</span>
+-        </div>
+-
+-        <nav style={styles.nav}>
+-          {navItems.map((item) => (
+-            <SidebarItem
+-              key={item.label}
+-              icon={item.icon}
+-              label={item.label}
+-              to={item.to}
+-              active={isActive(item.to)}
+-            />
+-          ))}
+-        </nav>
+-
+-        <div style={styles.globalCard}>
+-          <p style={styles.globalTitle}>Estado global</p>
+-
+-          <strong
+-            style={hasActiveIncidents ? styles.redText : styles.greenText}
+-          >
+-            ● {hasActiveIncidents ? "Con incidencias" : "Operativo"}
+-          </strong>
+-
+-          <div style={hasActiveIncidents ? styles.bigRed : styles.bigGreen}>
+-            {hasActiveIncidents ? `${activeIncidentsCount} activa` : "99.9%"}
+-          </div>
+-
+-          <p style={styles.globalSubtitle}>
+-            {hasActiveIncidents ? "Incidencia pendiente" : "Uptime promedio"}
+-          </p>
+-
+-          <MiniSparkline warning={hasActiveIncidents} />
+-        </div>
+-
+-        <p style={styles.footerText}>© 2026 Monitoring TFG</p>
+-      </aside>
+-
+-      <div style={styles.content}>
+-        <Outlet />
+-      </div>
+-    </div>
+-  );
+-}
+-
+-function SidebarItem({
+-  icon,
+-  label,
+-  to,
+-  active,
+-}: {
+-  icon: React.ReactNode;
+-  label: string;
+-  to?: string;
+-  active?: boolean;
+-}) {
+-  const content = (
+-    <>
+-      <span>{icon}</span>
+-      <span>{label}</span>
+-    </>
+-  );
+-
+-  const style: React.CSSProperties = {
+-    ...styles.navItem,
+-    ...(active ? styles.navItemActive : {}),
+-  };
+-
+-  if (to) {
+-    return (
+-      <Link
+-        to={to}
+-        tabIndex={-1}
+-        onMouseDown={(event) => event.preventDefault()}
+-        style={{
+-          ...style,
+-          textDecoration: "none",
+-          outline: "0",
+-          outlineOffset: 0,
+-          boxShadow: "none",
+-          WebkitTapHighlightColor: "transparent",
+-        }}
+-      >
+-        {content}
+-      </Link>
+-    );
+-  }
+-
+-  return <div style={style}>{content}</div>;
+-}
+-
+-function MiniSparkline({ warning }: { warning: boolean }) {
+-  return (
+-    <svg
+-      width="100%"
+-      height="34"
+-      viewBox="0 0 180 34"
+-      preserveAspectRatio="none"
+-      style={styles.sparklineSvg}
+-    >
+-      <path d="M0 24h180" stroke="rgba(148, 163, 184, 0.18)" />
+-      <path
+-        d="M0 22 C18 20, 28 12, 42 14 C56 16, 66 26, 80 20 C94 14, 110 8, 126 12 C140 15, 150 22, 166 18 C172 16, 176 13, 180 12"
+-        fill="none"
+-        stroke={warning ? uiTheme.colors.danger : uiTheme.colors.success}
+-        strokeWidth="2"
+-      />
+-    </svg>
+-  );
+-}
+-
+-const styles: Record<string, React.CSSProperties> = {
+-  page: {
+-    height: "100vh",
+-    display: "flex",
+-    overflow: "hidden",
+-    background: uiTheme.colors.background,
+-    color: uiTheme.colors.text,
+-    fontFamily:
+-      "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+-  },
+-  sidebar: {
+-    width: 250,
+-    height: "100vh",
+-    background: uiTheme.colors.sidebar,
+-    color: uiTheme.colors.text,
+-    padding: "24px 20px",
+-    display: "flex",
+-    flexDirection: "column",
+-    gap: 14,
+-    flexShrink: 0,
+-    boxSizing: "border-box",
+-    borderRight: `1px solid ${uiTheme.colors.border}`,
+-  },
+-  content: {
+-    flex: 1,
+-    height: "100vh",
+-    overflowY: "auto",
+-    background: uiTheme.colors.background,
+-  },
+-  logo: {
+-    display: "flex",
+-    alignItems: "center",
+-    gap: 9,
+-    fontSize: 20,
+-    fontWeight: 600,
+-    marginBottom: 22,
+-    color: uiTheme.colors.text,
+-  },
+-  logoIcon: {
+-    width: 34,
+-    height: 34,
+-    borderRadius: uiTheme.radii.sm,
+-    display: "grid",
+-    placeItems: "center",
+-    color: uiTheme.colors.primary,
+-    background: uiTheme.colors.primarySoft,
+-    border: `1px solid ${uiTheme.colors.border}`,
+-  },
+-  nav: { display: "flex", flexDirection: "column", gap: 6 },
+-  navItem: {
+-  display: "flex",
+-  alignItems: "center",
+-  gap: 12,
+-  padding: "12px 14px",
+-  borderRadius: uiTheme.radii.sm,
+-  fontWeight: 500,
+-  color: uiTheme.colors.muted,
+-  position: "relative",
+-  fontSize: 14,
+-  border: "none",
+-  boxShadow: "none",
+-  outline: "0",
+-  outlineOffset: 0,
+-  cursor: "pointer",
+-  transition:
+-    "background 140ms ease, border-color 140ms ease, color 140ms ease",
+-},
+-  navItemActive: {
+-  background: uiTheme.colors.primarySoft,
+-  boxShadow: `inset 0 0 0 1px ${uiTheme.colors.primary}`,
+-  color: uiTheme.colors.primary,
+-},
+-  globalCard: {
+-    marginTop: "auto",
+-    ...surfaceCard,
+-    background: uiTheme.colors.surface,
+-    borderRadius: uiTheme.radii.md,
+-    padding: 18,
+-  },
+-  globalTitle: {
+-    margin: "0 0 12px",
+-    color: uiTheme.colors.muted,
+-    fontSize: 12,
+-    fontWeight: 500,
+-  },
+-  globalSubtitle: {
+-    margin: "5px 0 14px",
+-    color: uiTheme.colors.muted,
+-    fontSize: 12,
+-  },
+-  sparklineSvg: { display: "block", marginTop: 2 },
+-  footerText: { color: uiTheme.colors.muted, fontSize: 11, marginTop: 20 },
+-  greenText: { color: uiTheme.colors.success },
+-  bigGreen: {
+-    marginTop: 10,
+-    fontSize: 26,
+-    fontWeight: 600,
+-    color: uiTheme.colors.success,
+-  },
+-  redText: { color: uiTheme.colors.danger },
+-  bigRed: {
+-    marginTop: 10,
+-    fontSize: 20,
+-    fontWeight: 600,
+-    color: uiTheme.colors.danger,
+-  },
+-};
++
++export default function AppLayout() {
++  const location = useLocation();
++  const navigate = useNavigate();
++  const [activeIncidentsCount, setActiveIncidentsCount] = useState(0);
++
++  const isActive = (path?: string) => {
++    if (!path) return false;
++    return location.pathname === path;
++  };
++
++  useEffect(() => {
++    const handleAuthExpired = () => navigate('/login', { replace: true });
++    window.addEventListener('auth:expired', handleAuthExpired);
++    return () => window.removeEventListener('auth:expired', handleAuthExpired);
++  }, [navigate]);
++
++  useEffect(() => {
++    let cancelled = false;
++
++    const refreshActiveIncidents = async () => {
++      try {
++        const incidents = await getActiveIncidents();
++        if (!cancelled) setActiveIncidentsCount(incidents.length);
++      } catch {
++        if (!cancelled) setActiveIncidentsCount(0);
++      }
++    };
++
++    refreshActiveIncidents();
++    const intervalId = window.setInterval(refreshActiveIncidents, 10000);
++
++    return () => {
++      cancelled = true;
++      window.clearInterval(intervalId);
++    };
++  }, [location.pathname]);
++
++  const hasActiveIncidents = activeIncidentsCount > 0;
++
++  return (
++    <div style={styles.page}>
++      <aside style={styles.sidebar}>
++        <div style={styles.logo}>
++          <span style={styles.logoIcon}>
++            <BrandMark size={18} />
++          </span>
++          <span>{appEnv.appName}</span>
++        </div>
++
++        <nav style={styles.nav}>
++          {navItems.map((item) => (
++            <SidebarItem
++              key={item.label}
++              icon={item.icon}
++              label={item.label}
++              to={item.to}
++              active={isActive(item.to)}
++            />
++          ))}
++        </nav>
++
++        <div style={styles.globalCard}>
++          <p style={styles.globalTitle}>Estado global</p>
++
++          <strong
++            style={hasActiveIncidents ? styles.redText : styles.greenText}
++          >
++            ● {hasActiveIncidents ? "Con incidencias" : "Operativo"}
++          </strong>
++
++          <div style={hasActiveIncidents ? styles.bigRed : styles.bigGreen}>
++            {hasActiveIncidents ? `${activeIncidentsCount} activa` : "99.9%"}
++          </div>
++
++          <p style={styles.globalSubtitle}>
++            {hasActiveIncidents ? "Incidencia pendiente" : "Uptime promedio"}
++          </p>
++
++          <MiniSparkline warning={hasActiveIncidents} />
++        </div>
++
++        <p style={styles.footerText}>© 2026 {appEnv.appName}</p>
++      </aside>
++
++      <div style={styles.content}>
++        <Outlet />
++      </div>
++    </div>
++  );
++}
++
++function SidebarItem({
++  icon,
++  label,
++  to,
++  active,
++}: {
++  icon: React.ReactNode;
++  label: string;
++  to?: string;
++  active?: boolean;
++}) {
++  const content = (
++    <>
++      <span>{icon}</span>
++      <span>{label}</span>
++    </>
++  );
++
++  const style: React.CSSProperties = {
++    ...styles.navItem,
++    ...(active ? styles.navItemActive : {}),
++  };
++
++  if (to) {
++    return (
++      <Link
++        to={to}
++        tabIndex={-1}
++        onMouseDown={(event) => event.preventDefault()}
++        style={{
++          ...style,
++          textDecoration: "none",
++          outline: "0",
++          outlineOffset: 0,
++          boxShadow: "none",
++          WebkitTapHighlightColor: "transparent",
++        }}
++      >
++        {content}
++      </Link>
++    );
++  }
++
++  return <div style={style}>{content}</div>;
++}
++
++function MiniSparkline({ warning }: { warning: boolean }) {
++  return (
++    <svg
++      width="100%"
++      height="34"
++      viewBox="0 0 180 34"
++      preserveAspectRatio="none"
++      style={styles.sparklineSvg}
++    >
++      <path d="M0 24h180" stroke="rgba(148, 163, 184, 0.18)" />
++      <path
++        d="M0 22 C18 20, 28 12, 42 14 C56 16, 66 26, 80 20 C94 14, 110 8, 126 12 C140 15, 150 22, 166 18 C172 16, 176 13, 180 12"
++        fill="none"
++        stroke={warning ? uiTheme.colors.danger : uiTheme.colors.success}
++        strokeWidth="2"
++      />
++    </svg>
++  );
++}
++
++const styles: Record<string, React.CSSProperties> = {
++  page: {
++    height: "100vh",
++    display: "flex",
++    overflow: "hidden",
++    background: uiTheme.colors.background,
++    color: uiTheme.colors.text,
++    fontFamily:
++      "Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
++  },
++  sidebar: {
++    width: 250,
++    height: "100vh",
++    background: uiTheme.colors.sidebar,
++    color: uiTheme.colors.text,
++    padding: "24px 20px",
++    display: "flex",
++    flexDirection: "column",
++    gap: 14,
++    flexShrink: 0,
++    boxSizing: "border-box",
++    borderRight: `1px solid ${uiTheme.colors.border}`,
++  },
++  content: {
++    flex: 1,
++    height: "100vh",
++    overflowY: "auto",
++    background: uiTheme.colors.background,
++  },
++  logo: {
++    display: "flex",
++    alignItems: "center",
++    gap: 9,
++    fontSize: 20,
++    fontWeight: 600,
++    marginBottom: 22,
++    color: uiTheme.colors.text,
++  },
++  logoIcon: {
++    width: 34,
++    height: 34,
++    borderRadius: uiTheme.radii.sm,
++    display: "grid",
++    placeItems: "center",
++    color: uiTheme.colors.primary,
++    background: uiTheme.colors.primarySoft,
++    border: `1px solid ${uiTheme.colors.border}`,
++  },
++  nav: { display: "flex", flexDirection: "column", gap: 6 },
++  navItem: {
++  display: "flex",
++  alignItems: "center",
++  gap: 12,
++  padding: "12px 14px",
++  borderRadius: uiTheme.radii.sm,
++  fontWeight: 500,
++  color: uiTheme.colors.muted,
++  position: "relative",
++  fontSize: 14,
++  border: "none",
++  boxShadow: "none",
++  outline: "0",
++  outlineOffset: 0,
++  cursor: "pointer",
++  transition:
++    "background 140ms ease, border-color 140ms ease, color 140ms ease",
++},
++  navItemActive: {
++  background: uiTheme.colors.primarySoft,
++  boxShadow: `inset 0 0 0 1px ${uiTheme.colors.primary}`,
++  color: uiTheme.colors.primary,
++},
++  globalCard: {
++    marginTop: "auto",
++    ...surfaceCard,
++    background: uiTheme.colors.surface,
++    borderRadius: uiTheme.radii.md,
++    padding: 18,
++  },
++  globalTitle: {
++    margin: "0 0 12px",
++    color: uiTheme.colors.muted,
++    fontSize: 12,
++    fontWeight: 500,
++  },
++  globalSubtitle: {
++    margin: "5px 0 14px",
++    color: uiTheme.colors.muted,
++    fontSize: 12,
++  },
++  sparklineSvg: { display: "block", marginTop: 2 },
++  footerText: { color: uiTheme.colors.muted, fontSize: 11, marginTop: 20 },
++  greenText: { color: uiTheme.colors.success },
++  bigGreen: {
++    marginTop: 10,
++    fontSize: 26,
++    fontWeight: 600,
++    color: uiTheme.colors.success,
++  },
++  redText: { color: uiTheme.colors.danger },
++  bigRed: {
++    marginTop: 10,
++    fontSize: 20,
++    fontWeight: 600,
++    color: uiTheme.colors.danger,
++  },
++};
+Only in web_phase/src/app: AuthRedirect.tsx
+Only in web_phase/src/app: NotFoundPage.tsx
+diff -ru web_orig/src/app/ProtectedRoute.tsx web_phase/src/app/ProtectedRoute.tsx
+--- web_orig/src/app/ProtectedRoute.tsx	2026-04-30 09:06:28.000000000 +0000
++++ web_phase/src/app/ProtectedRoute.tsx	2026-05-06 08:36:02.000000000 +0000
+@@ -1,12 +1,14 @@
+-import { Navigate } from 'react-router-dom';
+-import { tokenStorage } from '../shared/tokenStorage';
+-
+-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+-  const token = tokenStorage.get();
+-
+-  if (!token) {
+-    return <Navigate to="/login" replace />;
+-  }
+-
+-  return children;
+-}
+\ No newline at end of file
++import type { ReactNode } from 'react';
++import { Navigate, useLocation } from 'react-router-dom';
++import { tokenStorage } from '../shared/tokenStorage';
++
++export function ProtectedRoute({ children }: { children: ReactNode }) {
++  const location = useLocation();
++  const token = tokenStorage.get();
++
++  if (!token) {
++    return <Navigate to="/login" replace state={{ from: location }} />;
++  }
++
++  return children;
++}
+Only in web_phase/src/app: RouteErrorPage.tsx
+diff -ru web_orig/src/app/router.tsx web_phase/src/app/router.tsx
+--- web_orig/src/app/router.tsx	2026-05-05 14:11:18.000000000 +0000
++++ web_phase/src/app/router.tsx	2026-05-06 08:36:26.000000000 +0000
+@@ -2,47 +2,70 @@
+ import ForgotPasswordPage from '../modules/auth/ForgotPasswordPage';
+ import LoginPage from '../modules/auth/LoginPage';
+ import RegisterPage from '../modules/auth/RegisterPage';
+-import CreateMonitorPage from '../modules/monitors/CreateMonitorPage';
+-import IncidentsPage from '../modules/incidents/IncidentsPage';
+-import IncidentDetailPage from '../modules/incidents/IncidentDetailPage';
+-import { ProtectedRoute } from './ProtectedRoute';
+-import DashboardPage from '../modules/dashboard/DashboardPage';
+-import AppLayout from './AppLayout';
+-import MonitorDetailPage from '../modules/monitors/MonitorDetailPage.tsx';
+-import MonitorsPage from '../modules/monitors/MonitorsPage';
+-import SectionDetailPage from '../modules/sections/SectionDetailPage';
++import CreateMonitorPage from '../modules/monitors/CreateMonitorPage';
++import IncidentsPage from '../modules/incidents/IncidentsPage';
++import IncidentDetailPage from '../modules/incidents/IncidentDetailPage';
++import { ProtectedRoute } from './ProtectedRoute';
++import DashboardPage from '../modules/dashboard/DashboardPage';
++import AppLayout from './AppLayout';
++import MonitorDetailPage from '../modules/monitors/MonitorDetailPage';
++import MonitorsPage from '../modules/monitors/MonitorsPage';
++import SectionDetailPage from '../modules/sections/SectionDetailPage';
+ import SectionsPage from '../modules/sections/SectionsPage';
+ import UsersPage from '../modules/users/UsersPage';
+ import SettingsPage from '../modules/settings/SettingsPage';
+ import ReportsPage from '../modules/reports/ReportsPage';
+ import ProfilePage from '../modules/profile/ProfilePage';
+-
++import AuthRedirect from './AuthRedirect';
++import RouteErrorPage from './RouteErrorPage';
++import NotFoundPage from './NotFoundPage';
++
+ export const router = createBrowserRouter([
+-  { path: '/login', element: <LoginPage /> },
+-  { path: '/registro', element: <RegisterPage /> },
++  {
++    path: '/login',
++    element: (
++      <AuthRedirect>
++        <LoginPage />
++      </AuthRedirect>
++    ),
++    errorElement: <RouteErrorPage />,
++  },
++  {
++    path: '/registro',
++    element: (
++      <AuthRedirect>
++        <RegisterPage />
++      </AuthRedirect>
++    ),
++    errorElement: <RouteErrorPage />,
++  },
+   { path: '/register', element: <Navigate to="/registro" replace /> },
+   { path: '/recuperar-password', element: <ForgotPasswordPage /> },
+   { path: '/mi-perfil', element: <Navigate to="/profile" replace /> },
+   {
+     path: '/',
+-    element: (
+-      <ProtectedRoute>
+-        <AppLayout />
+-      </ProtectedRoute>
+-    ),
+-    children: [
+-      { path: 'dashboard', element: <DashboardPage /> },
+-      { path: 'monitors/create', element: <CreateMonitorPage /> },
+-      { path: 'incidents', element: <IncidentsPage /> },
+-      { path: 'incidents/:id', element: <IncidentDetailPage /> },
+-      { path: 'monitors/:id', element: <MonitorDetailPage /> },
+-      { path: 'monitors', element: <MonitorsPage /> },
++    element: (
++      <ProtectedRoute>
++        <AppLayout />
++      </ProtectedRoute>
++    ),
++    errorElement: <RouteErrorPage />,
++    children: [
++      { index: true, element: <Navigate to="/dashboard" replace /> },
++      { path: 'dashboard', element: <DashboardPage /> },
++      { path: 'monitors/create', element: <CreateMonitorPage /> },
++      { path: 'incidents', element: <IncidentsPage /> },
++      { path: 'incidents/:id', element: <IncidentDetailPage /> },
++      { path: 'monitors/:id', element: <MonitorDetailPage /> },
++      { path: 'monitors', element: <MonitorsPage /> },
+       { path: 'sections/:sectionId', element: <SectionDetailPage /> },
+       { path: 'sections', element: <SectionsPage /> },
+       { path: 'reports', element: <ReportsPage /> },
+       { path: 'users', element: <UsersPage /> },
+-      { path: 'settings', element: <SettingsPage/> },
++      { path: 'settings', element: <SettingsPage /> },
+       { path: 'profile', element: <ProfilePage /> },
++      { path: '*', element: <NotFoundPage /> },
+     ],
+   },
++  { path: '*', element: <Navigate to="/login" replace /> },
+ ]);
+diff -ru web_orig/src/main.tsx web_phase/src/main.tsx
+--- web_orig/src/main.tsx	2026-04-30 09:06:28.000000000 +0000
++++ web_phase/src/main.tsx	2026-05-06 08:36:38.000000000 +0000
+@@ -1,11 +1,10 @@
+-import { StrictMode } from 'react';
+-import { createRoot } from 'react-dom/client';
+-import { RouterProvider } from 'react-router-dom';
+-import { router } from './app/router';
+-import './index.css';
+-
+-createRoot(document.getElementById('root')!).render(
+-  <StrictMode>
+-    <RouterProvider router={router} />
+-  </StrictMode>,
+-);
+\ No newline at end of file
++import { StrictMode } from 'react';
++import { createRoot } from 'react-dom/client';
++import App from './App';
++import './index.css';
++
++createRoot(document.getElementById('root')!).render(
++  <StrictMode>
++    <App />
++  </StrictMode>,
++);
+diff -ru web_orig/src/modules/auth/LoginPage.tsx web_phase/src/modules/auth/LoginPage.tsx
+--- web_orig/src/modules/auth/LoginPage.tsx	2026-05-05 13:49:56.000000000 +0000
++++ web_phase/src/modules/auth/LoginPage.tsx	2026-05-06 08:36:51.000000000 +0000
+@@ -1,13 +1,15 @@
+ import { useState } from 'react';
+-import { Link, useNavigate } from 'react-router-dom';
++import { Link, useLocation, useNavigate } from 'react-router-dom';
+ import { login } from './authApi';
+ import AuthLayout from './AuthLayout';
+ import { tokenStorage } from '../../shared/tokenStorage';
+ 
+ export default function LoginPage() {
+   const navigate = useNavigate();
++  const location = useLocation();
+   const [email, setEmail] = useState('');
+   const [password, setPassword] = useState('');
++  const [rememberSession, setRememberSession] = useState(true);
+   const [submitError, setSubmitError] = useState('');
+   const [isSubmitting, setIsSubmitting] = useState(false);
+ 
+@@ -24,8 +26,9 @@
+ 
+     try {
+       const res = await login({ email: email.trim(), password });
+-      tokenStorage.set(res.accessToken);
+-      navigate('/dashboard', { replace: true });
++      tokenStorage.set(res.accessToken, rememberSession ? 'local' : 'session');
++      const redirectTo = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/dashboard';
++      navigate(redirectTo, { replace: true });
+     } catch (err) {
+       setSubmitError(
+         err instanceof Error ? err.message : 'No se pudo iniciar sesión.',
+@@ -73,7 +76,11 @@
+ 
+         <div className="login-options">
+           <label className="remember">
+-            <input type="checkbox" defaultChecked />
++            <input
++              type="checkbox"
++              checked={rememberSession}
++              onChange={(event) => setRememberSession(event.target.checked)}
++            />
+             Recordarme
+           </label>
+ 
+diff -ru web_orig/src/modules/auth/RegisterPage.tsx web_phase/src/modules/auth/RegisterPage.tsx
+--- web_orig/src/modules/auth/RegisterPage.tsx	2026-05-05 13:49:56.000000000 +0000
++++ web_phase/src/modules/auth/RegisterPage.tsx	2026-05-06 08:37:06.000000000 +0000
+@@ -9,6 +9,7 @@
+   email?: string;
+   password?: string;
+   confirmPassword?: string;
++  organizationName?: string;
+   acceptTerms?: string;
+ };
+ 
+@@ -18,6 +19,7 @@
+   const navigate = useNavigate();
+   const [name, setName] = useState('');
+   const [email, setEmail] = useState('');
++  const [organizationName, setOrganizationName] = useState('');
+   const [password, setPassword] = useState('');
+   const [confirmPassword, setConfirmPassword] = useState('');
+   const [acceptTerms, setAcceptTerms] = useState(false);
+@@ -32,6 +34,10 @@
+       nextErrors.name = 'El nombre es obligatorio.';
+     }
+ 
++    if (!organizationName.trim()) {
++      nextErrors.organizationName = 'El nombre de la organización es obligatorio.';
++    }
++
+     if (!email.trim()) {
+       nextErrors.email = 'El correo electrónico es obligatorio.';
+     } else if (!EMAIL_REGEX.test(email.trim())) {
+@@ -75,9 +81,10 @@
+         name: name.trim(),
+         email: email.trim(),
+         password,
++        organizationName: organizationName.trim(),
+       });
+ 
+-      tokenStorage.set(res.accessToken);
++      tokenStorage.set(res.accessToken, 'local');
+       navigate('/dashboard', { replace: true });
+     } catch (err) {
+       setSubmitError(
+@@ -111,6 +118,26 @@
+           {errors.name ? <span className="field-error">{errors.name}</span> : null}
+         </label>
+ 
++
++        <label>
++          Organización
++          <div className={`input-wrap${errors.organizationName ? ' input-error' : ''}`}>
++            <span>🏢</span>
++            <input
++              type="text"
++              placeholder="Nombre de tu organización"
++              value={organizationName}
++              onChange={(e) => setOrganizationName(e.target.value)}
++              autoComplete="organization"
++              aria-invalid={Boolean(errors.organizationName)}
++              required
++            />
++          </div>
++          {errors.organizationName ? (
++            <span className="field-error">{errors.organizationName}</span>
++          ) : null}
++        </label>
++
+         <label>
+           Correo electrónico
+           <div className={`input-wrap${errors.email ? ' input-error' : ''}`}>
+diff -ru web_orig/src/modules/auth/authApi.ts web_phase/src/modules/auth/authApi.ts
+--- web_orig/src/modules/auth/authApi.ts	2026-05-05 13:49:56.000000000 +0000
++++ web_phase/src/modules/auth/authApi.ts	2026-05-06 08:36:26.000000000 +0000
+@@ -1,23 +1,24 @@
+-import { apiClient } from '../../shared/apiClient';
+-
+-type AuthResponse = {
+-  accessToken: string;
+-  user: {
+-    id: number;
+-    name: string;
+-    email: string;
+-    role: string;
+-    organizationId: number;
+-  };
+-};
+-
+-export function login(data: { email: string; password: string }) {
+-  return apiClient<AuthResponse>('/auth/login', {
+-    method: 'POST',
+-    body: JSON.stringify(data),
+-  });
+-}
+-
++import { apiClient } from '../../shared/apiClient';
++
++type AuthResponse = {
++  accessToken: string;
++  user: {
++    id: number;
++    name: string;
++    email: string;
++    role: string;
++    organizationId: number;
++  };
++};
++
++export function login(data: { email: string; password: string }) {
++  return apiClient<AuthResponse>('/auth/login', {
++    method: 'POST',
++    skipAuth: true,
++    body: JSON.stringify(data),
++  });
++}
++
+ export function register(data: {
+   name: string;
+   email: string;
+@@ -26,13 +27,14 @@
+ }) {
+   return apiClient<AuthResponse>('/auth/register', {
+     method: 'POST',
++    skipAuth: true,
+     body: JSON.stringify({
+       ...data,
+       organizationName: data.organizationName ?? data.name,
+     }),
+   });
+ }
+-
+-export function getMe() {
+-  return apiClient<AuthResponse['user']>('/auth/me');
++
++export function getMe() {
++  return apiClient<AuthResponse['user']>('/auth/me');
+ }
+diff -ru web_orig/src/shared/apiClient.ts web_phase/src/shared/apiClient.ts
+--- web_orig/src/shared/apiClient.ts	2026-04-30 09:06:28.000000000 +0000
++++ web_phase/src/shared/apiClient.ts	2026-05-06 08:36:02.000000000 +0000
+@@ -1,26 +1,122 @@
+-import { tokenStorage } from './tokenStorage';
+-
+-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+-
+-export async function apiClient<T>(
+-  path: string,
+-  options: RequestInit = {},
+-): Promise<T> {
+-  const token = tokenStorage.get();
+-
+-  const response = await fetch(`${API_URL}${path}`, {
+-    ...options,
+-    headers: {
+-      'Content-Type': 'application/json',
+-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+-      ...options.headers,
+-    },
+-  });
+-
+-  if (!response.ok) {
+-    const error = await response.json().catch(() => null);
+-    throw new Error(error?.message ?? 'Error en la petición');
+-  }
+-
+-  return response.json();
+-}
+\ No newline at end of file
++import { appEnv } from './env';
++import { tokenStorage } from './tokenStorage';
++
++type ApiClientOptions = RequestInit & {
++  skipAuth?: boolean;
++  timeoutMs?: number;
++};
++
++type ApiErrorPayload = {
++  message?: string | string[];
++  error?: string;
++  statusCode?: number;
++};
++
++export class ApiError extends Error {
++  status: number;
++  payload: unknown;
++
++  constructor(message: string, status: number, payload?: unknown) {
++    super(message);
++    this.name = 'ApiError';
++    this.status = status;
++    this.payload = payload;
++  }
++}
++
++function buildUrl(path: string) {
++  if (/^https?:\/\//i.test(path)) {
++    return path;
++  }
++
++  return `${appEnv.apiUrl}${path.startsWith('/') ? path : `/${path}`}`;
++}
++
++function buildHeaders(options: ApiClientOptions) {
++  const headers = new Headers(options.headers);
++
++  if (!headers.has('Content-Type') && options.body !== undefined) {
++    headers.set('Content-Type', 'application/json');
++  }
++
++  if (!options.skipAuth) {
++    const token = tokenStorage.get();
++    if (token) {
++      headers.set('Authorization', `Bearer ${token}`);
++    }
++  }
++
++  return headers;
++}
++
++function getErrorMessage(payload: ApiErrorPayload | null, fallback: string) {
++  if (!payload) return fallback;
++
++  if (Array.isArray(payload.message)) {
++    return payload.message.join(' ');
++  }
++
++  return payload.message || payload.error || fallback;
++}
++
++async function parseResponse(response: Response) {
++  if (response.status === 204) {
++    return undefined;
++  }
++
++  const contentType = response.headers.get('content-type') ?? '';
++
++  if (contentType.includes('application/json')) {
++    return response.json();
++  }
++
++  const text = await response.text();
++  return text || undefined;
++}
++
++export async function apiClient<T>(
++  path: string,
++  options: ApiClientOptions = {},
++): Promise<T> {
++  const controller = new AbortController();
++  const timeoutId = window.setTimeout(
++    () => controller.abort(),
++    options.timeoutMs ?? appEnv.requestTimeoutMs,
++  );
++
++  try {
++    const response = await fetch(buildUrl(path), {
++      ...options,
++      headers: buildHeaders(options),
++      signal: options.signal ?? controller.signal,
++    });
++
++    const payload = await parseResponse(response);
++
++    if (!response.ok) {
++      if (response.status === 401) {
++        tokenStorage.clear();
++        window.dispatchEvent(new Event('auth:expired'));
++      }
++
++      throw new ApiError(
++        getErrorMessage(
++          payload as ApiErrorPayload | null,
++          'No se pudo completar la petición.',
++        ),
++        response.status,
++        payload,
++      );
++    }
++
++    return payload as T;
++  } catch (error) {
++    if (error instanceof DOMException && error.name === 'AbortError') {
++      throw new ApiError('La petición ha tardado demasiado.', 408);
++    }
++
++    throw error;
++  } finally {
++    window.clearTimeout(timeoutId);
++  }
++}
+Only in web_phase/src/shared: env.ts
+diff -ru web_orig/src/shared/incidentApi.ts web_phase/src/shared/incidentApi.ts
+--- web_orig/src/shared/incidentApi.ts	2026-04-30 09:06:28.000000000 +0000
++++ web_phase/src/shared/incidentApi.ts	2026-05-06 08:37:42.000000000 +0000
+@@ -1,29 +1,29 @@
+-import { apiClient } from './apiClient';
+-
+-export type IncidentStatus = 'OPEN' | 'RESOLVED';
+-
+-export type Incident = {
+-  id: number;
+-  title: string;
+-  status: IncidentStatus;
+-  startedAt: string;
+-  resolvedAt?: string | null;
+-  durationSeconds?: number | null;
+-  monitor?: {
+-    id: number;
+-    name: string;
+-    target: string;
+-  };
+-};
+-
+-export const getIncidents = async () => {
+-  return apiClient<Incident[]>('/incidents');
+-};
+-
+-export const getActiveIncidents = async () => {
+-  return apiClient<Incident[]>('/incidents/active');
+-};
+-
+-export const getIncident = async (id: number) => {
+-  return apiClient<Incident>(`/incidents/${id}`);
+-};
++import { apiClient } from './apiClient';
++
++export type IncidentStatus = 'OPEN' | 'RESOLVED';
++
++export type Incident = {
++  id: number;
++  title: string;
++  status: IncidentStatus;
++  startedAt: string;
++  resolvedAt?: string | null;
++  durationSeconds?: number | null;
++  monitor?: {
++    id: number;
++    name: string;
++    target: string;
++  };
++};
++
++export const getIncidents = async () => {
++  return apiClient<Incident[]>('/incidents');
++};
++
++export const getActiveIncidents = async () => {
++  return apiClient<Incident[]>('/incidents/active');
++};
++
++export const getIncident = async (id: number) => {
++  return apiClient<Incident>(`/incidents/${encodeURIComponent(String(id))}`);
++};
+diff -ru web_orig/src/shared/monitorApi.ts web_phase/src/shared/monitorApi.ts
+--- web_orig/src/shared/monitorApi.ts	2026-04-30 09:06:28.000000000 +0000
++++ web_phase/src/shared/monitorApi.ts	2026-05-06 08:37:42.000000000 +0000
+@@ -1,96 +1,96 @@
+-import { apiClient } from './apiClient';
+-
+-export type MonitorType = 'HTTPS' | 'HTTP';
+-export type MonitorStatus = 'UP' | 'DOWN' | 'UNKNOWN';
+-
+-export type Monitor = {
+-  id: number;
+-  name: string;
+-  type: MonitorType;
+-  target: string;
+-  expectedStatusCode: number;
+-  frequencySeconds: number;
+-  timeoutSeconds: number;
+-  currentStatus: MonitorStatus;
+-  lastResponseTime?: number | null;
+-  lastCheckedAt?: string | null;
+-  nextCheckAt?: string;
+-  isActive: boolean;
+-  locations: string[];
+-  alertEmail: boolean;
+-  alertPush: boolean;
+-  alertThreshold: number;
+-};
+-
+-export type MonitorCheck = {
+-  id: number;
+-  monitorId: number;
+-  status: MonitorStatus;
+-  responseTimeMs: number | null;
+-  statusCode: number | null;
+-  errorMessage: string | null;
+-  location?: string | null;
+-  checkedAt: string;
+-};
+-
+-export type CreateMonitorInput = {
+-  name: string;
+-  type: MonitorType;
+-  target: string;
+-  expectedStatusCode: number;
+-  frequencySeconds: number;
+-  timeoutSeconds: number;
+-  locations: string[];
+-  alertEmail: boolean;
+-  alertPush: boolean;
+-  alertThreshold: number;
+-};
+-
+-export type UpdateMonitorInput = CreateMonitorInput;
+-
+-export const getMonitors = async () => {
+-  return apiClient<Monitor[]>('/monitors');
+-};
+-
+-export const createMonitor = async (data: CreateMonitorInput) => {
+-  return apiClient<Monitor>('/monitors', {
+-    method: 'POST',
+-    body: JSON.stringify(data),
+-  });
+-};
+-
+-export const updateMonitor = async (id: number, data: UpdateMonitorInput) => {
+-  return apiClient<Monitor>(`/monitors/${id}`, {
+-    method: 'PATCH',
+-    body: JSON.stringify(data),
+-  });
+-};
+-
+-export const deleteMonitor = async (id: number) => {
+-  return apiClient<Monitor>(`/monitors/${id}`, {
+-    method: 'DELETE',
+-  });
+-};
+-
+-export const runMonitorCheck = async (id: number) => {
+-  return apiClient(`/monitors/${id}/run-check`, {
+-    method: 'POST',
+-  });
+-};
+-
+-export const toggleMonitorActive = async (id: number) => {
+-  return apiClient<Monitor>(`/monitors/${id}/toggle-active`, {
+-    method: 'PATCH',
+-  });
+-};
+-
+-export const getMonitor = async (id: number) => {
+-  return apiClient<Monitor>(`/monitors/${id}`);
+-};
+-
+-export const getMonitorChecks = async (
+-  id: number,
+-  order: 'asc' | 'desc' = 'desc',
+-) => {
+-  return apiClient<MonitorCheck[]>(`/monitors/${id}/checks?order=${order}`);
+-};
++import { apiClient } from './apiClient';
++
++export type MonitorType = 'HTTPS' | 'HTTP';
++export type MonitorStatus = 'UP' | 'DOWN' | 'UNKNOWN';
++
++export type Monitor = {
++  id: number;
++  name: string;
++  type: MonitorType;
++  target: string;
++  expectedStatusCode: number;
++  frequencySeconds: number;
++  timeoutSeconds: number;
++  currentStatus: MonitorStatus;
++  lastResponseTime?: number | null;
++  lastCheckedAt?: string | null;
++  nextCheckAt?: string;
++  isActive: boolean;
++  locations: string[];
++  alertEmail: boolean;
++  alertPush: boolean;
++  alertThreshold: number;
++};
++
++export type MonitorCheck = {
++  id: number;
++  monitorId: number;
++  status: MonitorStatus;
++  responseTimeMs: number | null;
++  statusCode: number | null;
++  errorMessage: string | null;
++  location?: string | null;
++  checkedAt: string;
++};
++
++export type CreateMonitorInput = {
++  name: string;
++  type: MonitorType;
++  target: string;
++  expectedStatusCode: number;
++  frequencySeconds: number;
++  timeoutSeconds: number;
++  locations: string[];
++  alertEmail: boolean;
++  alertPush: boolean;
++  alertThreshold: number;
++};
++
++export type UpdateMonitorInput = CreateMonitorInput;
++
++export const getMonitors = async () => {
++  return apiClient<Monitor[]>('/monitors');
++};
++
++export const createMonitor = async (data: CreateMonitorInput) => {
++  return apiClient<Monitor>('/monitors', {
++    method: 'POST',
++    body: JSON.stringify(data),
++  });
++};
++
++export const updateMonitor = async (id: number, data: UpdateMonitorInput) => {
++  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`, {
++    method: 'PATCH',
++    body: JSON.stringify(data),
++  });
++};
++
++export const deleteMonitor = async (id: number) => {
++  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`, {
++    method: 'DELETE',
++  });
++};
++
++export const runMonitorCheck = async (id: number) => {
++  return apiClient(`/monitors/${encodeURIComponent(String(id))}/run-check`, {
++    method: 'POST',
++  });
++};
++
++export const toggleMonitorActive = async (id: number) => {
++  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}/toggle-active`, {
++    method: 'PATCH',
++  });
++};
++
++export const getMonitor = async (id: number) => {
++  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`);
++};
++
++export const getMonitorChecks = async (
++  id: number,
++  order: 'asc' | 'desc' = 'desc',
++) => {
++  return apiClient<MonitorCheck[]>(`/monitors/${encodeURIComponent(String(id))}/checks?order=${encodeURIComponent(order)}`);
++};
+diff -ru web_orig/src/shared/tokenStorage.ts web_phase/src/shared/tokenStorage.ts
+--- web_orig/src/shared/tokenStorage.ts	2026-04-30 09:06:28.000000000 +0000
++++ web_phase/src/shared/tokenStorage.ts	2026-05-06 08:36:02.000000000 +0000
+@@ -1,13 +1,30 @@
+-const TOKEN_KEY = 'accessToken';
+-
+-export const tokenStorage = {
+-  get() {
+-    return localStorage.getItem(TOKEN_KEY);
+-  },
+-  set(token: string) {
+-    localStorage.setItem(TOKEN_KEY, token);
+-  },
+-  clear() {
+-    localStorage.removeItem(TOKEN_KEY);
+-  },
+-};
+\ No newline at end of file
++const TOKEN_KEY = 'accessToken';
++const PERSISTENCE_KEY = 'tokenPersistence';
++
++type TokenPersistence = 'local' | 'session';
++
++function getStorage(persistence?: TokenPersistence) {
++  const savedPersistence = localStorage.getItem(PERSISTENCE_KEY) as
++    | TokenPersistence
++    | null;
++
++  const targetPersistence = persistence ?? savedPersistence ?? 'local';
++  return targetPersistence === 'session' ? sessionStorage : localStorage;
++}
++
++export const tokenStorage = {
++  get() {
++    return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
++  },
++  set(token: string, persistence: TokenPersistence = 'local') {
++    localStorage.removeItem(TOKEN_KEY);
++    sessionStorage.removeItem(TOKEN_KEY);
++    localStorage.setItem(PERSISTENCE_KEY, persistence);
++    getStorage(persistence).setItem(TOKEN_KEY, token);
++  },
++  clear() {
++    localStorage.removeItem(TOKEN_KEY);
++    sessionStorage.removeItem(TOKEN_KEY);
++    localStorage.removeItem(PERSISTENCE_KEY);
++  },
++};
+diff -ru web_orig/src/shared/userApi.ts web_phase/src/shared/userApi.ts
+--- web_orig/src/shared/userApi.ts	2026-04-30 09:06:28.000000000 +0000
++++ web_phase/src/shared/userApi.ts	2026-05-06 08:37:42.000000000 +0000
+@@ -1,37 +1,37 @@
+-import { apiClient } from './apiClient';
+-
+-export type UserRole = 'OWNER' | 'ADMIN' | 'VIEWER';
+-export type UserStatus = 'ACTIVE' | 'INACTIVE';
+-
+-export type User = {
+-  id: number;
+-  name: string;
+-  email: string;
+-  role: UserRole;
+-  status: UserStatus;
+-  organizationId: number;
+-  createdAt: string;
+-  updatedAt: string;
+-  organization?: {
+-    id: number;
+-    name: string;
+-    slug: string;
+-  } | null;
+-};
+-
+-export type UpdateUserInput = {
+-  name: string;
+-  email: string;
+-  role: UserRole;
+-};
+-
+-export const getUsers = async () => {
+-  return apiClient<User[]>('/users');
+-};
+-
+-export const updateUser = async (id: number, data: UpdateUserInput) => {
+-  return apiClient<User>(`/users/${id}`, {
+-    method: 'PATCH',
+-    body: JSON.stringify(data),
+-  });
+-};
++import { apiClient } from './apiClient';
++
++export type UserRole = 'OWNER' | 'ADMIN' | 'VIEWER';
++export type UserStatus = 'ACTIVE' | 'INACTIVE';
++
++export type User = {
++  id: number;
++  name: string;
++  email: string;
++  role: UserRole;
++  status: UserStatus;
++  organizationId: number;
++  createdAt: string;
++  updatedAt: string;
++  organization?: {
++    id: number;
++    name: string;
++    slug: string;
++  } | null;
++};
++
++export type UpdateUserInput = {
++  name: string;
++  email: string;
++  role: UserRole;
++};
++
++export const getUsers = async () => {
++  return apiClient<User[]>('/users');
++};
++
++export const updateUser = async (id: number, data: UpdateUserInput) => {
++  return apiClient<User>(`/users/${encodeURIComponent(String(id))}`, {
++    method: 'PATCH',
++    body: JSON.stringify(data),
++  });
++};

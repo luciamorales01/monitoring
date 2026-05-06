@@ -30,7 +30,7 @@ export const getUsers = async () => {
 };
 
 export const updateUser = async (id: number, data: UpdateUserInput) => {
-  return apiClient<User>(`/users/${id}`, {
+  return apiClient<User>(`/users/${encodeURIComponent(String(id))}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });

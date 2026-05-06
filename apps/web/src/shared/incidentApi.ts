@@ -25,5 +25,5 @@ export const getActiveIncidents = async () => {
 };
 
 export const getIncident = async (id: number) => {
-  return apiClient<Incident>(`/incidents/${id}`);
+  return apiClient<Incident>(`/incidents/${encodeURIComponent(String(id))}`);
 };

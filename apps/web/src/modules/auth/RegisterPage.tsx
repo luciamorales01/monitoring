@@ -9,6 +9,7 @@ type RegisterErrors = {
   email?: string;
   password?: string;
   confirmPassword?: string;
+  organizationName?: string;
   acceptTerms?: string;
 };
 
@@ -18,6 +19,7 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
@@ -30,6 +32,10 @@ export default function RegisterPage() {
 
     if (!name.trim()) {
       nextErrors.name = 'El nombre es obligatorio.';
+    }
+
+    if (!organizationName.trim()) {
+      nextErrors.organizationName = 'El nombre de la organización es obligatorio.';
     }
 
     if (!email.trim()) {
@@ -75,9 +81,10 @@ export default function RegisterPage() {
         name: name.trim(),
         email: email.trim(),
         password,
+        organizationName: organizationName.trim(),
       });
 
-      tokenStorage.set(res.accessToken);
+      tokenStorage.set(res.accessToken, 'local');
       navigate('/dashboard', { replace: true });
     } catch (err) {
       setSubmitError(
@@ -109,6 +116,26 @@ export default function RegisterPage() {
             />
           </div>
           {errors.name ? <span className="field-error">{errors.name}</span> : null}
+        </label>
+
+
+        <label>
+          Organización
+          <div className={`input-wrap${errors.organizationName ? ' input-error' : ''}`}>
+            <span>🏢</span>
+            <input
+              type="text"
+              placeholder="Nombre de tu organización"
+              value={organizationName}
+              onChange={(e) => setOrganizationName(e.target.value)}
+              autoComplete="organization"
+              aria-invalid={Boolean(errors.organizationName)}
+              required
+            />
+          </div>
+          {errors.organizationName ? (
+            <span className="field-error">{errors.organizationName}</span>
+          ) : null}
         </label>
 
         <label>

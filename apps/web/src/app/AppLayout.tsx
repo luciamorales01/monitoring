@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getActiveIncidents } from "../shared/incidentApi";
+import { appEnv } from "../shared/env";
 import { surfaceCard, uiTheme } from "../theme/commonStyles";
 import {
   AlertTriangleIcon,
@@ -34,12 +35,19 @@ const navItems = [
 
 export default function AppLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeIncidentsCount, setActiveIncidentsCount] = useState(0);
 
   const isActive = (path?: string) => {
     if (!path) return false;
     return location.pathname === path;
   };
+
+  useEffect(() => {
+    const handleAuthExpired = () => navigate('/login', { replace: true });
+    window.addEventListener('auth:expired', handleAuthExpired);
+    return () => window.removeEventListener('auth:expired', handleAuthExpired);
+  }, [navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +79,7 @@ export default function AppLayout() {
           <span style={styles.logoIcon}>
             <BrandMark size={18} />
           </span>
-          <span>Monitoring TFG</span>
+          <span>{appEnv.appName}</span>
         </div>
 
         <nav style={styles.nav}>
@@ -106,7 +114,7 @@ export default function AppLayout() {
           <MiniSparkline warning={hasActiveIncidents} />
         </div>
 
-        <p style={styles.footerText}>© 2026 Monitoring TFG</p>
+        <p style={styles.footerText}>© 2026 {appEnv.appName}</p>
       </aside>
 
       <div style={styles.content}>

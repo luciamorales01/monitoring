@@ -14,6 +14,7 @@ type AuthResponse = {
 export function login(data: { email: string; password: string }) {
   return apiClient<AuthResponse>('/auth/login', {
     method: 'POST',
+    skipAuth: true,
     body: JSON.stringify(data),
   });
 }
@@ -26,6 +27,7 @@ export function register(data: {
 }) {
   return apiClient<AuthResponse>('/auth/register', {
     method: 'POST',
+    skipAuth: true,
     body: JSON.stringify({
       ...data,
       organizationName: data.organizationName ?? data.name,
