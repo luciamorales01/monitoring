@@ -1,0 +1,26 @@
+{
+  "name": "monitoring-tfg",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema de monitorización web multi-tenant para comprobar disponibilidad, latencia e incidentes de servicios HTTP/HTTPS.",
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "packages/shared-types"
+  ],
+  "scripts": {
+    "dev:api": "npm --workspace apps/api run start:dev",
+    "dev:web": "npm --workspace apps/web run dev",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "prisma:generate": "npm --workspace apps/api run prisma:generate",
+    "prisma:migrate": "npm --workspace apps/api run prisma:migrate",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

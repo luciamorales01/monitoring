@@ -4,11 +4,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { LoginDto } from './login.dto';
 import { RegisterDto } from './register.dto';
-import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -36,7 +36,7 @@ export class AuthService {
     let counter = 1;
 
     while (await this.prisma.organization.findUnique({ where: { slug } })) {
-      slug = `${slugBase}-${counter++}`;
+      slug = `${slugBase || 'organization'}-${counter++}`;
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -55,6 +55,7 @@ export class AuthService {
           email: dto.email,
           passwordHash,
           role: UserRole.OWNER,
+          status: UserStatus.ACTIVE,
           organizationId: organization.id,
         },
       });
@@ -71,13 +72,7 @@ export class AuthService {
 
     return {
       accessToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        organizationId: user.organizationId,
-      },
+      user: this.toAuthUser(user),
     };
   }
 
@@ -90,11 +85,20 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
 
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Usuario inactivo o pendiente de activación');
+    }
+
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
 
     if (!passwordValid) {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
 
     const accessToken = await this.signToken(
       user.id,
@@ -105,13 +109,7 @@ export class AuthService {
 
     return {
       accessToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        organizationId: user.organizationId,
-      },
+      user: this.toAuthUser(user),
     };
   }
 
@@ -125,12 +123,12 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Usuario inactivo o pendiente de activación');
+    }
+
     return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      organizationId: user.organizationId,
+      ...this.toAuthUser(user),
       organization: user.organization
         ? {
             id: user.organization.id,
@@ -138,6 +136,24 @@ export class AuthService {
             slug: user.organization.slug,
           }
         : null,
+    };
+  }
+
+  private toAuthUser(user: {
+    id: number;
+    name: string;
+    email: string;
+    role: UserRole;
+    status: UserStatus;
+    organizationId: number;
+  }) {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      organizationId: user.organizationId,
     };
   }
 

@@ -11,6 +11,7 @@ import { UpdateUserDto } from './update-user.dto';
 type AuthenticatedUser = {
   organizationId: number;
   userId: number;
+  role?: string;
 };
 
 @Injectable()
@@ -59,6 +60,10 @@ export class UsersService {
       throw new ForbiddenException('No puedes editar usuarios de otra organización.');
     }
 
+    if (existingUser.id === user.userId && dto.role !== undefined) {
+      throw new ForbiddenException('No puedes cambiar tu propio rol.');
+    }
+
     const data: Prisma.UserUpdateInput = {};
 
     if (dto.name !== undefined) data.name = dto.name;
@@ -95,12 +100,8 @@ export class UsersService {
 
   private toSafeUser<T extends { passwordHash: string }>(user: T) {
     const { passwordHash, ...safeUser } = user;
-
     void passwordHash;
 
-    return {
-      ...safeUser,
-      status: 'ACTIVE' as const,
-    };
+    return safeUser;
   }
 }
