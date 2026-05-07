@@ -6,20 +6,47 @@ import {
 } from '@nestjs/common';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import {
-  CheckResult,
-  IncidentStatus,
-  Monitor,
-  MonitorStatus,
-  Prisma,
-} from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { CreateMonitorDto } from './create-monitor.dto';
 import { UpdateMonitorDto } from './update-monitor.dto';
 
+const MonitorStatus = {
+  UP: 'UP',
+  DOWN: 'DOWN',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
+const IncidentStatus = {
+  OPEN: 'OPEN',
+  RESOLVED: 'RESOLVED',
+} as const;
+
+type MonitorStatusValue = (typeof MonitorStatus)[keyof typeof MonitorStatus];
+
 type AuthenticatedUser = {
   organizationId: number;
   userId: number;
+};
+
+type MonitorEntity = {
+  id: number;
+  name?: string;
+  target: string;
+  expectedStatusCode: number;
+  frequencySeconds: number;
+  timeoutSeconds: number;
+  organizationId: number;
+  isActive?: boolean;
+  locations?: string[] | null;
+  alertThreshold?: number | null;
+};
+
+type CheckResultEntity = {
+  id?: number;
+  monitorId?: number;
+  status: MonitorStatusValue;
+  checkedAt: Date;
+  location?: string | null;
 };
 
 type MonitorCheckOutcome = {
@@ -27,13 +54,13 @@ type MonitorCheckOutcome = {
   errorMessage: string | null;
   location: string;
   responseTimeMs: number;
-  status: MonitorStatus;
+  status: MonitorStatusValue;
   statusCode: number | null;
 };
 
 type MonitorCheckBatchResult = {
-  overallStatus: MonitorStatus;
-  results: CheckResult[];
+  overallStatus: MonitorStatusValue;
+  results: unknown[];
 };
 
 @Injectable()
@@ -97,6 +124,7 @@ export class MonitorsService {
   async runCheck(id: number, user: AuthenticatedUser) {
     const monitor = await this.findMonitorByIdOrThrow(id);
     this.ensureMonitorAccess(monitor.organizationId, user);
+
     const outcomes = await this.executeMonitorChecks(monitor);
 
     return this.persistCheckResults(monitor, outcomes);
@@ -106,7 +134,7 @@ export class MonitorsService {
     const monitor = await this.findMonitorByIdOrThrow(id);
     this.ensureMonitorAccess(monitor.organizationId, user);
 
-    const data: Prisma.MonitorUpdateInput = {};
+    const data: Record<string, unknown> = {};
 
     if (dto.target !== undefined) {
       await this.assertPublicHttpTarget(dto.target);
@@ -211,7 +239,7 @@ export class MonitorsService {
   }
 
   private async executeMonitorChecks(
-    monitor: Monitor,
+    monitor: MonitorEntity,
   ): Promise<MonitorCheckOutcome[]> {
     const locations = this.normalizeLocations(monitor.locations);
 
@@ -221,12 +249,13 @@ export class MonitorsService {
   }
 
   private async executeHttpCheck(
-    monitor: Monitor,
+    monitor: MonitorEntity,
     location: string,
   ): Promise<MonitorCheckOutcome> {
     const checkedAt = new Date();
     const startTime = performance.now();
     const controller = new AbortController();
+
     const timeout = setTimeout(
       () => controller.abort(),
       monitor.timeoutSeconds * 1000,
@@ -240,6 +269,7 @@ export class MonitorsService {
         redirect: 'manual',
         signal: controller.signal,
       });
+
       const isUp = response.status === monitor.expectedStatusCode;
       const responseTimeMs = Math.round(performance.now() - startTime);
 
@@ -269,7 +299,6 @@ export class MonitorsService {
       clearTimeout(timeout);
     }
   }
-
 
   private async assertPublicHttpTarget(target: string) {
     let parsedUrl: URL;
@@ -344,7 +373,7 @@ export class MonitorsService {
 
   private async persistCheckResults(
     monitor: Pick<
-      Monitor,
+      MonitorEntity,
       'id' | 'frequencySeconds' | 'name' | 'alertThreshold' | 'locations'
     >,
     outcomes: MonitorCheckOutcome[],
@@ -404,7 +433,7 @@ export class MonitorsService {
 
   private getOverallMonitorStatus(
     outcomes: MonitorCheckOutcome[],
-  ): MonitorStatus {
+  ): MonitorStatusValue {
     if (
       outcomes.length === 0 ||
       outcomes.every((outcome) => outcome.status === MonitorStatus.UNKNOWN)
@@ -478,8 +507,8 @@ export class MonitorsService {
   }
 
   private getBatchStatus(
-    results: Array<Pick<CheckResult, 'status'>>,
-  ): MonitorStatus {
+    results: Array<Pick<CheckResultEntity, 'status'>>,
+  ): MonitorStatusValue {
     if (results.some((result) => result.status === MonitorStatus.DOWN)) {
       return MonitorStatus.DOWN;
     }
@@ -492,10 +521,10 @@ export class MonitorsService {
   }
 
   private getRecentCheckBatches(
-    results: CheckResult[],
+    results: CheckResultEntity[],
     batchSize: number,
-  ): CheckResult[][] {
-    const batches: CheckResult[][] = [];
+  ): CheckResultEntity[][] {
+    const batches: CheckResultEntity[][] = [];
 
     for (let index = 0; index < results.length; index += batchSize) {
       const batch = results.slice(index, index + batchSize);
@@ -511,11 +540,11 @@ export class MonitorsService {
   }
 
   private getConsecutiveDownBatches(
-    results: CheckResult[],
+    results: CheckResultEntity[],
     batchSize: number,
-  ): CheckResult[][] {
+  ): CheckResultEntity[][] {
     const batches = this.getRecentCheckBatches(results, batchSize);
-    const consecutiveDownBatches: CheckResult[][] = [];
+    const consecutiveDownBatches: CheckResultEntity[][] = [];
 
     for (const batch of batches) {
       if (this.getBatchStatus(batch) !== MonitorStatus.DOWN) {
@@ -528,7 +557,7 @@ export class MonitorsService {
     return consecutiveDownBatches;
   }
 
-  private getIncidentStartedAt(batches: CheckResult[][], fallback: Date) {
+  private getIncidentStartedAt(batches: CheckResultEntity[][], fallback: Date) {
     const oldestBatch = batches.at(-1);
 
     if (!oldestBatch || oldestBatch.length === 0) {
@@ -576,8 +605,8 @@ export class MonitorsService {
   }
 
   private async syncIncidentForCheck(
-    tx: Prisma.TransactionClient,
-    monitor: Pick<Monitor, 'id' | 'alertThreshold' | 'locations'>,
+    tx: any,
+    monitor: Pick<MonitorEntity, 'id' | 'alertThreshold' | 'locations'>,
     outcome: MonitorCheckOutcome,
     outcomes: MonitorCheckOutcome[],
   ) {
@@ -598,6 +627,7 @@ export class MonitorsService {
 
       const batchSize = this.normalizeLocations(monitor.locations).length;
       const alertThreshold = this.getAlertThreshold(monitor.alertThreshold);
+
       const recentResults = await tx.checkResult.findMany({
         where: {
           monitorId: monitor.id,
@@ -607,6 +637,7 @@ export class MonitorsService {
         },
         take: batchSize * alertThreshold,
       });
+
       const consecutiveDownBatches = this.getConsecutiveDownBatches(
         recentResults,
         batchSize,
@@ -653,13 +684,13 @@ export class MonitorsService {
     });
   }
 
-  private findMonitorById(id: number) {
+  private findMonitorById(id: number): Promise<MonitorEntity | null> {
     return this.prisma.monitor.findUnique({
       where: { id },
-    });
+    }) as Promise<MonitorEntity | null>;
   }
 
-  private async findMonitorByIdOrThrow(id: number) {
+  private async findMonitorByIdOrThrow(id: number): Promise<MonitorEntity> {
     const monitor = await this.findMonitorById(id);
 
     if (!monitor) {

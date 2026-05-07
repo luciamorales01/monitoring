@@ -27,37 +27,37 @@ export const sectionIconOptions: Array<{
     key: 'globe',
     label: 'Web',
     color: uiTheme.colors.primaryDark,
-    background: '#f5f3ff',
+    background: uiTheme.colors.surfaceSoft,
   },
   {
     key: 'monitor',
     label: 'Aplicaciones',
     color: uiTheme.colors.primaryLight,
-    background: '#f3e8ff',
+    background: uiTheme.colors.surfaceSoft,
   },
   {
     key: 'database',
     label: 'Datos',
     color: '#7c3aed',
-    background: '#faf5ff',
+    background: uiTheme.colors.surfaceSoft,
   },
   {
     key: 'cloud',
     label: 'Infra',
     color: '#8b5cf6',
-    background: '#f5f3ff',
+    background: uiTheme.colors.surfaceSoft,
   },
   {
     key: 'code',
     label: 'Backend',
     color: '#6d28d9',
-    background: '#ede9fe',
+    background: uiTheme.colors.surfaceSoft,
   },
   {
     key: 'drive',
     label: 'Sistemas',
     color: '#5b21b6',
-    background: '#f3e8ff',
+    background: uiTheme.colors.surfaceSoft,
   },
 ];
 

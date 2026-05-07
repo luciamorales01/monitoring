@@ -22,8 +22,8 @@
   padding: 70px 86px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 78% 32%, rgba(139, 92, 246, 0.16), transparent 34%),
-    linear-gradient(145deg, #f8f6ff 0%, #f1ecff 100%);
+    radial-gradient(circle at 78% 32%, rgba(148, 163, 184, 0.16), transparent 34%),
+    linear-gradient(145deg, #f8fafc 0%, #eef2f7 100%);
   border-right: 1px solid var(--border);
 }
 
@@ -36,11 +36,11 @@
   width: 620px;
   height: 620px;
   border-radius: 50%;
-  border: 1px solid rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.12);
   box-shadow:
-    0 0 0 34px rgba(139, 92, 246, 0.035),
-    0 0 0 70px rgba(139, 92, 246, 0.025),
-    0 0 0 108px rgba(139, 92, 246, 0.018);
+    0 0 0 34px rgba(148, 163, 184, 0.035),
+    0 0 0 70px rgba(148, 163, 184, 0.025),
+    0 0 0 108px rgba(148, 163, 184, 0.018);
   pointer-events: none;
 }
 
@@ -144,8 +144,8 @@
   height: 40px;
   margin-top: 6px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #ddd6fe, #f5f3ff);
-  box-shadow: 0 10px 20px rgba(109, 40, 217, 0.15);
+  background: linear-gradient(135deg, #e2e8f0, #f8fafc);
+  box-shadow: 0 10px 20px rgba(148, 163, 184, 0.12);
 }
 
 /* Mini dashboard */
@@ -156,7 +156,7 @@
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--border);
   position: relative;
-  box-shadow: 0 12px 24px rgba(109, 40, 217, 0.12);
+  box-shadow: 0 12px 24px rgba(148, 163, 184, 0.12);
 }
 
 .status-pill {
@@ -188,7 +188,7 @@
   height: 50px;
   border-radius: 50%;
   border: 10px solid var(--primary-light);
-  border-left-color: #ddd6fe;
+  border-left-color: #e2e8f0;
 }
 
 /* Lado derecho */

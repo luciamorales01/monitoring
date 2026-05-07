@@ -8,7 +8,6 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -21,13 +20,13 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Roles('OWNER', 'ADMIN')
   findAll(@Req() req: any) {
     return this.usersService.findAll(req.user);
   }
 
   @Patch(':id')
-  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  @Roles('OWNER', 'ADMIN')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDto,

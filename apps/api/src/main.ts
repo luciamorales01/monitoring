@@ -9,11 +9,22 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  app.setGlobalPrefix(configService.get<string>('app.globalPrefix') ?? 'api');
+  const corsOrigins =
+    configService.get<string[]>('app.corsOrigins') ??
+    process.env.FRONTEND_URL
+      ?.split(',')
+      .map((origin) => origin.trim()) ??
+    [];
+
+  app.setGlobalPrefix(
+    configService.get<string>('app.globalPrefix') ?? 'api',
+  );
+
   app.use(helmet());
   app.use(cookieParser());
+
   app.enableCors({
-    origin: configService.get<string[]>('app.corsOrigins') ?? [],
+    origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -27,7 +38,12 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(configService.get<number>('app.port') ?? 3000);
+  const port = configService.get<number>('app.port') ?? 3000;
+
+  await app.listen(port);
+
+  console.log(`API running on http://localhost:${port}/api`);
+  console.log('CORS enabled for:', corsOrigins);
 }
 
 bootstrap();

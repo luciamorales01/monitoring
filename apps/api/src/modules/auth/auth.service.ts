@@ -4,11 +4,34 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { LoginDto } from './login.dto';
 import { RegisterDto } from './register.dto';
+
+const UserRole = {
+  OWNER: 'OWNER',
+  ADMIN: 'ADMIN',
+  VIEWER: 'VIEWER',
+} as const;
+
+const UserStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  PENDING: 'PENDING',
+} as const;
+
+type UserRoleValue = (typeof UserRole)[keyof typeof UserRole];
+type UserStatusValue = (typeof UserStatus)[keyof typeof UserStatus];
+
+type AuthUserInput = {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRoleValue;
+  status: UserStatusValue;
+  organizationId: number;
+};
 
 @Injectable()
 export class AuthService {
@@ -63,16 +86,16 @@ export class AuthService {
       return { organization, user };
     });
 
-    const accessToken = await this.signToken(
+    const accessToken = this.signToken(
       user.id,
       user.email,
-      user.role,
+      user.role as UserRoleValue,
       user.organizationId,
     );
 
     return {
       accessToken,
-      user: this.toAuthUser(user),
+      user: this.toAuthUser(user as AuthUserInput),
     };
   }
 
@@ -100,16 +123,16 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    const accessToken = await this.signToken(
+    const accessToken = this.signToken(
       user.id,
       user.email,
-      user.role,
+      user.role as UserRoleValue,
       user.organizationId,
     );
 
     return {
       accessToken,
-      user: this.toAuthUser(user),
+      user: this.toAuthUser(user as AuthUserInput),
     };
   }
 
@@ -128,7 +151,7 @@ export class AuthService {
     }
 
     return {
-      ...this.toAuthUser(user),
+      ...this.toAuthUser(user as AuthUserInput),
       organization: user.organization
         ? {
             id: user.organization.id,
@@ -139,14 +162,7 @@ export class AuthService {
     };
   }
 
-  private toAuthUser(user: {
-    id: number;
-    name: string;
-    email: string;
-    role: UserRole;
-    status: UserStatus;
-    organizationId: number;
-  }) {
+  private toAuthUser(user: AuthUserInput) {
     return {
       id: user.id,
       name: user.name,
@@ -157,13 +173,13 @@ export class AuthService {
     };
   }
 
-  private async signToken(
+  private signToken(
     userId: number,
     email: string,
-    role: UserRole,
+    role: UserRoleValue,
     organizationId: number,
   ) {
-    return this.jwtService.signAsync({
+    return this.jwtService.sign({
       sub: userId,
       email,
       role,

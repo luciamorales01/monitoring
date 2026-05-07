@@ -826,7 +826,7 @@ function formatTime(value: string) {
   });
 }
 const avatarColors = ['#6d28d9', '#5b21b6', '#8b5cf6', '#7c3aed', '#a78bfa', '#c4b5fd', '#94a3b8', '#6d28d9'];
-const activityColors = ['#ede9fe', '#f5f3ff', '#ede9fe', '#f5f3ff', '#ede9fe'];
+const activityColors = ['#e2e8f0', '#f1f5f9', '#e2e8f0', '#f1f5f9', '#e2e8f0'];
 
 const styles: Record<string, CSSProperties> = {
   main: pageMain,

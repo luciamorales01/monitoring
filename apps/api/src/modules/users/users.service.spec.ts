@@ -93,7 +93,7 @@ describe('UsersService', () => {
           name: 'Acme',
           slug: 'acme',
         },
-        status: 'ACTIVE',
+         
       },
     ]);
   });

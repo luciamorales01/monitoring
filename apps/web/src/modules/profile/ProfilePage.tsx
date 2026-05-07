@@ -602,7 +602,7 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 999,
     display: 'grid',
     placeItems: 'center',
-    background: 'linear-gradient(145deg, #ede9fe 0%, #ddd6fe 100%)',
+    background: 'linear-gradient(145deg, #f8fafc 0%, #e2e8f0 100%)',
     color: uiTheme.colors.primary,
     fontSize: 56,
     fontWeight: 700,
