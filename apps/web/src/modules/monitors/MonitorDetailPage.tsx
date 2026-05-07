@@ -983,6 +983,7 @@ function ResponseTimeChart({
           y2={averageY}
           stroke={uiTheme.colors.slate}
           strokeDasharray="3 7"
+          strokeWidth="0.5"
           opacity="0.35"
         />
       ) : null}
@@ -997,7 +998,7 @@ function ResponseTimeChart({
         d={`M ${path}`}
         fill="none"
         stroke={uiTheme.colors.primary}
-        strokeWidth="3"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -1620,13 +1621,13 @@ const styles: Record<string, CSSProperties> = {
   statusTimelineTrack: {
     display: "flex",
     alignItems: "end",
-    gap: 4,
+    gap: 3,
     minHeight: 150,
   },
 
   statusTimelineSegment: {
     flex: 1,
-    minWidth: 5,
+    minWidth: 3,
     borderRadius: "999px 999px 8px 8px",
     boxShadow: "0 8px 18px rgba(15, 23, 42, 0.08)",
     transition: "height 160ms ease, opacity 160ms ease",
@@ -1634,13 +1635,13 @@ const styles: Record<string, CSSProperties> = {
 
   statusEventRow: {
     display: "flex",
-    gap: 4,
+    gap: 3,
     alignItems: "center",
   },
 
   statusEventSlot: {
     flex: 1,
-    minWidth: 5,
+    minWidth: 3,
     display: "grid",
     placeItems: "center",
   },
