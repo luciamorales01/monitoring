@@ -16,6 +16,7 @@ import UsersPage from '../modules/users/UsersPage';
 import SettingsPage from '../modules/settings/SettingsPage';
 import ReportsPage from '../modules/reports/ReportsPage';
 import ProfilePage from '../modules/profile/ProfilePage';
+import PublicStatusPage from '../modules/status/PublicStatusPage';
 import AuthRedirect from './AuthRedirect';
 import RouteErrorPage from './RouteErrorPage';
 import NotFoundPage from './NotFoundPage';
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
   },
   { path: '/register', element: <Navigate to="/registro" replace /> },
   { path: '/recuperar-password', element: <ForgotPasswordPage /> },
+  { path: '/status/:slug', element: <PublicStatusPage /> },
   { path: '/mi-perfil', element: <Navigate to="/profile" replace /> },
   {
     path: '/',

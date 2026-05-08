@@ -19,6 +19,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { StatusModule } from './modules/status/status.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { JobsModule } from './modules/jobs/jobs.module';
     NotificationsModule,
     ReportsModule,
     JobsModule,
+    StatusModule,
   ],
   controllers: [AppController],
   providers: [AppService],

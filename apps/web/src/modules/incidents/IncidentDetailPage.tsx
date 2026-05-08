@@ -1,83 +1,68 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { matchesSearchTerm, normalizeSearchTerm } from '../../shared/filterUtils';
-import { getIncidents, type Incident } from '../../shared/incidentApi';
+import {
+  acknowledgeIncident,
+  getIncident,
+  resolveIncident,
+  updateIncidentSeverity,
+  type Incident,
+  type IncidentSeverity,
+} from '../../shared/incidentApi';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
 import { uiTheme } from '../../theme/commonStyles';
 
+const severities: IncidentSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+
 export default function IncidentDetailPage() {
   const { id } = useParams();
-  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const incidentId = Number(id);
+  const [incident, setIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resolutionNote, setResolutionNote] = useState('');
+  const [rootCause, setRootCause] = useState('');
 
   const loadData = async () => {
-    const nextIncidents = await getIncidents();
-    setIncidents(nextIncidents);
+    if (!Number.isFinite(incidentId)) return;
+    const nextIncident = await getIncident(incidentId);
+    setIncident(nextIncident);
+    setResolutionNote(nextIncident.resolutionNote ?? '');
+    setRootCause(nextIncident.rootCause ?? '');
   };
 
   useEffect(() => {
-    loadData().finally(() => setLoading(false));
-  }, []);
+    loadData()
+      .catch(() => setError('No se pudo cargar la incidencia.'))
+      .finally(() => setLoading(false));
+  }, [incidentId]);
 
-  const incident = useMemo(
-    () => incidents.find((item) => String(item.id) === String(id)),
-    [incidents, id],
-  );
+  const runAction = async (action: () => Promise<Incident>) => {
+    try {
+      setSaving(true);
+      setError(null);
+      const nextIncident = await action();
+      setIncident(nextIncident);
+    } catch {
+      setError('No se pudo actualizar la incidencia.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
-    return (
-      <main style={styles.main}>
-        <LoadingState variant="page" label="Cargando incidencia" />
-      </main>
-    );
+    return <LoadingState variant="page" label="Cargando incidencia" />;
   }
 
   if (!incident) {
-    return (
-      <main style={styles.main}>
-        <p style={styles.empty}>No se ha encontrado la incidencia.</p>
-      </main>
-    );
+    return <main style={styles.main}><p style={styles.empty}>{error ?? 'Incidencia no encontrada.'}</p></main>;
   }
 
-  const isOpen = incident.status === 'OPEN';
+  const isResolved = incident.status === 'RESOLVED';
   const code = `INC-${String(incident.id).padStart(4, '0')}`;
-  const monitorName = incident.monitor?.name ?? 'Monitor no disponible';
-  const monitorTarget = incident.monitor?.target ?? 'Sin URL disponible';
-  const searchTerm = normalizeSearchTerm(search);
-  const timelineItems = [
-    {
-      color: '#ef4444',
-      text: 'La incidencia se ha creado automáticamente por una alerta crítica.',
-      time: formatDate(incident.startedAt),
-      title: 'Incidencia creada',
-    },
-    {
-      color: '#f59e0b',
-      text: `${monitorName} no responde correctamente.`,
-      time: formatDate(incident.startedAt),
-      title: 'Primera alerta asociada',
-    },
-    {
-      color: uiTheme.colors.primary,
-      text: `La incidencia se ha marcado como ${isOpen ? 'abierta' : 'resuelta'}.`,
-      time: formatDate(incident.resolvedAt ?? incident.startedAt),
-      title: `Estado cambiado a ${isOpen ? 'Abierta' : 'Resuelta'}`,
-    },
-    {
-      color: uiTheme.colors.primary,
-      text: 'Se está investigando la causa raíz del problema.',
-      time: 'Hace 20 min',
-      title: 'Nota añadida',
-    },
-  ];
-  const visibleTimelineItems = timelineItems.filter((item) =>
-    matchesSearchTerm(searchTerm, item.title, item.text, item.time),
-  );
-  const allTags = ['monitor', 'servidor', 'alerta'];
-  const visibleTags = allTags.filter((tag) => matchesSearchTerm(searchTerm, tag));
+  const monitorName = incident.monitor?.name ?? 'Monitor';
+  const monitorTarget = incident.monitor?.target ?? '-';
 
   return (
     <main style={styles.main}>
@@ -94,138 +79,90 @@ export default function IncidentDetailPage() {
         )}
       />
 
-      <div style={styles.searchBar}>
-        <input
-          style={styles.search}
-          placeholder="Buscar en la incidencia..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-      </div>
+      {error && <p style={styles.error}>{error}</p>}
 
       <section style={styles.layout}>
         <div style={styles.content}>
           <section style={styles.heroCard}>
-            <div style={styles.alertIcon}>△</div>
-
-            <div style={styles.heroContent}>
+            <div>
               <div style={styles.badgeRow}>
                 <span style={styles.codeBadge}>{code}</span>
-                <span style={isOpen ? styles.statusOpen : styles.statusResolved}>
-                  {isOpen ? 'Abierta' : 'Resuelta'}
-                </span>
+                <span style={getStatusStyle(incident.status)}>{getStatusLabel(incident.status)}</span>
+                <span style={getSeverityStyle(incident.severity ?? 'HIGH')}>{getSeverityLabel(incident.severity ?? 'HIGH')}</span>
               </div>
-
               <h1 style={styles.title}>{incident.title}</h1>
               <p style={styles.subtitle}>
-                {isOpen
-                  ? `${monitorName} no responde correctamente. El sistema ha creado esta incidencia automáticamente.`
-                  : `La incidencia asociada a ${monitorName} ha sido resuelta correctamente.`}
+                Incidencia asociada a <strong>{monitorName}</strong>. Desde aquí puedes reconocerla, cambiar su severidad y cerrarla con nota técnica.
               </p>
-
-              <div style={styles.metaRow}>
-                <span style={styles.metaPill}>▣ Creada: {formatDate(incident.startedAt)}</span>
-                <span style={styles.metaPill}>◷ Actualizada: hace 25 min</span>
-              </div>
             </div>
-          </section>
-
-          <nav style={styles.tabs}>
-            <span style={styles.tabActive}>Resumen</span>
-            <span style={styles.tab}>Línea de tiempo</span>
-            <span style={styles.tab}>Monitor afectado (1)</span>
-            <span style={styles.tab}>Alertas</span>
-            <span style={styles.tab}>Notas</span>
-          </nav>
-
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>Descripción</h2>
-            <p style={styles.text}>
-              Desde {formatDate(incident.startedAt)} se detecta que el servicio monitorizado no está
-              respondiendo como se esperaba. Los usuarios pueden experimentar errores o pérdida de
-              disponibilidad en el servicio afectado.
-            </p>
-            <p style={styles.text}>
-              El equipo técnico debe revisar el monitor, comprobar los últimos checks y validar si el
-              servicio vuelve a estar operativo.
-            </p>
           </section>
 
           <section style={styles.card}>
             <h2 style={styles.cardTitle}>Monitor afectado</h2>
-
             <div style={styles.monitorBox}>
-              <span style={styles.monitorIcon}>◎</span>
               <div>
                 <strong>{monitorName}</strong>
                 <p style={styles.monitorUrl}>{monitorTarget}</p>
               </div>
-
-              {incident.monitor?.id && (
-                <Link to={`/monitors/${incident.monitor.id}`} style={styles.monitorButton}>
-                  Ver monitor ↗
-                </Link>
-              )}
+              {incident.monitor?.id && <Link to={`/monitors/${incident.monitor.id}`} style={styles.monitorButton}>Ver monitor</Link>}
             </div>
           </section>
 
           <section style={styles.card}>
-            <h2 style={styles.cardTitle}>Línea de tiempo</h2>
+            <h2 style={styles.cardTitle}>Diagnóstico y resolución</h2>
+            <label style={styles.label}>
+              Causa raíz
+              <textarea style={styles.textarea} value={rootCause} onChange={(event) => setRootCause(event.target.value)} placeholder="Ej: caída del servidor, error DNS, timeout externo..." />
+            </label>
+            <label style={styles.label}>
+              Nota de resolución
+              <textarea style={styles.textarea} value={resolutionNote} onChange={(event) => setResolutionNote(event.target.value)} placeholder="Qué se hizo para resolver la incidencia" />
+            </label>
+          </section>
 
-            <div style={styles.timeline}>
-              {visibleTimelineItems.length === 0 ? (
-                <p style={styles.empty}>No hay eventos que coincidan con la búsqueda.</p>
-              ) : (
-                visibleTimelineItems.map((item) => (
-                  <TimelineItem
-                    key={`${item.title}-${item.time}`}
-                    color={item.color}
-                    title={item.title}
-                    text={item.text}
-                    time={item.time}
-                  />
-                ))
-              )}
-            </div>
+          <section style={styles.card}>
+            <h2 style={styles.cardTitle}>Línea de tiempo</h2>
+            <TimelineItem title="Incidencia creada" value={formatDate(incident.startedAt)} />
+            {incident.acknowledgedAt && <TimelineItem title="Incidencia reconocida" value={formatDate(incident.acknowledgedAt)} />}
+            {incident.resolvedAt && <TimelineItem title="Incidencia resuelta" value={formatDate(incident.resolvedAt)} />}
+            {incident.lastStatusChangeAt && <TimelineItem title="Último cambio" value={formatDate(incident.lastStatusChangeAt)} />}
           </section>
         </div>
 
         <aside style={styles.side}>
           <section style={styles.sideCard}>
             <h2 style={styles.sideTitle}>Información</h2>
-
-            <InfoRow label="Estado" value={isOpen ? 'Abierta' : 'Resuelta'} danger={isOpen} />
-            <InfoRow label="Severidad" value={isOpen ? 'Crítica' : 'Baja'} danger={isOpen} />
-            <InfoRow label="Prioridad" value={isOpen ? 'Alta' : 'Normal'} />
-            <InfoRow label="Servicio" value={monitorName} />
-            <InfoRow label="Creada por" value="Sistema" />
-            <InfoRow label="Asignada a" value="Admin" />
-            <InfoRow label="Tiempo abierto" value={incident.durationSeconds ? formatDuration(incident.durationSeconds) : 'En curso'} />
+            <InfoRow label="Estado" value={getStatusLabel(incident.status)} />
+            <InfoRow label="Severidad" value={getSeverityLabel(incident.severity ?? 'HIGH')} />
+            <InfoRow label="Creada" value={formatDate(incident.startedAt)} />
+            <InfoRow label="Duración" value={formatDuration(incident.durationSeconds, incident.startedAt, incident.resolvedAt)} />
           </section>
 
           <section style={styles.sideCard}>
             <h2 style={styles.sideTitle}>Acciones</h2>
-
-            <button type="button" style={styles.primaryButton}>Actualizar estado</button>
-            <button type="button" style={styles.secondaryButton}>Asignar a un usuario</button>
-            <button type="button" style={styles.secondaryButton}>Añadir nota</button>
-            <button type="button" style={styles.dangerButton}>Cerrar incidencia</button>
+            <button type="button" style={styles.secondaryButton} disabled={saving || isResolved} onClick={() => runAction(() => acknowledgeIncident(incident.id))}>
+              Reconocer incidencia
+            </button>
+            <button type="button" style={styles.primaryButton} disabled={saving || isResolved} onClick={() => runAction(() => resolveIncident(incident.id, { resolutionNote, rootCause }))}>
+              Resolver incidencia
+            </button>
           </section>
 
           <section style={styles.sideCard}>
-            <h2 style={styles.sideTitle}>Etiquetas</h2>
-
-            <div style={styles.tags}>
-              {visibleTags.length === 0 ? (
-                <span style={styles.empty}>Sin etiquetas visibles.</span>
-              ) : (
-                visibleTags.map((tag) => (
-                  <span key={tag} style={styles.tag}>{tag}</span>
-                ))
-              )}
+            <h2 style={styles.sideTitle}>Severidad</h2>
+            <div style={styles.severityGrid}>
+              {severities.map((severity) => (
+                <button
+                  key={severity}
+                  type="button"
+                  style={{ ...styles.severityButton, ...(incident.severity === severity ? styles.severityActive : {}) }}
+                  disabled={saving}
+                  onClick={() => runAction(() => updateIncidentSeverity(incident.id, severity))}
+                >
+                  {getSeverityLabel(severity)}
+                </button>
+              ))}
             </div>
-
-            <button type="button" style={styles.linkButton}>+ Añadir etiqueta</button>
           </section>
         </aside>
       </section>
@@ -233,114 +170,83 @@ export default function IncidentDetailPage() {
   );
 }
 
-function TimelineItem({
-  color,
-  title,
-  text,
-  time,
-}: {
-  color: string;
-  title: string;
-  text: string;
-  time: string;
-}) {
-  return (
-    <div style={styles.timelineItem}>
-      <span style={{ ...styles.timelineDot, background: color }} />
-      <div>
-        <strong>{title}</strong>
-        <p>{text}</p>
-      </div>
-      <span style={styles.timelineTime}>{time}</span>
-    </div>
-  );
+function TimelineItem({ title, value }: { title: string; value: string }) {
+  return <div style={styles.timelineItem}><span style={styles.timelineDot} /><strong>{title}</strong><span>{value}</span></div>;
 }
 
-function InfoRow({
-  label,
-  value,
-  danger,
-}: {
-  label: string;
-  value: string;
-  danger?: boolean;
-}) {
-  return (
-    <div style={styles.infoRow}>
-      <span>{label}</span>
-      <strong style={danger ? styles.dangerText : undefined}>{value}</strong>
-    </div>
-  );
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return <div style={styles.infoRow}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function getStatusLabel(status: Incident['status']) {
+  return status === 'RESOLVED' ? 'Resuelta' : status === 'ACKNOWLEDGED' ? 'Reconocida' : 'Abierta';
+}
+
+function getSeverityLabel(severity: IncidentSeverity) {
+  const labels: Record<IncidentSeverity, string> = { LOW: 'Baja', MEDIUM: 'Media', HIGH: 'Alta', CRITICAL: 'Crítica' };
+  return labels[severity];
+}
+
+function getStatusStyle(status: Incident['status']): CSSProperties {
+  const base = styles.badge;
+  if (status === 'RESOLVED') return { ...base, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary };
+  if (status === 'ACKNOWLEDGED') return { ...base, background: uiTheme.colors.warningSoft, color: '#d97706' };
+  return { ...base, background: uiTheme.colors.dangerSoft, color: '#dc2626' };
+}
+
+function getSeverityStyle(severity: IncidentSeverity): CSSProperties {
+  const base = styles.badge;
+  if (severity === 'CRITICAL') return { ...base, background: '#fee2e2', color: '#b91c1c' };
+  if (severity === 'HIGH') return { ...base, background: '#ffedd5', color: '#c2410c' };
+  if (severity === 'MEDIUM') return { ...base, background: uiTheme.colors.warningSoft, color: '#d97706' };
+  return { ...base, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary };
 }
 
 function formatDate(value?: string | null) {
   if (!value) return '-';
-
-  return new Intl.DateTimeFormat('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value));
+  return new Date(value).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function formatDuration(seconds: number) {
+function formatDuration(durationSeconds?: number | null, startedAt?: string, resolvedAt?: string | null) {
+  let seconds = durationSeconds ?? 0;
+  if (!seconds && startedAt) {
+    const end = resolvedAt ? new Date(resolvedAt).getTime() : Date.now();
+    seconds = Math.max(0, Math.round((end - new Date(startedAt).getTime()) / 1000));
+  }
   const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-
-  if (hours > 0) return `${hours}h ${minutes % 60}m`;
-  return `${minutes}m`;
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
 const styles: Record<string, CSSProperties> = {
-  main: { flex: 1, padding: '24px 28px', background: '#f8fafc' },
-  breadcrumbLink: { color: '#64748b', textDecoration: 'none' },
-  searchBar: { display: 'flex', justifyContent: 'flex-end', marginTop: -12, marginBottom: 20 },
-  search: { height: 40, border: `1px solid ${uiTheme.colors.borderStrong}`, borderRadius: 10, padding: '0 14px', fontSize: 13 },
-
-  layout: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 24 },
-  content: { display: 'grid', gap: 14 },
-  side: { display: 'grid', gap: 14, alignContent: 'start' },
-
-  heroCard: { display: 'flex', gap: 22, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 28, boxShadow: '0 10px 30px rgba(15,23,42,.04)' },
-  alertIcon: { width: 94, height: 94, borderRadius: 16, background: '#fef2f2', color: '#ef4444', display: 'grid', placeItems: 'center', fontSize: 44, fontWeight: 900 },
-  heroContent: { flex: 1 },
-  badgeRow: { display: 'flex', gap: 10, alignItems: 'center' },
-  codeBadge: { padding: '6px 10px', borderRadius: 8, background: '#f1f5f9', color: '#334155', fontWeight: 600, fontSize: 12 },
-  statusOpen: { padding: '6px 10px', borderRadius: 8, background: '#fee2e2', color: '#ef4444', fontWeight: 600, fontSize: 12 },
-  statusResolved: { padding: '6px 10px', borderRadius: 8, background: '#dcfce7', color: '#059669', fontWeight: 600, fontSize: 12 },
-  title: { margin: '14px 0 8px', fontSize: 28, fontWeight: 600, color: '#0f172a' },
-  subtitle: { margin: 0, color: '#64748b', fontSize: 15 },
-  metaRow: { display: 'flex', gap: 10, marginTop: 20 },
-  metaPill: { border: `1px solid ${uiTheme.colors.borderStrong}`, borderRadius: 8, padding: '9px 12px', background: uiTheme.colors.surface, color: '#475569', fontSize: 12 },
-
-  tabs: { display: 'flex', gap: 26, borderBottom: `1px solid ${uiTheme.colors.borderStrong}`, marginTop: 6 },
-  tab: { padding: '12px 0', color: '#64748b', fontWeight: 500, fontSize: 13 },
-  tabActive: { padding: '12px 0', color: uiTheme.colors.primary, fontWeight: 600, fontSize: 13, borderBottom: `2px solid ${uiTheme.colors.primary}` },
-
-  card: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 20, boxShadow: '0 8px 24px rgba(15,23,42,.035)' },
-  cardTitle: { margin: '0 0 14px', fontSize: 16, fontWeight: 800 },
-  text: { margin: '0 0 8px', color: '#64748b', lineHeight: 1.6 },
-
-  monitorBox: { display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: 14, alignItems: 'center' },
-  monitorIcon: { width: 44, height: 44, borderRadius: 10, background: '#dcfce7', color: '#10b981', display: 'grid', placeItems: 'center', fontSize: 24 },
-  monitorUrl: { margin: '4px 0 0', color: '#64748b', fontSize: 13 },
-  monitorButton: { border: `1px solid ${uiTheme.colors.borderStrong}`, borderRadius: 8, padding: '10px 14px', textDecoration: 'none', color: uiTheme.colors.primary, fontWeight: 800 },
-
-  timeline: { display: 'grid', gap: 18 },
-  timelineItem: { display: 'grid', gridTemplateColumns: '20px 1fr auto', gap: 12, alignItems: 'start', color: '#334155' },
-  timelineDot: { width: 10, height: 10, borderRadius: 999, marginTop: 5 },
-  timelineTime: { color: '#64748b', fontSize: 12 },
-  sideCard: { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 18, boxShadow: '0 8px 24px rgba(15,23,42,.035)' },
-  sideTitle: { margin: '0 0 16px', fontSize: 16, fontWeight: 800 },
-  infoRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, padding: '12px 0', color: '#64748b', fontSize: 13 },
-  dangerText: { color: '#ef4444' },
-  primaryButton: { width: '100%', height: 42, border: 0, borderRadius: 8, background: uiTheme.colors.primary, color: '#fff', fontWeight: 600, marginBottom: 10 },
-  secondaryButton: { width: '100%', height: 42, border: `1px solid ${uiTheme.colors.borderStrong}`, borderRadius: 8, background: uiTheme.colors.surface, color: uiTheme.colors.primary, fontWeight: 600, marginBottom: 10 },
-  dangerButton: { width: '100%', height: 42, border: '1px solid #fecaca', borderRadius: 8, background: '#fff', color: '#ef4444', fontWeight: 800 },
-  tags: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  tag: { padding: '7px 10px', borderRadius: 8, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary, fontSize: 12, fontWeight: 700 },
-  linkButton: { marginTop: 14, border: 0, background: 'transparent', color: uiTheme.colors.primary, fontWeight: 800 },
-  empty: { color: '#64748b' },
+  main: { padding: 24, background: uiTheme.colors.background, minHeight: '100%' },
+  layout: { display: 'grid', gridTemplateColumns: '1fr 320px', gap: 18 },
+  content: { display: 'grid', gap: 16 },
+  heroCard: { background: '#fff', border: `1px solid ${uiTheme.colors.border}`, borderRadius: 22, padding: 24, boxShadow: uiTheme.shadows.card },
+  badgeRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 },
+  codeBadge: { padding: '7px 11px', borderRadius: 999, background: uiTheme.colors.surfaceSoft, color: uiTheme.colors.text, fontSize: 12, fontWeight: 800 },
+  badge: { padding: '7px 11px', borderRadius: 999, fontSize: 12, fontWeight: 800 },
+  title: { margin: 0, fontSize: 28, color: uiTheme.colors.text },
+  subtitle: { margin: '10px 0 0', color: uiTheme.colors.muted, lineHeight: 1.6 },
+  card: { background: '#fff', border: `1px solid ${uiTheme.colors.border}`, borderRadius: 18, padding: 20, boxShadow: uiTheme.shadows.card },
+  cardTitle: { margin: '0 0 14px', fontSize: 17, color: uiTheme.colors.text },
+  monitorBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, background: uiTheme.colors.surfaceSoft },
+  monitorUrl: { margin: '4px 0 0', color: uiTheme.colors.muted, fontSize: 13 },
+  monitorButton: { color: uiTheme.colors.primary, textDecoration: 'none', fontWeight: 800 },
+  label: { display: 'grid', gap: 8, fontSize: 13, fontWeight: 800, color: uiTheme.colors.text, marginBottom: 12 },
+  textarea: { minHeight: 92, resize: 'vertical', border: `1px solid ${uiTheme.colors.border}`, borderRadius: 14, padding: 12, font: 'inherit', color: uiTheme.colors.text },
+  timelineItem: { display: 'grid', gridTemplateColumns: '12px 1fr auto', gap: 10, alignItems: 'center', padding: '12px 0', borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`, color: uiTheme.colors.text, fontSize: 13 },
+  timelineDot: { width: 9, height: 9, borderRadius: 999, background: uiTheme.colors.primary },
+  side: { display: 'grid', gap: 16, alignSelf: 'start' },
+  sideCard: { background: '#fff', border: `1px solid ${uiTheme.colors.border}`, borderRadius: 18, padding: 18, boxShadow: uiTheme.shadows.card },
+  sideTitle: { margin: '0 0 14px', fontSize: 16 },
+  infoRow: { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`, fontSize: 13 },
+  primaryButton: { width: '100%', border: 0, borderRadius: 12, padding: '12px 14px', background: uiTheme.colors.primary, color: '#fff', fontWeight: 800, cursor: 'pointer', marginTop: 8 },
+  secondaryButton: { width: '100%', border: `1px solid ${uiTheme.colors.border}`, borderRadius: 12, padding: '12px 14px', background: '#fff', color: uiTheme.colors.text, fontWeight: 800, cursor: 'pointer', marginTop: 8 },
+  severityGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 },
+  severityButton: { border: `1px solid ${uiTheme.colors.border}`, borderRadius: 12, background: '#fff', padding: 10, cursor: 'pointer', fontWeight: 800 },
+  severityActive: { borderColor: uiTheme.colors.primary, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary },
+  breadcrumbLink: { color: uiTheme.colors.primary, textDecoration: 'none' },
+  empty: { color: uiTheme.colors.muted },
+  error: { background: '#fee2e2', color: '#991b1b', borderRadius: 12, padding: 12, fontWeight: 700 },
 };

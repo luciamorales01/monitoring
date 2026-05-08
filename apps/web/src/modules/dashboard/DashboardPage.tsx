@@ -25,6 +25,7 @@ import {
   toggleMonitorActive,
   type Monitor,
 } from "../../shared/monitorApi";
+import { getDashboardSummary, type DashboardSummary } from "../../shared/dashboardApi";
 import {
   filterMonitors,
   getMonitorViewStatus,
@@ -59,6 +60,7 @@ const dashboardAllowedValues = {
 
 export default function DashboardPage() {
   const [monitors, setMonitors] = useState<Monitor[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -75,8 +77,13 @@ export default function DashboardPage() {
   );
 
   const refreshMonitors = async () => {
-    const data = await getMonitors();
+    const [data, dashboardSummary] = await Promise.all([
+      getMonitors(),
+      getDashboardSummary().catch(() => null),
+    ]);
+
     setMonitors(data);
+    setSummary(dashboardSummary);
     return data;
   };
 
@@ -143,22 +150,28 @@ export default function DashboardPage() {
   });
 
   const stats = useMemo(() => {
-    const total = monitors.length;
-    const online = monitors.filter(
+    const fallbackTotal = monitors.length;
+    const fallbackOnline = monitors.filter(
       (monitor) => monitor.currentStatus === "UP",
     ).length;
-    const alerts = monitors.filter(
+    const fallbackAlerts = monitors.filter(
       (monitor) => monitor.currentStatus === "DOWN",
     ).length;
+
+    const total = summary?.totalMonitors ?? fallbackTotal;
+    const online = summary?.onlineMonitors ?? fallbackOnline;
+    const alerts = summary?.openIncidents ?? fallbackAlerts;
+    const uptimePercent = summary?.uptimePercent ?? (total > 0 ? (online / total) * 100 : 0);
+    const responseMs = summary?.averageResponseTimeMs ?? 0;
 
     return {
       total,
       online,
       alerts,
-      uptime: total > 0 ? `${((online / total) * 100).toFixed(2)}%` : "0%",
-      response: total > 0 ? "732 ms" : "0 ms",
+      uptime: `${uptimePercent.toFixed(2)}%`,
+      response: `${responseMs} ms`,
     };
-  }, [monitors]);
+  }, [monitors, summary]);
 
   useEffect(() => {
     const intervalMs = stats.alerts > 0 ? 10000 : 30000;

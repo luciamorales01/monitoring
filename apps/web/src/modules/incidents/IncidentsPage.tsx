@@ -29,7 +29,7 @@ import {
 } from '../../shared/uiIcons';
 
 type IncidentSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-type IncidentFilterStatus = 'ALL' | 'OPEN' | 'INVESTIGATING' | 'RESOLVED';
+type IncidentFilterStatus = 'ALL' | 'OPEN' | 'ACKNOWLEDGED' | 'INVESTIGATING' | 'RESOLVED';
 
 const incidentFilterDefaults = {
   monitor: 'ALL',
@@ -41,7 +41,7 @@ const incidentFilterDefaults = {
 
 const incidentAllowedValues = {
   severity: ['ALL', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
-  status: ['ALL', 'OPEN', 'INVESTIGATING', 'RESOLVED'],
+  status: ['ALL', 'OPEN', 'ACKNOWLEDGED', 'INVESTIGATING', 'RESOLVED'],
   tab: ['active', 'history'],
 } as const;
 
@@ -211,6 +211,7 @@ export default function IncidentsPage() {
               >
                 <option value="ALL">Todos</option>
                 <option value="OPEN">Abiertas</option>
+                <option value="ACKNOWLEDGED">Reconocidas</option>
                 <option value="INVESTIGATING">En investigación</option>
                 <option value="RESOLVED">Resueltas</option>
               </select>
@@ -437,6 +438,7 @@ function StatusBadge({ status }: { status: IncidentFilterStatus }) {
   const stylesByStatus: Record<IncidentFilterStatus, { background: string; color: string; label: string }> = {
     ALL: { background: uiTheme.colors.background, color: uiTheme.colors.muted, label: 'Todas' },
     OPEN: { background: uiTheme.colors.dangerSoft, color: '#dc2626', label: 'Abierta' },
+    ACKNOWLEDGED: { background: uiTheme.colors.warningSoft, color: '#d97706', label: 'Reconocida' },
     INVESTIGATING: { background: uiTheme.colors.warningSoft, color: '#d97706', label: 'En investigación' },
     RESOLVED: { background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary, label: 'Resuelta' },
   };
@@ -466,14 +468,15 @@ function LegendRow({ color, label, value }: { color: string; label: string; valu
 }
 
 function getIncidentViewStatus(incident: Incident): IncidentFilterStatus {
-  if (incident.status === 'RESOLVED') {
-    return 'RESOLVED';
-  }
+  if (incident.status === 'RESOLVED') return 'RESOLVED';
+  if (incident.status === 'ACKNOWLEDGED') return 'ACKNOWLEDGED';
 
   return getIncidentDurationSeconds(incident) >= 30 * 60 ? 'INVESTIGATING' : 'OPEN';
 }
 
 function getIncidentSeverity(incident: Incident): IncidentSeverity {
+  if (incident.severity) return incident.severity;
+
   const durationSeconds = getIncidentDurationSeconds(incident);
 
   if (durationSeconds >= 4 * 60 * 60) return 'CRITICAL';

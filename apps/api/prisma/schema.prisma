@@ -55,7 +55,15 @@ enum MonitorStatus {
 
 enum IncidentStatus {
   OPEN
+  ACKNOWLEDGED
   RESOLVED
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
 
 model Monitor {
@@ -113,18 +121,26 @@ model CheckResult {
 }
 
 model Incident {
-  id              Int            @id @default(autoincrement())
-  monitorId       Int
-  status          IncidentStatus @default(OPEN)
-  title           String
-  startedAt       DateTime
-  resolvedAt      DateTime?
-  durationSeconds Int?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                 Int              @id @default(autoincrement())
+  monitorId          Int
+  status             IncidentStatus   @default(OPEN)
+  severity           IncidentSeverity @default(HIGH)
+  title              String
+  startedAt          DateTime
+  acknowledgedAt     DateTime?
+  acknowledgedById   Int?
+  resolvedAt         DateTime?
+  resolvedById       Int?
+  durationSeconds    Int?
+  resolutionNote     String?
+  rootCause          String?
+  lastStatusChangeAt DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
-  monitor         Monitor        @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  monitor            Monitor          @relation(fields: [monitorId], references: [id], onDelete: Cascade)
 
   @@index([monitorId, status])
   @@index([status, startedAt])
+  @@index([severity, status])
 }
