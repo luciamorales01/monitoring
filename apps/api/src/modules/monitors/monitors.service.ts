@@ -194,14 +194,33 @@ export class MonitorsService {
       data.alertThreshold = dto.alertThreshold;
     }
     if (dto.tcpPort !== undefined) data.tcpPort = dto.tcpPort;
-    if (dto.keyword !== undefined) data.keyword = dto.keyword.trim() || null;
-    if (dto.sslWarningDays !== undefined)
-      data.sslWarningDays = dto.sslWarningDays;
-    if (dto.dnsRecordType !== undefined)
-      data.dnsRecordType = dto.dnsRecordType.trim().toUpperCase();
-    if (dto.dnsExpectedValue !== undefined)
-      data.dnsExpectedValue = dto.dnsExpectedValue.trim() || null;
+    if (dto.keyword !== undefined) {
+      data.keyword =
+        typeof dto.keyword === 'string' && dto.keyword.trim().length > 0
+          ? dto.keyword.trim()
+          : null;
+    }
 
+    if (dto.sslWarningDays !== undefined) {
+      data.sslWarningDays =
+        dto.sslWarningDays === null ? 14 : Number(dto.sslWarningDays);
+    }
+
+    if (dto.dnsRecordType !== undefined) {
+      data.dnsRecordType =
+        typeof dto.dnsRecordType === 'string' &&
+        dto.dnsRecordType.trim().length > 0
+          ? dto.dnsRecordType.trim().toUpperCase()
+          : 'A';
+    }
+
+    if (dto.dnsExpectedValue !== undefined) {
+      data.dnsExpectedValue =
+        typeof dto.dnsExpectedValue === 'string' &&
+        dto.dnsExpectedValue.trim().length > 0
+          ? dto.dnsExpectedValue.trim()
+          : null;
+    }
     return this.prisma.monitor.update({
       where: { id },
       data,

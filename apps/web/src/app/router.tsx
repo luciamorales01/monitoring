@@ -1,3 +1,4 @@
+import { type ReactNode } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import ForgotPasswordPage from "../modules/auth/ForgotPasswordPage";
 import LoginPage from "../modules/auth/LoginPage";
@@ -23,6 +24,21 @@ import RouteErrorPage from "./RouteErrorPage";
 import NotFoundPage from "./NotFoundPage";
 import ResetPasswordPage from "../modules/auth/ResetPasswordPage";
 import AcceptInvitationPage from "../modules/auth/AcceptInvitationPage";
+import { useCurrentUserPermissions } from "../shared/permissions";
+
+function WriteRoute({ children }: { children: ReactNode }) {
+  const { canWrite: canWriteActions, isLoading } = useCurrentUserPermissions();
+
+  if (isLoading) {
+    return <div style={{ padding: 32 }}>Comprobando permisos...</div>;
+  }
+
+  if (!canWriteActions) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
 
 export const router = createBrowserRouter([
   {
@@ -65,7 +81,14 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "dashboard", element: <DashboardPage /> },
-      { path: "monitors/create", element: <CreateMonitorPage /> },
+      {
+        path: "monitors/create",
+        element: (
+          <WriteRoute>
+            <CreateMonitorPage />
+          </WriteRoute>
+        ),
+      },
       { path: "incidents", element: <IncidentsPage /> },
       { path: "incidents/:id", element: <IncidentDetailPage /> },
       { path: "monitors/:id", element: <MonitorDetailPage /> },

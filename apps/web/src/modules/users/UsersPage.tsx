@@ -15,6 +15,7 @@ import {
 } from '../../shared/userApi';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
+import { useCurrentUserPermissions } from '../../shared/permissions';
 import { EditIcon, MailIcon, MoreHorizontalIcon, ShieldIcon, UsersIcon } from '../../shared/uiIcons';
 import {
   inputBase,
@@ -30,6 +31,7 @@ import {
 type UserRoleLabel = 'Administrador' | 'Editor' | 'Solo lectura';
 
 export default function UsersPage() {
+  const { canWrite: canWriteActions } = useCurrentUserPermissions();
   const [users, setUsers] = useState<User[]>([]);
   const [invitations, setInvitations] = useState<UserInvitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,14 +137,18 @@ export default function UsersPage() {
         title="Usuarios"
         subtitle="Gestiona miembros, roles, estados e invitaciones del equipo."
         onRefresh={loadData}
-        cta={{
-          icon: <MailIcon size={16} />,
-          label: 'Invitar usuario',
-          onClick: () => {
-            setActionError(null);
-            setShowInviteModal(true);
-          },
-        }}
+        cta={
+          canWriteActions
+            ? {
+                icon: <MailIcon size={16} />,
+                label: 'Invitar usuario',
+                onClick: () => {
+                  setActionError(null);
+                  setShowInviteModal(true);
+                },
+              }
+            : undefined
+        }
       />
 
       <section style={styles.kpiGrid}>
@@ -186,7 +192,7 @@ export default function UsersPage() {
                   <th style={styles.th}>Rol</th>
                   <th style={styles.th}>Estado</th>
                   <th style={styles.th}>Última actividad</th>
-                  <th style={styles.thActions}>Acciones</th>
+                  {canWriteActions ? <th style={styles.thActions}>Acciones</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -204,16 +210,18 @@ export default function UsersPage() {
                     <td style={styles.td}><RoleBadge role={getRoleLabel(user.role)} /></td>
                     <td style={styles.td}><StatusBadge status={user.status} /></td>
                     <td style={styles.td}>{formatDate(user.updatedAt)}</td>
-                    <td style={styles.tdActions}>
-                      <div style={styles.actionsInline}>
-                        <button type="button" style={styles.actionButton} onClick={() => setEditingUser(user)}>
-                          <EditIcon size={14} /> Editar
-                        </button>
-                        <button type="button" style={styles.actionButton} onClick={() => handleToggleStatus(user)}>
-                          {user.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
-                        </button>
-                      </div>
-                    </td>
+                    {canWriteActions ? (
+                      <td style={styles.tdActions}>
+                        <div style={styles.actionsInline}>
+                          <button type="button" style={styles.actionButton} onClick={() => setEditingUser(user)}>
+                            <EditIcon size={14} /> Editar
+                          </button>
+                          <button type="button" style={styles.actionButton} onClick={() => handleToggleStatus(user)}>
+                            {user.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
+                          </button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -237,9 +245,11 @@ export default function UsersPage() {
                     <strong>{invitation.email}</strong>
                     <p style={styles.muted}>{getRoleLabel(invitation.role)} · caduca {formatDate(invitation.expiresAt)}</p>
                   </div>
-                  <button type="button" style={styles.dangerButton} onClick={() => handleRevokeInvitation(invitation)}>
-                    Revocar
-                  </button>
+                  {canWriteActions ? (
+                    <button type="button" style={styles.dangerButton} onClick={() => handleRevokeInvitation(invitation)}>
+                      Revocar
+                    </button>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -249,7 +259,7 @@ export default function UsersPage() {
 
       <UserEditModal
         error={actionError}
-        isOpen={Boolean(editingUser)}
+        isOpen={canWriteActions && Boolean(editingUser)}
         isSaving={isSaving}
         user={editingUser}
         onClose={() => setEditingUser(null)}
@@ -258,7 +268,7 @@ export default function UsersPage() {
 
       <InviteUserModal
         error={actionError}
-        isOpen={showInviteModal}
+        isOpen={canWriteActions && showInviteModal}
         isSaving={isSaving}
         onClose={() => setShowInviteModal(false)}
         onSubmit={handleCreateInvitation}

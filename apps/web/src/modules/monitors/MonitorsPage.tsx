@@ -46,6 +46,7 @@ import {
 } from "../../shared/monitorFilters";
 import { useUrlFilterState } from "../../shared/useUrlFilterState";
 import { useLocalPagination } from "../../shared/useLocalPagination";
+import { useCurrentUserPermissions } from "../../shared/permissions";
 import {
   ActivityIcon,
   AlertTriangleIcon,
@@ -84,6 +85,7 @@ type FeedbackState = {
 
 export default function MonitorsPage() {
   const navigate = useNavigate();
+  const { canWrite: canWriteActions } = useCurrentUserPermissions();
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const lastSelectedMonitorIdRef = useRef<number | null>(null);
 
@@ -241,6 +243,8 @@ export default function MonitorsPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!canWriteActions) return;
+
       const target = event.target as HTMLElement | null;
       const tagName = target?.tagName ?? "";
       const isTypingTarget =
@@ -271,7 +275,7 @@ export default function MonitorsPage() {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [filteredMonitorIds, selectedMonitorIds.length]);
+  }, [canWriteActions, filteredMonitorIds, selectedMonitorIds.length]);
 
   const setSuccess = (text: string) => {
     setFeedback({ type: "success", text });
@@ -288,6 +292,8 @@ export default function MonitorsPage() {
       range?: boolean;
     },
   ) => {
+    if (!canWriteActions) return;
+
     setSelectedMonitorIds((current) => {
       if (
         options?.range &&
@@ -321,6 +327,8 @@ export default function MonitorsPage() {
   };
 
   const toggleCurrentPageSelection = () => {
+    if (!canWriteActions) return;
+
     setSelectedMonitorIds((current) => {
       if (areAllCurrentPageSelected) {
         return current.filter((id) => !currentPageIds.includes(id));
@@ -441,11 +449,15 @@ export default function MonitorsPage() {
           title="Webs monitorizadas"
           subtitle="Gestiona y consulta el estado de todas las webs que tienes monitorizadas."
           onRefresh={loadMonitors}
-          cta={{
-            icon: <PlusIcon size={16} />,
-            label: "Nuevo monitor",
-            to: "/monitors/create",
-          }}
+          cta={
+            canWriteActions
+              ? {
+                  icon: <PlusIcon size={16} />,
+                  label: "Nuevo monitor",
+                  to: "/monitors/create",
+                }
+              : undefined
+          }
         />
 
         <section style={styles.kpiGrid}>
@@ -554,7 +566,7 @@ export default function MonitorsPage() {
             </button>
           </div>
 
-          {selectedMonitorIds.length > 0 && (
+          {canWriteActions && selectedMonitorIds.length > 0 && (
             <div style={styles.bulkToolbar}>
               <div>
                 <strong style={styles.bulkTitle}>
@@ -617,22 +629,24 @@ export default function MonitorsPage() {
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th style={styles.checkboxHeader}>
-                    <input
-                      ref={selectAllRef}
-                      type="checkbox"
-                      checked={areAllCurrentPageSelected}
-                      onChange={toggleCurrentPageSelection}
-                      aria-label="Seleccionar webs visibles"
-                    />
-                  </th>
+                  {canWriteActions ? (
+                    <th style={styles.checkboxHeader}>
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        checked={areAllCurrentPageSelected}
+                        onChange={toggleCurrentPageSelection}
+                        aria-label="Seleccionar webs visibles"
+                      />
+                    </th>
+                  ) : null}
                   <th style={styles.th}>Web</th>
                   <th style={styles.th}>Estado</th>
                   <th style={styles.th}>Uptime (24h)</th>
                   <th style={styles.th}>Tiempo de respuesta</th>
                   <th style={styles.th}>Alertas</th>
                   <th style={styles.th}>Última comprobación</th>
-                  <th style={styles.thActions}>Acciones</th>
+                  {canWriteActions ? <th style={styles.thActions}>Acciones</th> : null}
                 </tr>
               </thead>
 
@@ -655,25 +669,27 @@ export default function MonitorsPage() {
                       onMouseEnter={() => setHoveredMonitorId(monitor.id)}
                       onMouseLeave={() => setHoveredMonitorId(null)}
                     >
-                      <td
-                        style={styles.checkboxCell}
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            event.preventDefault();
-                            toggleMonitorSelection(monitor.id, {
-                              additive: event.metaKey || event.ctrlKey,
-                              range: event.shiftKey,
-                            });
-                          }}
-                          onChange={() => undefined}
-                          aria-label={`Seleccionar ${monitor.name}`}
-                        />
-                      </td>
+                      {canWriteActions ? (
+                        <td
+                          style={styles.checkboxCell}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              event.preventDefault();
+                              toggleMonitorSelection(monitor.id, {
+                                additive: event.metaKey || event.ctrlKey,
+                                range: event.shiftKey,
+                              });
+                            }}
+                            onChange={() => undefined}
+                            aria-label={`Seleccionar ${monitor.name}`}
+                          />
+                        </td>
+                      ) : null}
 
                       <td style={styles.td}>
                         <div style={styles.webCell}>
@@ -721,24 +737,25 @@ export default function MonitorsPage() {
                         {formatRelativeDate(monitor.lastCheckedAt)}
                       </td>
 
-                      <td style={styles.tdActions}>
-                        <div
-                          style={styles.actions}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            style={styles.actionButton}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setOpenMenuMonitorId((current) =>
-                                current === monitor.id ? null : monitor.id,
-                              );
-                            }}
-                            title="Acciones"
+                      {canWriteActions ? (
+                        <td style={styles.tdActions}>
+                          <div
+                            style={styles.actions}
+                            onClick={(event) => event.stopPropagation()}
                           >
-                            <MoreHorizontalIcon size={16} />
-                          </button>
+                            <button
+                              type="button"
+                              style={styles.actionButton}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setOpenMenuMonitorId((current) =>
+                                  current === monitor.id ? null : monitor.id,
+                                );
+                              }}
+                              title="Acciones"
+                            >
+                              <MoreHorizontalIcon size={16} />
+                            </button>
 
                           {openMenuMonitorId === monitor.id && (
                             <div style={styles.actionMenu}>
@@ -806,8 +823,9 @@ export default function MonitorsPage() {
                               </button>
                             </div>
                           )}
-                        </div>
-                      </td>
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   );
                 })}
@@ -875,7 +893,7 @@ export default function MonitorsPage() {
       </main>
 
       <MonitorEditModal
-        isOpen={Boolean(editingMonitor)}
+        isOpen={canWriteActions && Boolean(editingMonitor)}
         monitor={editingMonitor}
         isSubmitting={isSavingEdit}
         error={editError}
@@ -886,7 +904,7 @@ export default function MonitorsPage() {
       <DeleteSelectedModal
         error={deleteError}
         isDeleting={isDeleting}
-        isOpen={isDeleteModalOpen}
+        isOpen={canWriteActions && isDeleteModalOpen}
         monitors={selectedMonitors}
         onCancel={handleCloseDelete}
         onConfirm={() => void handleDeleteSelected()}

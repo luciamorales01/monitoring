@@ -36,6 +36,7 @@ import {
 import { getMonitorStatusToast } from "../../shared/monitorStatusToast";
 import { useLocalPagination } from "../../shared/useLocalPagination";
 import { useUrlFilterState } from "../../shared/useUrlFilterState";
+import { useCurrentUserPermissions } from "../../shared/permissions";
 import {
   ActivityIcon,
   AlertTriangleIcon,
@@ -71,6 +72,7 @@ export default function DashboardPage() {
   } | null>(null);
 
   const navigate = useNavigate();
+  const { canWrite: canWriteActions } = useCurrentUserPermissions();
   const { filters, setFilter } = useUrlFilterState(
     dashboardFilterDefaults,
     dashboardAllowedValues,
@@ -189,11 +191,15 @@ export default function DashboardPage() {
         title="Dashboard"
         subtitle="Resumen general de todas las webs monitorizadas"
         onRefresh={refreshMonitors}
-        cta={{
-          icon: <PlusIcon size={16} />,
-          label: "Nuevo monitor",
-          to: "/monitors/create",
-        }}
+        cta={
+          canWriteActions
+            ? {
+                icon: <PlusIcon size={16} />,
+                label: "Nuevo monitor",
+                to: "/monitors/create",
+              }
+            : undefined
+        }
       />
 
       <section style={styles.kpiGrid}>
@@ -396,7 +402,7 @@ export default function DashboardPage() {
                     <th style={styles.th}>Uptime</th>
                     <th style={styles.th}>Tipo</th>
                     <th style={styles.th}>Última comprobación</th>
-                    <th style={styles.th}>Acciones</th>
+                    {canWriteActions ? <th style={styles.th}>Acciones</th> : null}
                   </tr>
                 </thead>
 
@@ -446,63 +452,65 @@ export default function DashboardPage() {
                         <td style={styles.td}>{monitor.type}</td>
                         <td style={styles.td}>Hace 1 min</td>
 
-                        <td style={styles.td}>
-                          <div style={styles.actionGroup}>
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleRunCheck(monitor.id);
-                              }}
-                              disabled={checkingId === monitor.id}
-                              style={{
-                                ...styles.checkButton,
-                                ...(checkingId === monitor.id
-                                  ? styles.checkButtonDisabled
-                                  : {}),
-                              }}
-                            >
-                              {checkingId !== monitor.id && (
-                                <ActivityIcon size={14} />
-                              )}
-                              {checkingId === monitor.id ? (
-                                <LoadingState variant="button" label="Comprobando monitor" />
-                              ) : (
-                                "Comprobar ahora"
-                              )}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleToggleActive(monitor.id);
-                              }}
-                              disabled={togglingId === monitor.id}
-                              style={{
-                                ...styles.secondaryButton,
-                                ...(togglingId === monitor.id
-                                  ? styles.checkButtonDisabled
-                                  : {}),
-                              }}
-                            >
-                              {togglingId !== monitor.id && (
-                                monitor.isActive ? (
-                                  <PauseIcon size={14} />
+                        {canWriteActions ? (
+                          <td style={styles.td}>
+                            <div style={styles.actionGroup}>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleRunCheck(monitor.id);
+                                }}
+                                disabled={checkingId === monitor.id}
+                                style={{
+                                  ...styles.checkButton,
+                                  ...(checkingId === monitor.id
+                                    ? styles.checkButtonDisabled
+                                    : {}),
+                                }}
+                              >
+                                {checkingId !== monitor.id && (
+                                  <ActivityIcon size={14} />
+                                )}
+                                {checkingId === monitor.id ? (
+                                  <LoadingState variant="button" label="Comprobando monitor" />
                                 ) : (
-                                  <CheckCircleIcon size={14} />
-                                )
-                              )}
-                              {togglingId === monitor.id ? (
-                                <LoadingState variant="button" label="Actualizando monitor" />
-                              ) : monitor.isActive ? (
-                                "Pausar"
-                              ) : (
-                                "Reanudar"
-                              )}
-                            </button>
-                          </div>
-                        </td>
+                                  "Comprobar ahora"
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void handleToggleActive(monitor.id);
+                                }}
+                                disabled={togglingId === monitor.id}
+                                style={{
+                                  ...styles.secondaryButton,
+                                  ...(togglingId === monitor.id
+                                    ? styles.checkButtonDisabled
+                                    : {}),
+                                }}
+                              >
+                                {togglingId !== monitor.id && (
+                                  monitor.isActive ? (
+                                    <PauseIcon size={14} />
+                                  ) : (
+                                    <CheckCircleIcon size={14} />
+                                  )
+                                )}
+                                {togglingId === monitor.id ? (
+                                  <LoadingState variant="button" label="Actualizando monitor" />
+                                ) : monitor.isActive ? (
+                                  "Pausar"
+                                ) : (
+                                  "Reanudar"
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                        ) : null}
                       </tr>
                     );
                   })}

@@ -19,6 +19,7 @@ import {
 import { useLocalPagination } from '../../shared/useLocalPagination';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
+import { useCurrentUserPermissions } from '../../shared/permissions';
 import type { MonitorSection } from '../../shared/sectionsStore';
 import { getSection, runSectionChecks } from '../../shared/sectionsApi';
 import {
@@ -59,6 +60,7 @@ type ActiveTab = 'monitors' | 'summary' | 'alerts' | 'incidents' | 'settings';
 export default function SectionDetailPage() {
   const { sectionId } = useParams();
   const navigate = useNavigate();
+  const { canWrite: canWriteActions } = useCurrentUserPermissions();
   const [section, setSection] = useState<MonitorSection | null>(null);
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,11 +235,15 @@ export default function SectionDetailPage() {
         title="Detalle de seccion"
         subtitle={section.name}
         onRefresh={loadData}
-        cta={{
-          icon: <PlusIcon size={16} />,
-          label: "Nuevo monitor",
-          to: "/monitors/create",
-        }}
+        cta={
+          canWriteActions
+            ? {
+                icon: <PlusIcon size={16} />,
+                label: "Nuevo monitor",
+                to: "/monitors/create",
+              }
+            : undefined
+        }
       />
 
       <div style={styles.breadcrumb}>
@@ -275,28 +281,30 @@ export default function SectionDetailPage() {
           </div>
         </div>
 
-        <div style={styles.heroActions}>
-          <Link to="/sections" style={styles.secondaryButton}>
-            <SettingsIcon size={16} />
-            Configurar seccion
-          </Link>
-          <button
-            type="button"
-            style={styles.primaryButton}
-            onClick={handleRunSectionChecks}
-            disabled={isChecking || sectionMonitors.length === 0}
-          >
-            <CheckCircleIcon size={16} />
-            {isChecking ? 'Comprobando...' : 'Comprobar todos'}
-          </button>
-          <Link to="/monitors/create" style={styles.secondaryButton}>
-            <PlusIcon size={16} />
-            Anadir monitor
-          </Link>
-          <button type="button" style={styles.moreButton}>
-            <MoreHorizontalIcon size={18} />
-          </button>
-        </div>
+        {canWriteActions ? (
+          <div style={styles.heroActions}>
+            <Link to="/sections" style={styles.secondaryButton}>
+              <SettingsIcon size={16} />
+              Configurar seccion
+            </Link>
+            <button
+              type="button"
+              style={styles.primaryButton}
+              onClick={handleRunSectionChecks}
+              disabled={isChecking || sectionMonitors.length === 0}
+            >
+              <CheckCircleIcon size={16} />
+              {isChecking ? 'Comprobando...' : 'Comprobar todos'}
+            </button>
+            <Link to="/monitors/create" style={styles.secondaryButton}>
+              <PlusIcon size={16} />
+              Anadir monitor
+            </Link>
+            <button type="button" style={styles.moreButton}>
+              <MoreHorizontalIcon size={18} />
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {feedback && <div style={styles.feedbackInfo}>{feedback}</div>}
@@ -339,7 +347,7 @@ export default function SectionDetailPage() {
           { key: 'summary', label: 'Resumen' },
           { key: 'alerts', label: 'Alertas' },
           { key: 'incidents', label: 'Incidencias' },
-          { key: 'settings', label: 'Configuracion' },
+          ...(canWriteActions ? [{ key: 'settings', label: 'Configuracion' }] : []),
         ].map((tab) => (
           <button
             key={tab.key}
@@ -422,7 +430,7 @@ export default function SectionDetailPage() {
                     <th style={styles.th}>Estado</th>
                     <th style={styles.th}>Uptime estimado</th>
                     <th style={styles.th}>Ultima comprobacion</th>
-                    <th style={styles.th}>Acciones</th>
+                    {canWriteActions ? <th style={styles.th}>Acciones</th> : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -467,14 +475,16 @@ export default function SectionDetailPage() {
                         <td style={styles.td}>
                           {formatRelativeDate(monitor.lastCheckedAt)}
                         </td>
-                        <td
-                          style={styles.td}
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <button type="button" style={styles.moreButton}>
-                            <MoreHorizontalIcon size={18} />
-                          </button>
-                        </td>
+                        {canWriteActions ? (
+                          <td
+                            style={styles.td}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <button type="button" style={styles.moreButton}>
+                              <MoreHorizontalIcon size={18} />
+                            </button>
+                          </td>
+                        ) : null}
                       </tr>
                     );
                   })}

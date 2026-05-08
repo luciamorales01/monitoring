@@ -6,6 +6,7 @@ import {
   uiTheme,
 } from '../../theme/commonStyles';
 import AppTopbar from '../../shared/AppTopbar';
+import { useCurrentUserPermissions } from '../../shared/permissions';
 import {
   BellIcon,
   ChevronRightIcon,
@@ -55,6 +56,8 @@ const recentActivity = [
 ];
 
 export default function SettingsPage() {
+  const { canWrite: canWriteActions } = useCurrentUserPermissions();
+
   const handlePlaceholderAction = (actionId: string) => {
     console.log(`settings-action:${actionId}`);
   };
@@ -80,6 +83,7 @@ export default function SettingsPage() {
                   title={setting.title}
                   text={setting.text}
                   tone={setting.tone}
+                  canWrite={canWriteActions}
                   onClick={() => handlePlaceholderAction(`general:${setting.id}`)}
                 />
               ))}
@@ -95,6 +99,7 @@ export default function SettingsPage() {
                 icon={setting.icon}
                 title={setting.title}
                 text={setting.text}
+                canWrite={canWriteActions}
                 onClick={() => handlePlaceholderAction(`system:${setting.id}`)}
               />
             ))}
@@ -114,19 +119,21 @@ export default function SettingsPage() {
             </button>
           </SideCard>
 
-          <SideCard title="Accesos rápidos">
-            {quickAccessItems.map((item) => (
-              <button
-                key={item}
-                type="button"
-                style={styles.quickRowButton}
-                onClick={() => handlePlaceholderAction(`quick:${item}`)}
-              >
-                <span>{item}</span>
-                <strong style={styles.quickArrow}><ChevronRightIcon size={14} /></strong>
-              </button>
-            ))}
-          </SideCard>
+          {canWriteActions ? (
+            <SideCard title="Accesos rápidos">
+              {quickAccessItems.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  style={styles.quickRowButton}
+                  onClick={() => handlePlaceholderAction(`quick:${item}`)}
+                >
+                  <span>{item}</span>
+                  <strong style={styles.quickArrow}><ChevronRightIcon size={14} /></strong>
+                </button>
+              ))}
+            </SideCard>
+          ) : null}
 
           <SideCard title="Actividad reciente en configuración">
             {recentActivity.map(([name, action, time], index) => (
@@ -155,12 +162,14 @@ function SettingTile({
   title,
   text,
   tone,
+  canWrite,
   onClick,
 }: {
   icon: React.ReactNode;
   title: string;
   text: string;
   tone: 'green' | 'blue' | 'purple' | 'orange';
+  canWrite: boolean;
   onClick: () => void;
 }) {
   const colors = {
@@ -177,7 +186,7 @@ function SettingTile({
       </div>
       <h3 style={styles.tileTitle}>{title}</h3>
       <p style={styles.tileText}>{text}</p>
-      <button type="button" style={styles.configureButton} onClick={onClick}>Configurar</button>
+      {canWrite ? <button type="button" style={styles.configureButton} onClick={onClick}>Configurar</button> : null}
     </article>
   );
 }
@@ -186,21 +195,33 @@ function SettingRow({
   icon,
   title,
   text,
+  canWrite,
   onClick,
 }: {
   icon: React.ReactNode;
   title: string;
   text: string;
+  canWrite: boolean;
   onClick: () => void;
 }) {
-  return (
-    <button type="button" style={styles.settingRowButton} onClick={onClick}>
+  const content = (
+    <>
       <span style={styles.rowIcon}>{icon}</span>
       <div style={styles.settingRowCopy}>
         <strong>{title}</strong>
         <p>{text}</p>
       </div>
-      <span style={styles.chevron}><ChevronRightIcon size={16} /></span>
+      {canWrite ? <span style={styles.chevron}><ChevronRightIcon size={16} /></span> : null}
+    </>
+  );
+
+  if (!canWrite) {
+    return <div style={{ ...styles.settingRowButton, cursor: 'default' }}>{content}</div>;
+  }
+
+  return (
+    <button type="button" style={styles.settingRowButton} onClick={onClick}>
+      {content}
     </button>
   );
 }

@@ -23,6 +23,7 @@ import {
   type MonitorStatusToast,
 } from "../../shared/monitorStatusToast";
 import { downloadReportExport, type ReportFormat, type ReportRange } from "../../shared/reportsApi";
+import { useCurrentUserPermissions } from "../../shared/permissions";
 import AppTopbar from "../../shared/AppTopbar";
 import LoadingState from "../../shared/LoadingState";
 import {
@@ -39,6 +40,7 @@ type PeriodFilter = "1h" | "24h" | "7d" | "30d" | "all";
 export default function MonitorDetailPage() {
   const { id } = useParams();
   const monitorId = Number(id);
+  const { canWrite: canWriteActions } = useCurrentUserPermissions();
 
   const [monitor, setMonitor] = useState<Monitor | null>(null);
   const [checks, setChecks] = useState<MonitorCheck[]>([]);
@@ -260,11 +262,15 @@ export default function MonitorDetailPage() {
         title="Detalle de monitor"
         subtitle={monitor.name}
         onRefresh={loadData}
-        cta={{
-          icon: <PlusIcon size={16} />,
-          label: "Nuevo monitor",
-          to: "/monitors/create",
-        }}
+        cta={
+          canWriteActions
+            ? {
+                icon: <PlusIcon size={16} />,
+                label: "Nuevo monitor",
+                to: "/monitors/create",
+              }
+            : undefined
+        }
       />
 
       <div style={styles.breadcrumb}>
@@ -334,42 +340,44 @@ export default function MonitorDetailPage() {
             <small>{stats.lastCheck}</small>
           </div>
 
-          <div style={styles.heroActions}>
-            <button
-              type="button"
-              style={styles.primaryButton}
-              onClick={handleRunCheck}
-              disabled={checking}
-            >
-              {!checking && <ActivityIcon size={15} />}
-              {checking ? (
-                <LoadingState variant="button" label="Comprobando monitor" />
-              ) : (
-                "Comprobar ahora"
-              )}
-            </button>
-
-            <button
-              type="button"
-              style={styles.secondaryButton}
-              onClick={handleToggleActive}
-              disabled={toggling}
-            >
-              {!toggling &&
-                (monitor.isActive ? (
-                  <PauseIcon size={15} />
+          {canWriteActions ? (
+            <div style={styles.heroActions}>
+              <button
+                type="button"
+                style={styles.primaryButton}
+                onClick={handleRunCheck}
+                disabled={checking}
+              >
+                {!checking && <ActivityIcon size={15} />}
+                {checking ? (
+                  <LoadingState variant="button" label="Comprobando monitor" />
                 ) : (
-                  <PlayIcon size={15} />
-                ))}
-              {toggling ? (
-                <LoadingState variant="button" label="Actualizando monitor" />
-              ) : monitor.isActive ? (
-                "Pausar"
-              ) : (
-                "Reanudar"
-              )}
-            </button>
-          </div>
+                  "Comprobar ahora"
+                )}
+              </button>
+
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={handleToggleActive}
+                disabled={toggling}
+              >
+                {!toggling &&
+                  (monitor.isActive ? (
+                    <PauseIcon size={15} />
+                  ) : (
+                    <PlayIcon size={15} />
+                  ))}
+                {toggling ? (
+                  <LoadingState variant="button" label="Actualizando monitor" />
+                ) : monitor.isActive ? (
+                  "Pausar"
+                ) : (
+                  "Reanudar"
+                )}
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 

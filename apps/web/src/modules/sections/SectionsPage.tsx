@@ -29,6 +29,7 @@ import {
 } from '../../shared/monitorFilters';
 import { useLocalPagination } from '../../shared/useLocalPagination';
 import { useUrlFilterState } from '../../shared/useUrlFilterState';
+import { useCurrentUserPermissions } from '../../shared/permissions';
 import {
   FolderIcon,
   MonitorIcon,
@@ -89,6 +90,7 @@ type FeedbackState =
 
 export default function SectionsPage() {
   const navigate = useNavigate();
+  const { canWrite: canWriteActions } = useCurrentUserPermissions();
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [sections, setSections] = useState<MonitorSection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -315,11 +317,15 @@ export default function SectionsPage() {
           title="Secciones"
           subtitle="Organiza tus monitores en grupos personalizados."
           onRefresh={loadMonitors}
-          cta={{
-            icon: <PlusIcon size={16} />,
-            label: "Nueva seccion",
-            onClick: handleOpenCreate,
-          }}
+          cta={
+            canWriteActions
+              ? {
+                  icon: <PlusIcon size={16} />,
+                  label: "Nueva seccion",
+                  onClick: handleOpenCreate,
+                }
+              : undefined
+          }
         />
 
         <div style={styles.topbarControls}>
@@ -345,14 +351,16 @@ export default function SectionsPage() {
               />
             </label>
 
-            <button
-              type="button"
-              style={styles.secondaryButton}
-              onClick={() => setManageOpen(true)}
-            >
-              <SettingsIcon size={16} />
-              Gestionar secciones
-            </button>
+            {canWriteActions ? (
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={() => setManageOpen(true)}
+              >
+                <SettingsIcon size={16} />
+                Gestionar secciones
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -427,16 +435,18 @@ export default function SectionsPage() {
                   ? 'Crea la primera seccion para agrupar monitores reales en la base de datos.'
                   : 'Prueba otro nombre o cambia el filtro actual.'}
               </p>
-              <div style={styles.emptyActions}>
-                <button
-                  type="button"
-                  style={styles.primaryButton}
-                  onClick={handleOpenCreate}
-                >
-                  <PlusIcon size={16} />
-                  Crear seccion
-                </button>
-              </div>
+              {canWriteActions ? (
+                <div style={styles.emptyActions}>
+                  <button
+                    type="button"
+                    style={styles.primaryButton}
+                    onClick={handleOpenCreate}
+                  >
+                    <PlusIcon size={16} />
+                    Crear seccion
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <>
@@ -503,22 +513,23 @@ export default function SectionsPage() {
                         </strong>
                       </div>
 
-                      <div
-                        style={styles.actionsWrap}
-                        data-section-menu-root="true"
-                      >
-                        <button
-                          type="button"
-                          style={styles.moreButton}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setActiveMenuId((currentId) =>
-                              currentId === section.id ? null : section.id,
-                            );
-                          }}
+                      {canWriteActions ? (
+                        <div
+                          style={styles.actionsWrap}
+                          data-section-menu-root="true"
                         >
-                          <MoreHorizontalIcon size={18} />
-                        </button>
+                          <button
+                            type="button"
+                            style={styles.moreButton}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setActiveMenuId((currentId) =>
+                                currentId === section.id ? null : section.id,
+                              );
+                            }}
+                          >
+                            <MoreHorizontalIcon size={18} />
+                          </button>
 
                         {activeMenuId === section.id && (
                           <div style={styles.menu}>
@@ -557,7 +568,8 @@ export default function SectionsPage() {
                             </button>
                           </div>
                         )}
-                      </div>
+                        </div>
+                      ) : null}
                     </div>
                   </article>
                 ))}
@@ -618,7 +630,7 @@ export default function SectionsPage() {
       </main>
 
       <SectionEditorModal
-        isOpen={editorState.isOpen}
+        isOpen={canWriteActions && editorState.isOpen}
         monitors={monitors}
         section={editorState.section}
         sections={sectionSummaries}
@@ -627,7 +639,7 @@ export default function SectionsPage() {
       />
 
       <ManageSectionsModal
-        isOpen={manageOpen}
+        isOpen={canWriteActions && manageOpen}
         sections={sectionSummaries}
         onClose={() => setManageOpen(false)}
         onCreate={handleOpenCreate}

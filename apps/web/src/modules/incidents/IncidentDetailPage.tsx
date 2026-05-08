@@ -10,6 +10,7 @@ import {
 } from '../../shared/incidentApi';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
+import { useCurrentUserPermissions } from '../../shared/permissions';
 import { uiTheme } from '../../theme/commonStyles';
 
 const severities: IncidentSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -17,6 +18,7 @@ const severities: IncidentSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 export default function IncidentDetailPage() {
   const { id } = useParams();
   const incidentId = Number(id);
+  const { canWrite: canWriteActions } = useCurrentUserPermissions();
   const [incident, setIncident] = useState<Incident | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -92,7 +94,7 @@ export default function IncidentDetailPage() {
               </div>
               <h1 style={styles.title}>{incident.title}</h1>
               <p style={styles.subtitle}>
-                Incidencia asociada a <strong>{monitorName}</strong>. Desde aquí puedes reconocerla, cambiar su severidad y cerrarla con nota técnica.
+                Incidencia asociada a <strong>{monitorName}</strong>. {canWriteActions ? 'Desde aquí puedes reconocerla, cambiar su severidad y cerrarla con nota técnica.' : 'Puedes revisar su estado, severidad y trazabilidad.'}
               </p>
             </div>
           </section>
@@ -110,14 +112,23 @@ export default function IncidentDetailPage() {
 
           <section style={styles.card}>
             <h2 style={styles.cardTitle}>Diagnóstico y resolución</h2>
-            <label style={styles.label}>
-              Causa raíz
-              <textarea style={styles.textarea} value={rootCause} onChange={(event) => setRootCause(event.target.value)} placeholder="Ej: caída del servidor, error DNS, timeout externo..." />
-            </label>
-            <label style={styles.label}>
-              Nota de resolución
-              <textarea style={styles.textarea} value={resolutionNote} onChange={(event) => setResolutionNote(event.target.value)} placeholder="Qué se hizo para resolver la incidencia" />
-            </label>
+            {canWriteActions ? (
+              <>
+                <label style={styles.label}>
+                  Causa raíz
+                  <textarea style={styles.textarea} value={rootCause} onChange={(event) => setRootCause(event.target.value)} placeholder="Ej: caída del servidor, error DNS, timeout externo..." />
+                </label>
+                <label style={styles.label}>
+                  Nota de resolución
+                  <textarea style={styles.textarea} value={resolutionNote} onChange={(event) => setResolutionNote(event.target.value)} placeholder="Qué se hizo para resolver la incidencia" />
+                </label>
+              </>
+            ) : (
+              <>
+                <InfoRow label="Causa raíz" value={rootCause || '-'} />
+                <InfoRow label="Nota de resolución" value={resolutionNote || '-'} />
+              </>
+            )}
           </section>
 
           <section style={styles.card}>
@@ -138,32 +149,36 @@ export default function IncidentDetailPage() {
             <InfoRow label="Duración" value={formatDuration(incident.durationSeconds, incident.startedAt, incident.resolvedAt)} />
           </section>
 
-          <section style={styles.sideCard}>
-            <h2 style={styles.sideTitle}>Acciones</h2>
-            <button type="button" style={styles.secondaryButton} disabled={saving || isResolved} onClick={() => runAction(() => acknowledgeIncident(incident.id))}>
-              Reconocer incidencia
-            </button>
-            <button type="button" style={styles.primaryButton} disabled={saving || isResolved} onClick={() => runAction(() => resolveIncident(incident.id, { resolutionNote, rootCause }))}>
-              Resolver incidencia
-            </button>
-          </section>
-
-          <section style={styles.sideCard}>
-            <h2 style={styles.sideTitle}>Severidad</h2>
-            <div style={styles.severityGrid}>
-              {severities.map((severity) => (
-                <button
-                  key={severity}
-                  type="button"
-                  style={{ ...styles.severityButton, ...(incident.severity === severity ? styles.severityActive : {}) }}
-                  disabled={saving}
-                  onClick={() => runAction(() => updateIncidentSeverity(incident.id, severity))}
-                >
-                  {getSeverityLabel(severity)}
+          {canWriteActions ? (
+            <>
+              <section style={styles.sideCard}>
+                <h2 style={styles.sideTitle}>Acciones</h2>
+                <button type="button" style={styles.secondaryButton} disabled={saving || isResolved} onClick={() => runAction(() => acknowledgeIncident(incident.id))}>
+                  Reconocer incidencia
                 </button>
-              ))}
-            </div>
-          </section>
+                <button type="button" style={styles.primaryButton} disabled={saving || isResolved} onClick={() => runAction(() => resolveIncident(incident.id, { resolutionNote, rootCause }))}>
+                  Resolver incidencia
+                </button>
+              </section>
+
+              <section style={styles.sideCard}>
+                <h2 style={styles.sideTitle}>Severidad</h2>
+                <div style={styles.severityGrid}>
+                  {severities.map((severity) => (
+                    <button
+                      key={severity}
+                      type="button"
+                      style={{ ...styles.severityButton, ...(incident.severity === severity ? styles.severityActive : {}) }}
+                      disabled={saving}
+                      onClick={() => runAction(() => updateIncidentSeverity(incident.id, severity))}
+                    >
+                      {getSeverityLabel(severity)}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </>
+          ) : null}
         </aside>
       </section>
     </main>
