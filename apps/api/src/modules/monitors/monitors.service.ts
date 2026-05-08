@@ -4,8 +4,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { lookup } from 'node:dns/promises';
-import { isIP } from 'node:net';
+import {
+  lookup,
+  resolve4,
+  resolve6,
+  resolveCname,
+  resolveMx,
+  resolveTxt,
+} from 'node:dns/promises';
+import { isIP, Socket } from 'node:net';
+import { connect as tlsConnect } from 'node:tls';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateMonitorDto } from './create-monitor.dto';
@@ -33,6 +41,7 @@ type AuthenticatedUser = {
 type MonitorEntity = {
   id: number;
   name?: string;
+  type: string;
   target: string;
   expectedStatusCode: number;
   frequencySeconds: number;
@@ -42,6 +51,11 @@ type MonitorEntity = {
   locations?: string[] | null;
   alertThreshold?: number | null;
   alertEmail?: boolean | null;
+  tcpPort?: number | null;
+  keyword?: string | null;
+  sslWarningDays?: number | null;
+  dnsRecordType?: string | null;
+  dnsExpectedValue?: string | null;
 };
 
 type CheckResultEntity = {
@@ -74,7 +88,7 @@ export class MonitorsService {
   ) {}
 
   async create(dto: CreateMonitorDto, user: AuthenticatedUser) {
-    await this.assertPublicHttpTarget(dto.target);
+    await this.assertAllowedTarget(dto.type, dto.target, dto.tcpPort);
 
     return this.prisma.monitor.create({
       data: {
@@ -88,6 +102,11 @@ export class MonitorsService {
         alertEmail: dto.alertEmail ?? true,
         alertPush: dto.alertPush ?? false,
         alertThreshold: dto.alertThreshold ?? 3,
+        tcpPort: dto.tcpPort ?? null,
+        keyword: dto.keyword?.trim() || null,
+        sslWarningDays: dto.sslWarningDays ?? 14,
+        dnsRecordType: dto.dnsRecordType?.trim().toUpperCase() || 'A',
+        dnsExpectedValue: dto.dnsExpectedValue?.trim() || null,
         organizationId: user.organizationId,
         createdById: user.userId,
       },
@@ -142,8 +161,16 @@ export class MonitorsService {
 
     const data: Record<string, unknown> = {};
 
-    if (dto.target !== undefined) {
-      await this.assertPublicHttpTarget(dto.target);
+    if (
+      dto.target !== undefined ||
+      dto.type !== undefined ||
+      dto.tcpPort !== undefined
+    ) {
+      await this.assertAllowedTarget(
+        dto.type ?? monitor.type,
+        dto.target ?? monitor.target,
+        dto.tcpPort ?? monitor.tcpPort ?? undefined,
+      );
     }
 
     if (dto.name !== undefined) data.name = dto.name;
@@ -166,6 +193,14 @@ export class MonitorsService {
     if (dto.alertThreshold !== undefined) {
       data.alertThreshold = dto.alertThreshold;
     }
+    if (dto.tcpPort !== undefined) data.tcpPort = dto.tcpPort;
+    if (dto.keyword !== undefined) data.keyword = dto.keyword.trim() || null;
+    if (dto.sslWarningDays !== undefined)
+      data.sslWarningDays = dto.sslWarningDays;
+    if (dto.dnsRecordType !== undefined)
+      data.dnsRecordType = dto.dnsRecordType.trim().toUpperCase();
+    if (dto.dnsExpectedValue !== undefined)
+      data.dnsExpectedValue = dto.dnsExpectedValue.trim() || null;
 
     return this.prisma.monitor.update({
       where: { id },
@@ -250,8 +285,18 @@ export class MonitorsService {
     const locations = this.normalizeLocations(monitor.locations);
 
     return Promise.all(
-      locations.map((location) => this.executeHttpCheck(monitor, location)),
+      locations.map((location) => this.executeSingleCheck(monitor, location)),
     );
+  }
+
+  private async executeSingleCheck(
+    monitor: MonitorEntity,
+    location: string,
+  ): Promise<MonitorCheckOutcome> {
+    if (monitor.type === 'TCP') return this.executeTcpCheck(monitor, location);
+    if (monitor.type === 'DNS') return this.executeDnsCheck(monitor, location);
+    if (monitor.type === 'SSL') return this.executeSslCheck(monitor, location);
+    return this.executeHttpCheck(monitor, location);
   }
 
   private async executeHttpCheck(
@@ -260,36 +305,52 @@ export class MonitorsService {
   ): Promise<MonitorCheckOutcome> {
     const checkedAt = new Date();
     const startTime = performance.now();
-    const controller = new AbortController();
-
-    const timeout = setTimeout(
-      () => controller.abort(),
-      monitor.timeoutSeconds * 1000,
-    );
 
     try {
-      await this.assertPublicHttpTarget(monitor.target);
+      const parsedUrl = await this.parsePublicHttpUrl(monitor.target);
 
-      const response = await fetch(monitor.target, {
-        method: 'GET',
-        redirect: 'manual',
-        signal: controller.signal,
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        monitor.timeoutSeconds * 1000,
+      );
 
-      const isUp = response.status === monitor.expectedStatusCode;
-      const responseTimeMs = Math.round(performance.now() - startTime);
+      try {
+        const response = await fetch(parsedUrl.toString(), {
+          method: 'GET',
+          redirect: 'manual',
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'MonitoringTFG/1.0',
+          },
+        });
 
-      return {
-        checkedAt,
-        errorMessage: isUp
-          ? null
-          : `Codigo esperado ${monitor.expectedStatusCode}, recibido ${response.status}`,
-        location,
-        responseTimeMs,
-        status: isUp ? MonitorStatus.UP : MonitorStatus.DOWN,
-        statusCode: response.status,
-      };
-    } catch (error: unknown) {
+        const body = monitor.keyword ? await response.text() : '';
+        const statusCodeMatches =
+          response.status === monitor.expectedStatusCode;
+        const keywordMatches =
+          !monitor.keyword ||
+          body.toLowerCase().includes(monitor.keyword.toLowerCase());
+
+        return {
+          checkedAt,
+          errorMessage: statusCodeMatches
+            ? keywordMatches
+              ? null
+              : `No se encontró la keyword "${monitor.keyword}"`
+            : `Código HTTP ${response.status}, esperado ${monitor.expectedStatusCode}`,
+          location,
+          responseTimeMs: Math.round(performance.now() - startTime),
+          status:
+            statusCodeMatches && keywordMatches
+              ? MonitorStatus.UP
+              : MonitorStatus.DOWN,
+          statusCode: response.status,
+        };
+      } finally {
+        clearTimeout(timeout);
+      }
+    } catch (error) {
       return {
         checkedAt,
         errorMessage: this.getMonitorCheckErrorMessage(
@@ -301,12 +362,224 @@ export class MonitorsService {
         status: MonitorStatus.DOWN,
         statusCode: null,
       };
-    } finally {
-      clearTimeout(timeout);
     }
   }
 
-  private async assertPublicHttpTarget(target: string) {
+  private async executeTcpCheck(
+    monitor: MonitorEntity,
+    location: string,
+  ): Promise<MonitorCheckOutcome> {
+    const checkedAt = new Date();
+    const startTime = performance.now();
+    const port = monitor.tcpPort ?? 443;
+
+    try {
+      const hostname = await this.assertPublicHostTarget(monitor.target);
+      await new Promise<void>((resolve, reject) => {
+        const socket = new Socket();
+        const timeout = setTimeout(() => {
+          socket.destroy();
+          reject(new Error(`Timeout tras ${monitor.timeoutSeconds} segundos`));
+        }, monitor.timeoutSeconds * 1000);
+
+        socket.once('connect', () => {
+          clearTimeout(timeout);
+          socket.end();
+          resolve();
+        });
+        socket.once('error', (error) => {
+          clearTimeout(timeout);
+          socket.destroy();
+          reject(error);
+        });
+        socket.connect(port, hostname);
+      });
+
+      return {
+        checkedAt,
+        errorMessage: null,
+        location,
+        responseTimeMs: Math.round(performance.now() - startTime),
+        status: MonitorStatus.UP,
+        statusCode: port,
+      };
+    } catch (error) {
+      return {
+        checkedAt,
+        errorMessage: this.getMonitorCheckErrorMessage(
+          error,
+          monitor.timeoutSeconds,
+        ),
+        location,
+        responseTimeMs: Math.round(performance.now() - startTime),
+        status: MonitorStatus.DOWN,
+        statusCode: null,
+      };
+    }
+  }
+
+  private async executeDnsCheck(
+    monitor: MonitorEntity,
+    location: string,
+  ): Promise<MonitorCheckOutcome> {
+    const checkedAt = new Date();
+    const startTime = performance.now();
+    const recordType = (monitor.dnsRecordType ?? 'A').toUpperCase();
+
+    try {
+      const hostname = await this.assertPublicHostTarget(monitor.target);
+      const records = await this.resolveDnsRecords(hostname, recordType);
+      const expected = monitor.dnsExpectedValue?.trim().toLowerCase();
+      const normalizedRecords = records.map((record) => record.toLowerCase());
+      const matchesExpected =
+        !expected ||
+        normalizedRecords.some((record) => record.includes(expected));
+
+      return {
+        checkedAt,
+        errorMessage: matchesExpected
+          ? null
+          : `DNS ${recordType} no contiene ${monitor.dnsExpectedValue}`,
+        location,
+        responseTimeMs: Math.round(performance.now() - startTime),
+        status: matchesExpected ? MonitorStatus.UP : MonitorStatus.DOWN,
+        statusCode: records.length,
+      };
+    } catch (error) {
+      return {
+        checkedAt,
+        errorMessage: this.getMonitorCheckErrorMessage(
+          error,
+          monitor.timeoutSeconds,
+        ),
+        location,
+        responseTimeMs: Math.round(performance.now() - startTime),
+        status: MonitorStatus.DOWN,
+        statusCode: null,
+      };
+    }
+  }
+
+  private async executeSslCheck(
+    monitor: MonitorEntity,
+    location: string,
+  ): Promise<MonitorCheckOutcome> {
+    const checkedAt = new Date();
+    const startTime = performance.now();
+    const warningDays = monitor.sslWarningDays ?? 14;
+
+    try {
+      const hostname = await this.assertPublicUrlOrHostTarget(monitor.target);
+
+      const certificate = await new Promise<any>((resolve, reject) => {
+        const socket = tlsConnect({
+          host: hostname,
+          port: 443,
+          servername: hostname,
+          rejectUnauthorized: false,
+          timeout: monitor.timeoutSeconds * 1000,
+        });
+
+        socket.once('secureConnect', () => {
+          const certificate = socket.getPeerCertificate();
+          socket.end();
+          resolve(certificate);
+        });
+
+        socket.once('timeout', () => {
+          socket.destroy();
+          reject(new Error(`Timeout tras ${monitor.timeoutSeconds} segundos`));
+        });
+
+        socket.once('error', reject);
+      });
+
+      if (!certificate?.valid_to) {
+        throw new Error('No se pudo leer el certificado SSL');
+      }
+
+      const expiresAt = new Date(certificate.valid_to);
+      const daysLeft = Math.ceil(
+        (expiresAt.getTime() - Date.now()) / 86_400_000,
+      );
+      const isUp = daysLeft > warningDays;
+
+      return {
+        checkedAt,
+        errorMessage: isUp
+          ? null
+          : `Certificado SSL caduca en ${daysLeft} días`,
+        location,
+        responseTimeMs: Math.round(performance.now() - startTime),
+        status: isUp ? MonitorStatus.UP : MonitorStatus.DOWN,
+        statusCode: daysLeft,
+      };
+    } catch (error) {
+      return {
+        checkedAt,
+        errorMessage: this.getMonitorCheckErrorMessage(
+          error,
+          monitor.timeoutSeconds,
+        ),
+        location,
+        responseTimeMs: Math.round(performance.now() - startTime),
+        status: MonitorStatus.DOWN,
+        statusCode: null,
+      };
+    }
+  }
+
+  private async resolveDnsRecords(
+    hostname: string,
+    recordType: string,
+  ): Promise<string[]> {
+    if (recordType === 'AAAA') return resolve6(hostname);
+    if (recordType === 'CNAME') return resolveCname(hostname);
+    if (recordType === 'MX') {
+      const records = await resolveMx(hostname);
+      return records.map((record) => `${record.priority} ${record.exchange}`);
+    }
+    if (recordType === 'TXT') {
+      const records = await resolveTxt(hostname);
+      return records.map((record) => record.join(''));
+    }
+    return resolve4(hostname);
+  }
+
+  private async assertAllowedTarget(
+    type: string,
+    target: string,
+    tcpPort?: number | null,
+  ) {
+    if (type === 'TCP') {
+      if (!tcpPort)
+        throw new BadRequestException('Los monitores TCP necesitan puerto');
+      await this.assertPublicHostTarget(target);
+      return;
+    }
+
+    if (type === 'DNS') {
+      await this.assertPublicHostTarget(target);
+      return;
+    }
+
+    if (type === 'SSL') {
+      await this.assertPublicUrlOrHostTarget(target);
+      return;
+    }
+
+    await this.assertPublicHttpTarget(target);
+  }
+
+  private async assertPublicUrlOrHostTarget(target: string) {
+    try {
+      return (await this.parsePublicHttpUrl(target)).hostname;
+    } catch {
+      return this.assertPublicHostTarget(target);
+    }
+  }
+
+  private async parsePublicHttpUrl(target: string) {
     let parsedUrl: URL;
 
     try {
@@ -319,9 +592,19 @@ export class MonitorsService {
       throw new BadRequestException('Solo se permiten URLs HTTP o HTTPS');
     }
 
-    const hostname = parsedUrl.hostname.toLowerCase();
+    await this.assertPublicHostTarget(parsedUrl.hostname);
+    return parsedUrl;
+  }
 
-    if (this.isBlockedHostname(hostname)) {
+  private async assertPublicHostTarget(target: string) {
+    const hostname = target
+      .replace(/^https?:\/\//, '')
+      .split('/')[0]
+      .split(':')[0]
+      .trim()
+      .toLowerCase();
+
+    if (!hostname || this.isBlockedHostname(hostname)) {
       throw new BadRequestException('El destino del monitor no está permitido');
     }
 
@@ -330,12 +613,20 @@ export class MonitorsService {
       : await lookup(hostname, { all: true, verbatim: true });
 
     if (addresses.length === 0) {
-      throw new BadRequestException('No se pudo resolver el destino del monitor');
+      throw new BadRequestException(
+        'No se pudo resolver el destino del monitor',
+      );
     }
 
     if (addresses.some(({ address }) => this.isPrivateAddress(address))) {
       throw new BadRequestException('El destino del monitor no está permitido');
     }
+
+    return hostname;
+  }
+
+  private async assertPublicHttpTarget(target: string) {
+    await this.parsePublicHttpUrl(target);
   }
 
   private isBlockedHostname(hostname: string) {
@@ -621,7 +912,13 @@ export class MonitorsService {
     tx: any,
     monitor: Pick<
       MonitorEntity,
-      'id' | 'name' | 'target' | 'organizationId' | 'alertThreshold' | 'alertEmail' | 'locations'
+      | 'id'
+      | 'name'
+      | 'target'
+      | 'organizationId'
+      | 'alertThreshold'
+      | 'alertEmail'
+      | 'locations'
     >,
     outcome: MonitorCheckOutcome,
     outcomes: MonitorCheckOutcome[],

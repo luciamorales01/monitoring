@@ -7,12 +7,14 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from 'class-validator';
 import { MonitorType } from '@prisma/client';
+
+const DNS_RECORD_TYPES = ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as const;
 
 export class CreateMonitorDto {
   @IsString()
@@ -24,7 +26,7 @@ export class CreateMonitorDto {
   type: MonitorType;
 
   @IsString()
-  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
+  @IsNotEmpty()
   @MaxLength(2048)
   target: string;
 
@@ -66,4 +68,33 @@ export class CreateMonitorDto {
   @Min(1)
   @Max(20)
   alertThreshold?: number;
+
+  @ValidateIf((dto) => dto.type === MonitorType.TCP)
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  tcpPort?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  keyword?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  sslWarningDays?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  dnsRecordType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  dnsExpectedValue?: string;
 }
+
+export { DNS_RECORD_TYPES };

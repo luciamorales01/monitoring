@@ -50,6 +50,9 @@ enum UserStatus {
 enum MonitorType {
   HTTP
   HTTPS
+  SSL
+  TCP
+  DNS
 }
 
 enum MonitorStatus {
@@ -103,6 +106,14 @@ model Monitor {
   alertEmail     Boolean  @default(true)
   alertPush      Boolean  @default(false)
   alertThreshold Int      @default(3)
+
+  // Fase 9: checks avanzados
+  tcpPort        Int?
+  keyword        String?
+  sslWarningDays Int      @default(14)
+  dnsRecordType  String   @default("A")
+  dnsExpectedValue String?
+
   sections  SectionMonitor[]
 }
 
@@ -229,25 +240,26 @@ model PasswordResetToken {
 model Section {
   id             Int              @id @default(autoincrement())
   name           String
-  description    String?
-  icon           String?
+  description    String           @default("")
+  icon           String           @default("folder")
   organizationId Int
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  monitors       SectionMonitor[]
 
-  monitors  SectionMonitor[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  @@index([organizationId])
 }
 
 model SectionMonitor {
-  sectionId Int
-  monitorId Int
+  sectionId  Int
+  monitorId  Int
   assignedAt DateTime @default(now())
 
-  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  monitor Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  section    Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  monitor    Monitor @relation(fields: [monitorId], references: [id], onDelete: Cascade)
 
   @@id([sectionId, monitorId])
+  @@index([monitorId])
 }

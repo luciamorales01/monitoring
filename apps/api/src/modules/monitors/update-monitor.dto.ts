@@ -7,7 +7,6 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
   Max,
   MaxLength,
   Min,
@@ -27,7 +26,7 @@ export class UpdateMonitorDto {
 
   @IsOptional()
   @IsString()
-  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
+  @IsNotEmpty()
   @MaxLength(2048)
   target?: string;
 
@@ -69,4 +68,31 @@ export class UpdateMonitorDto {
   @Min(1)
   @Max(20)
   alertThreshold?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  tcpPort?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(240)
+  keyword?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  sslWarningDays?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(12)
+  dnsRecordType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  dnsExpectedValue?: string;
 }
