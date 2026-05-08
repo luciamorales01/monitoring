@@ -26,84 +26,90 @@ import {
 
 type WizardStep = 1 | 2 | 3 | 4;
 
+type MonitorKindConfig = {
+  label: string;
+  shortLabel: string;
+  targetLabel: string;
+  targetPlaceholder: string;
+  helper: string;
+};
+
+const monitorTypeConfig: Record<MonitorType, MonitorKindConfig> = {
+  HTTPS: {
+    label: 'HTTP(s)',
+    shortLabel: 'HTTP(s)',
+    targetLabel: 'URL o endpoint',
+    targetPlaceholder: 'https://tienda.ejemplo.com',
+    helper: 'Comprueba código HTTP, latencia y keyword opcional.',
+  },
+  HTTP: {
+    label: 'HTTP',
+    shortLabel: 'HTTP',
+    targetLabel: 'URL HTTP',
+    targetPlaceholder: 'http://servicio.ejemplo.com/health',
+    helper: 'Comprueba endpoints HTTP sin certificado TLS.',
+  },
+  SSL: {
+    label: 'Certificado SSL',
+    shortLabel: 'SSL',
+    targetLabel: 'Dominio o URL HTTPS',
+    targetPlaceholder: 'https://tudominio.com',
+    helper: 'Comprueba si el certificado existe y cuántos días faltan para caducar.',
+  },
+  TCP: {
+    label: 'TCP / Puerto',
+    shortLabel: 'TCP',
+    targetLabel: 'Host o dominio',
+    targetPlaceholder: 'api.tudominio.com',
+    helper: 'Comprueba si un puerto TCP acepta conexiones.',
+  },
+  DNS: {
+    label: 'DNS',
+    shortLabel: 'DNS',
+    targetLabel: 'Dominio',
+    targetPlaceholder: 'tudominio.com',
+    helper: 'Resuelve registros A, AAAA, CNAME, MX o TXT.',
+  },
+};
+
 const stepItems = [
-  {
-    step: 1 as WizardStep,
-    title: 'General',
-    text: 'Información básica',
-    footerText: 'Completa los datos base del monitor antes de pasar a la configuración.',
-  },
-  {
-    step: 2 as WizardStep,
-    title: 'Configuración',
-    text: 'Parámetros de monitorización',
-    footerText: 'Define la frecuencia, timeout y validaciones principales del check.',
-  },
-  {
-    step: 3 as WizardStep,
-    title: 'Ubicaciones y alertas',
-    text: 'Dónde y cómo alertar',
-    footerText: 'Selecciona regiones de comprobación y configura alertas mock.',
-  },
-  {
-    step: 4 as WizardStep,
-    title: 'Revisar y crear',
-    text: 'Resumen y confirmación',
-    footerText: 'Revisa el resumen final antes de crear el monitor en backend.',
-  },
+  { step: 1 as WizardStep, title: 'General', text: 'Tipo y destino' },
+  { step: 2 as WizardStep, title: 'Validación', text: 'Reglas del check' },
+  { step: 3 as WizardStep, title: 'Alertas', text: 'Ubicaciones y avisos' },
+  { step: 4 as WizardStep, title: 'Revisión', text: 'Confirmar monitor' },
 ] as const;
 
 const locationOptions = ['Madrid', 'Frankfurt', 'Virginia'] as const;
+const dnsRecordTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as const;
 
-type MockFormState = {
-  description: string;
-  tags: string;
-  group: string;
-  method: 'GET';
-  retries: number;
-  retryIntervalSeconds: number;
-  validateExpectedCode: boolean;
-  activateImmediately: boolean;
-};
-
-const typeLabels: Record<MonitorType, string> = {
-  HTTPS: 'HTTP(s)',
-  HTTP: 'HTTP',
+const defaultForm: CreateMonitorInput = {
+  name: '',
+  type: 'HTTPS',
+  target: '',
+  expectedStatusCode: 200,
+  frequencySeconds: 60,
+  timeoutSeconds: 10,
+  locations: [],
+  alertEmail: true,
+  alertPush: false,
+  alertThreshold: 3,
+  tcpPort: null,
+  keyword: '',
+  sslWarningDays: 14,
+  dnsRecordType: 'A',
+  dnsExpectedValue: '',
 };
 
 export default function CreateMonitorPage() {
   const navigate = useNavigate();
-
   const [currentStep, setCurrentStep] = useState<WizardStep>(1);
-  const [form, setForm] = useState<CreateMonitorInput>({
-    name: '',
-    type: 'HTTPS',
-    target: '',
-    expectedStatusCode: 200,
-    frequencySeconds: 60,
-    timeoutSeconds: 10,
-    locations: [],
-    alertEmail: true,
-    alertPush: false,
-    alertThreshold: 3,
-  });
-  const [mockForm, setMockForm] = useState<MockFormState>({
-    description: '',
-    tags: 'producción, tienda, web',
-    group: 'Tienda Online',
-    method: 'GET',
-    retries: 2,
-    retryIntervalSeconds: 15,
-    validateExpectedCode: true,
-    activateImmediately: true,
-  });
+  const [form, setForm] = useState<CreateMonitorInput>(defaultForm);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const previewName = form.name.trim() || 'Tienda ejemplo';
-  const previewTarget = form.target.trim() || 'https://tienda.ejemplo.com';
-  const typeLabel = typeLabels[form.type];
-  const stepMeta = stepItems.find((item) => item.step === currentStep)!;
+  const typeConfig = monitorTypeConfig[form.type];
+  const previewName = form.name.trim() || 'Monitor ejemplo';
+  const previewTarget = form.target.trim() || typeConfig.targetPlaceholder;
 
   const frequencyLabel = useMemo(() => {
     if (form.frequencySeconds < 60) return `Cada ${form.frequencySeconds} segundos`;
@@ -111,79 +117,23 @@ export default function CreateMonitorPage() {
     return `Cada ${minutes} minuto${minutes === 1 ? '' : 's'}`;
   }, [form.frequencySeconds]);
 
-  const selectedLocations = locationOptions.filter(
-    (location) => form.locations.includes(location),
-  );
-  const selectedLocationsLabel = selectedLocations.length
-    ? selectedLocations.join(', ')
-    : 'Sin ubicaciones seleccionadas';
+  const selectedLocationsLabel = form.locations.length > 0 ? form.locations.join(', ') : 'Default';
+  const alertLabel = form.alertEmail || form.alertPush
+    ? `${[form.alertEmail ? 'Email' : '', form.alertPush ? 'Push' : ''].filter(Boolean).join(' y ')} tras ${form.alertThreshold} fallo${form.alertThreshold === 1 ? '' : 's'}`
+    : 'Sin alertas';
 
-  const alertsSummary = [
-    form.alertEmail ? 'Email' : '',
-    form.alertPush ? 'Push' : '',
-  ].filter(Boolean);
+  const updateForm = <K extends keyof CreateMonitorInput>(field: K, value: CreateMonitorInput[K]) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
 
-  const alertLabel = alertsSummary.length
-    ? `${alertsSummary.join(' y ')} tras ${form.alertThreshold} fallo${form.alertThreshold === 1 ? '' : 's'}`
-    : 'Sin alertas automáticas';
-
-  const handleChange =
-    (
-      field:
-        | 'name'
-        | 'type'
-        | 'target'
-        | 'expectedStatusCode'
-        | 'frequencySeconds'
-        | 'timeoutSeconds',
-    ) =>
-    (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-      const value = event.target.value;
-
-      setForm((current) => ({
-        ...current,
-        [field]:
-          field === 'type'
-            ? (value as MonitorType)
-            : field === 'name' || field === 'target'
-              ? value
-              : Number(value),
-      }));
-    };
-
-  const handleMockTextChange =
-    (field: 'description' | 'tags' | 'group') =>
-    (
-      event: React.ChangeEvent<
-        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-      >,
-    ) => {
-      const value = event.target.value;
-      setMockForm((current) => ({ ...current, [field]: value }));
-    };
-
-  const handleMockNumberChange =
-    (field: 'retries' | 'retryIntervalSeconds') =>
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setMockForm((current) => ({
-        ...current,
-        [field]: Number(event.target.value),
-      }));
-    };
-
-  const handleToggleChange =
-    (field: 'validateExpectedCode' | 'activateImmediately') =>
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setMockForm((current) => ({
-        ...current,
-        [field]: event.target.checked,
-      }));
-    };
-
-  const handleMethodChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setMockForm((current) => ({
+  const handleTypeChange = (type: MonitorType) => {
+    setForm((current) => ({
       ...current,
-      method: event.target.value as MockFormState['method'],
+      type,
+      expectedStatusCode: type === 'HTTP' || type === 'HTTPS' ? current.expectedStatusCode || 200 : 200,
+      tcpPort: type === 'TCP' ? current.tcpPort ?? 443 : null,
+      sslWarningDays: type === 'SSL' ? current.sslWarningDays ?? 14 : current.sslWarningDays ?? 14,
+      dnsRecordType: type === 'DNS' ? current.dnsRecordType ?? 'A' : current.dnsRecordType ?? 'A',
     }));
   };
 
@@ -196,57 +146,42 @@ export default function CreateMonitorPage() {
     }));
   };
 
-  const handleAlertToggle =
-    (field: 'alertEmail' | 'alertPush') =>
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setForm((current) => ({
-        ...current,
-        [field]: event.target.checked,
-      }));
-    };
-
-  const handleAlertThresholdChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    setForm((current) => ({
-      ...current,
-      alertThreshold: Number(event.target.value),
-    }));
-  };
-
   const validateStep = (step: WizardStep) => {
     if (step === 1) {
-      if (!form.name.trim() || !form.target.trim()) {
-        return 'Completa nombre y URL o endpoint antes de continuar.';
-      }
+      if (!form.name.trim()) return 'Indica un nombre para el monitor.';
+      if (!form.target.trim()) return `Indica ${typeConfig.targetLabel.toLowerCase()}.`;
     }
 
     if (step === 2) {
-      if (!Number.isFinite(form.frequencySeconds) || form.frequencySeconds < 10) {
-        return 'La frecuencia debe ser un número válido de al menos 10 segundos.';
-      }
+      if (!Number.isFinite(form.frequencySeconds) || form.frequencySeconds < 30) return 'La frecuencia mínima es 30 segundos.';
+      if (!Number.isFinite(form.timeoutSeconds) || form.timeoutSeconds < 1) return 'El timeout mínimo es 1 segundo.';
 
-      if (!Number.isFinite(form.timeoutSeconds) || form.timeoutSeconds < 1) {
-        return 'El timeout debe ser un número válido de al menos 1 segundo.';
-      }
-
-      if (
-        mockForm.validateExpectedCode &&
-        (!Number.isFinite(form.expectedStatusCode) ||
-          form.expectedStatusCode < 100 ||
-          form.expectedStatusCode > 599)
-      ) {
+      if ((form.type === 'HTTP' || form.type === 'HTTPS') && (!Number.isFinite(form.expectedStatusCode) || form.expectedStatusCode < 100 || form.expectedStatusCode > 599)) {
         return 'El código esperado debe estar entre 100 y 599.';
       }
+
+      if (form.type === 'TCP' && (!Number.isFinite(form.tcpPort ?? NaN) || Number(form.tcpPort) < 1 || Number(form.tcpPort) > 65535)) {
+        return 'Los monitores TCP necesitan un puerto entre 1 y 65535.';
+      }
+
+      if (form.type === 'SSL' && (!Number.isFinite(form.sslWarningDays ?? NaN) || Number(form.sslWarningDays) < 1)) {
+        return 'El aviso SSL debe ser de al menos 1 día.';
+      }
+
+      if (form.type === 'DNS' && !dnsRecordTypes.includes((form.dnsRecordType ?? 'A') as typeof dnsRecordTypes[number])) {
+        return 'Selecciona un tipo de registro DNS válido.';
+      }
+    }
+
+    if (step === 3) {
+      if (!Number.isInteger(form.alertThreshold) || form.alertThreshold < 1) return 'El umbral mínimo es 1 fallo.';
     }
 
     return '';
   };
 
   const goToStep = (nextStep: WizardStep) => {
-    if (nextStep === currentStep) return;
-
-    if (nextStep < currentStep) {
+    if (nextStep <= currentStep) {
       setError('');
       setCurrentStep(nextStep);
       return;
@@ -265,6 +200,17 @@ export default function CreateMonitorPage() {
     setCurrentStep(nextStep);
   };
 
+  const buildPayload = (): CreateMonitorInput => ({
+    ...form,
+    name: form.name.trim(),
+    target: form.target.trim(),
+    keyword: form.keyword?.trim() || null,
+    dnsExpectedValue: form.dnsExpectedValue?.trim() || null,
+    tcpPort: form.type === 'TCP' ? Number(form.tcpPort) : null,
+    sslWarningDays: form.type === 'SSL' ? Number(form.sslWarningDays ?? 14) : form.sslWarningDays ?? 14,
+    dnsRecordType: form.type === 'DNS' ? form.dnsRecordType ?? 'A' : form.dnsRecordType ?? 'A',
+  });
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -273,7 +219,7 @@ export default function CreateMonitorPage() {
       return;
     }
 
-    const finalError = validateStep(1) || validateStep(2);
+    const finalError = validateStep(1) || validateStep(2) || validateStep(3);
     if (finalError) {
       setError(finalError);
       return;
@@ -283,7 +229,7 @@ export default function CreateMonitorPage() {
     setIsSubmitting(true);
 
     try {
-      await createMonitor(form);
+      await createMonitor(buildPayload());
       navigate('/monitors');
     } catch (err: any) {
       setError(err.message ?? 'No se pudo crear el monitor');
@@ -296,112 +242,29 @@ export default function CreateMonitorPage() {
     if (currentStep === 1) {
       return (
         <>
-          <div style={styles.formGrid}>
-            <Field
-              label="Nombre del monitor"
-              required
-              helper="Un nombre descriptivo para identificar este monitor."
-            >
-              <input
-                placeholder="Tienda ejemplo"
-                value={form.name}
-                onChange={handleChange('name')}
-                style={styles.input}
-              />
-            </Field>
-
-            <Field
-              label="URL o endpoint"
-              required
-              helper="La URL completa que quieres monitorizar."
-            >
-              <input
-                placeholder="https://tienda.ejemplo.com"
-                value={form.target}
-                onChange={handleChange('target')}
-                style={styles.input}
-              />
-            </Field>
-
-            <Field
-              label="Tipo de monitor"
-              required
-              helper="Selecciona el tipo de monitorización."
-            >
-              <select value={form.type} onChange={handleChange('type')} style={styles.input}>
-                <option value="HTTPS">HTTP(s)</option>
-                <option value="HTTP">HTTP</option>
-              </select>
-            </Field>
-
-            <Field
-              label="Código esperado"
-              required
-              helper="Código HTTP que consideras correcto."
-            >
-              <input
-                min={100}
-                max={599}
-                type="number"
-                value={form.expectedStatusCode}
-                onChange={handleChange('expectedStatusCode')}
-                style={styles.input}
-              />
-            </Field>
-          </div>
-
-          <label style={styles.descriptionGroup}>
-            <span style={styles.labelText}>
-              Descripción <em>(mock)</em>
-            </span>
-            <textarea
-              placeholder="Monitorización principal de la tienda online."
-              value={mockForm.description}
-              onChange={handleMockTextChange('description')}
-              style={styles.textarea}
-            />
-            <span style={styles.helper}>Información adicional sobre este monitor.</span>
-          </label>
-
-          <div style={styles.tagsRow}>
-            <Field
-              label="Etiquetas"
-              helper="Usa etiquetas separadas por comas para organizar monitores."
-            >
-              <input
-                placeholder="producción, tienda, web"
-                value={mockForm.tags}
-                onChange={handleMockTextChange('tags')}
-                style={styles.input}
-              />
-            </Field>
-
-            <Field label="Grupo" helper="Asigna el monitor a un grupo mock del panel.">
-              <select
-                value={mockForm.group}
-                onChange={handleMockTextChange('group')}
-                style={styles.input}
+          <div style={styles.typeGrid}>
+            {(Object.keys(monitorTypeConfig) as MonitorType[]).map((type) => (
+              <button
+                key={type}
+                type="button"
+                style={form.type === type ? styles.typeCardActive : styles.typeCard}
+                onClick={() => handleTypeChange(type)}
               >
-                <option value="Tienda Online">Tienda Online</option>
-                <option value="API Pública">API Pública</option>
-                <option value="Backoffice">Backoffice</option>
-              </select>
-            </Field>
+                <strong>{monitorTypeConfig[type].label}</strong>
+                <span>{monitorTypeConfig[type].helper}</span>
+              </button>
+            ))}
           </div>
 
-          <label style={styles.toggleRow}>
-            <input
-              type="checkbox"
-              checked={mockForm.activateImmediately}
-              onChange={handleToggleChange('activateImmediately')}
-            />
-            <div>
-              <strong style={styles.toggleTitle}>Activar monitor al crear</strong>
-              <p style={styles.toggleText}>
-                El monitor comenzará a ejecutarse inmediatamente después de crearlo.
-              </p>
-            </div>
-          </label>
+          <div style={styles.formGrid}>
+            <Field label="Nombre del monitor" helper="Nombre visible en dashboard, informes y status page." required>
+              <input style={styles.input} value={form.name} onChange={(event) => updateForm('name', event.target.value)} placeholder="API Producción" />
+            </Field>
+
+            <Field label={typeConfig.targetLabel} helper={typeConfig.helper} required>
+              <input style={styles.input} value={form.target} onChange={(event) => updateForm('target', event.target.value)} placeholder={typeConfig.targetPlaceholder} />
+            </Field>
+          </div>
         </>
       );
     }
@@ -410,79 +273,52 @@ export default function CreateMonitorPage() {
       return (
         <>
           <div style={styles.formGrid}>
-            <Field
-              label="Frecuencia"
-              required
-              helper="Cada cuánto se comprobará el monitor."
-            >
-              <input
-                min={10}
-                type="number"
-                value={form.frequencySeconds}
-                onChange={handleChange('frequencySeconds')}
-                style={styles.input}
-              />
+            <Field label="Frecuencia (s)" helper="Cada cuánto se ejecutará el check." required>
+              <input min={30} type="number" style={styles.input} value={form.frequencySeconds} onChange={(event) => updateForm('frequencySeconds', Number(event.target.value))} />
             </Field>
 
-            <Field
-              label="Timeout"
-              required
-              helper="Tiempo máximo de espera por comprobación."
-            >
-              <input
-                min={1}
-                type="number"
-                value={form.timeoutSeconds}
-                onChange={handleChange('timeoutSeconds')}
-                style={styles.input}
-              />
+            <Field label="Timeout (s)" helper="Tiempo máximo antes de marcar fallo." required>
+              <input min={1} max={60} type="number" style={styles.input} value={form.timeoutSeconds} onChange={(event) => updateForm('timeoutSeconds', Number(event.target.value))} />
             </Field>
 
-            <Field label="Método HTTP" helper="Método mock para el request del monitor.">
-              <select value={mockForm.method} onChange={handleMethodChange} style={styles.input}>
-                <option value="GET">GET</option>
-              </select>
-            </Field>
+            {(form.type === 'HTTP' || form.type === 'HTTPS') && (
+              <>
+                <Field label="Código esperado" helper="Código HTTP considerado correcto." required>
+                  <input min={100} max={599} type="number" style={styles.input} value={form.expectedStatusCode} onChange={(event) => updateForm('expectedStatusCode', Number(event.target.value))} />
+                </Field>
 
-            <Field label="Reintentos" helper="Número mock de reintentos por cada comprobación.">
-              <input
-                min={0}
-                type="number"
-                value={mockForm.retries}
-                onChange={handleMockNumberChange('retries')}
-                style={styles.input}
-              />
-            </Field>
+                <Field label="Keyword opcional" helper="Si se indica, el body debe contener este texto.">
+                  <input style={styles.input} value={form.keyword ?? ''} onChange={(event) => updateForm('keyword', event.target.value)} placeholder="healthy" />
+                </Field>
+              </>
+            )}
 
-            <Field
-              label="Intervalo entre reintentos"
-              helper="Segundos mock de espera entre reintentos."
-            >
-              <input
-                min={0}
-                type="number"
-                value={mockForm.retryIntervalSeconds}
-                onChange={handleMockNumberChange('retryIntervalSeconds')}
-                style={styles.input}
-              />
-            </Field>
+            {form.type === 'TCP' && (
+              <Field label="Puerto TCP" helper="Puerto que debe aceptar conexiones." required>
+                <input min={1} max={65535} type="number" style={styles.input} value={form.tcpPort ?? ''} onChange={(event) => updateForm('tcpPort', Number(event.target.value))} placeholder="443" />
+              </Field>
+            )}
+
+            {form.type === 'SSL' && (
+              <Field label="Avisar si caduca en menos de" helper="Días mínimos de validez del certificado." required>
+                <input min={1} max={365} type="number" style={styles.input} value={form.sslWarningDays ?? 14} onChange={(event) => updateForm('sslWarningDays', Number(event.target.value))} />
+              </Field>
+            )}
+
+            {form.type === 'DNS' && (
+              <>
+                <Field label="Tipo de registro" helper="Registro DNS que se resolverá." required>
+                  <select style={styles.input} value={form.dnsRecordType ?? 'A'} onChange={(event) => updateForm('dnsRecordType', event.target.value)}>
+                    {dnsRecordTypes.map((recordType) => <option key={recordType} value={recordType}>{recordType}</option>)}
+                  </select>
+                </Field>
+
+                <Field label="Valor esperado opcional" helper="Si se indica, algún registro debe contener este valor.">
+                  <input style={styles.input} value={form.dnsExpectedValue ?? ''} onChange={(event) => updateForm('dnsExpectedValue', event.target.value)} placeholder="mail.proveedor.com" />
+                </Field>
+              </>
+            )}
           </div>
-
-          <section style={styles.inlineCard}>
-            <label style={styles.toggleRow}>
-              <input
-                type="checkbox"
-                checked={mockForm.validateExpectedCode}
-                onChange={handleToggleChange('validateExpectedCode')}
-              />
-              <div>
-                <strong style={styles.toggleTitle}>Validar código esperado</strong>
-                <p style={styles.toggleText}>
-                  Se comprobará que la respuesta devuelva <strong>{form.expectedStatusCode}</strong>.
-                </p>
-              </div>
-            </label>
-          </section>
         </>
       );
     }
@@ -492,24 +328,14 @@ export default function CreateMonitorPage() {
         <>
           <section style={styles.sectionBlock}>
             <div style={styles.sectionHeader}>
-              <h3 style={styles.sectionTitle}>Ubicaciones de comprobación</h3>
-              <p style={styles.sectionCopy}>
-                Selecciona desde qué regiones se lanzarán los checks.
-              </p>
+              <h3 style={styles.sectionTitle}>Ubicaciones</h3>
+              <p style={styles.sectionCopy}>Selecciona desde qué regiones se lanzarán los checks.</p>
             </div>
-
             <div style={styles.locationGrid}>
               {locationOptions.map((location) => (
                 <label key={location} style={styles.locationCard}>
-                  <input
-                    type="checkbox"
-                    checked={form.locations.includes(location)}
-                    onChange={() => toggleLocation(location)}
-                  />
-                  <div>
-                    <strong>{location}</strong>
-                    <p style={styles.locationCopy}>Punto de monitorización</p>
-                  </div>
+                  <input type="checkbox" checked={form.locations.includes(location)} onChange={() => toggleLocation(location)} />
+                  <div><strong>{location}</strong><p style={styles.locationCopy}>Punto de monitorización</p></div>
                 </label>
               ))}
             </div>
@@ -518,48 +344,20 @@ export default function CreateMonitorPage() {
           <section style={styles.sectionBlock}>
             <div style={styles.sectionHeader}>
               <h3 style={styles.sectionTitle}>Alertas</h3>
-              <p style={styles.sectionCopy}>
-                Configura canales de alerta y el umbral de fallos consecutivos.
-              </p>
+              <p style={styles.sectionCopy}>Configura canales y umbral de fallos consecutivos.</p>
             </div>
-
             <div style={styles.alertGrid}>
               <label style={styles.toggleRowCard}>
-                <input
-                  type="checkbox"
-                  checked={form.alertEmail}
-                  onChange={handleAlertToggle('alertEmail')}
-                />
-                <div>
-                  <strong style={styles.toggleTitle}>Email alerts</strong>
-                  <p style={styles.toggleText}>Enviar aviso por correo cuando falle el monitor.</p>
-                </div>
+                <input type="checkbox" checked={form.alertEmail} onChange={(event) => updateForm('alertEmail', event.target.checked)} />
+                <div><strong style={styles.toggleTitle}>Email</strong><p style={styles.toggleText}>Aviso por correo cuando falle el monitor.</p></div>
               </label>
-
               <label style={styles.toggleRowCard}>
-                <input
-                  type="checkbox"
-                  checked={form.alertPush}
-                  onChange={handleAlertToggle('alertPush')}
-                />
-                <div>
-                  <strong style={styles.toggleTitle}>Push alerts</strong>
-                  <p style={styles.toggleText}>Enviar aviso push a usuarios conectados.</p>
-                </div>
+                <input type="checkbox" checked={form.alertPush} onChange={(event) => updateForm('alertPush', event.target.checked)} />
+                <div><strong style={styles.toggleTitle}>Push</strong><p style={styles.toggleText}>Preparado para app móvil.</p></div>
               </label>
             </div>
-
-            <Field
-              label="Umbral de fallos consecutivos"
-              helper="Número de fallos antes de disparar la alerta."
-            >
-              <input
-                min={1}
-                type="number"
-                value={form.alertThreshold}
-                onChange={handleAlertThresholdChange}
-                style={styles.input}
-              />
+            <Field label="Umbral de fallos consecutivos" helper="Número de fallos antes de crear incidencia.">
+              <input min={1} max={20} type="number" style={styles.input} value={form.alertThreshold} onChange={(event) => updateForm('alertThreshold', Number(event.target.value))} />
             </Field>
           </section>
         </>
@@ -569,33 +367,25 @@ export default function CreateMonitorPage() {
     return (
       <div style={styles.reviewLayout}>
         <section style={styles.reviewCard}>
-          <h3 style={styles.reviewTitle}>Resumen del monitor</h3>
+          <h3 style={styles.reviewTitle}>Resumen</h3>
           <div style={styles.reviewList}>
             <ReviewRow label="Nombre" value={previewName} />
-            <ReviewRow label="URL" value={previewTarget} />
-            <ReviewRow label="Tipo" value={typeLabel} />
+            <ReviewRow label="Tipo" value={typeConfig.label} />
+            <ReviewRow label="Destino" value={previewTarget} />
             <ReviewRow label="Frecuencia" value={frequencyLabel} />
-            <ReviewRow label="Timeout" value={`${form.timeoutSeconds} segundos`} />
-            <ReviewRow label="Código esperado" value={String(form.expectedStatusCode)} />
-            <ReviewRow label="Método" value={mockForm.method} />
-            <ReviewRow label="Grupo" value={mockForm.group} />
+            <ReviewRow label="Timeout" value={`${form.timeoutSeconds}s`} />
           </div>
         </section>
-
         <section style={styles.reviewCard}>
-          <h3 style={styles.reviewTitle}>Ubicaciones y alertas</h3>
+          <h3 style={styles.reviewTitle}>Validación avanzada</h3>
           <div style={styles.reviewList}>
+            <ReviewRow label="HTTP esperado" value={form.type === 'HTTP' || form.type === 'HTTPS' ? String(form.expectedStatusCode) : 'No aplica'} />
+            <ReviewRow label="Keyword" value={form.keyword?.trim() || 'No configurada'} />
+            <ReviewRow label="Puerto TCP" value={form.type === 'TCP' ? String(form.tcpPort) : 'No aplica'} />
+            <ReviewRow label="SSL warning" value={form.type === 'SSL' ? `${form.sslWarningDays} días` : 'No aplica'} />
+            <ReviewRow label="DNS" value={form.type === 'DNS' ? `${form.dnsRecordType}${form.dnsExpectedValue ? ` · ${form.dnsExpectedValue}` : ''}` : 'No aplica'} />
             <ReviewRow label="Ubicaciones" value={selectedLocationsLabel} />
-            <ReviewRow label="Alertas configuradas" value={alertLabel} />
-            <ReviewRow
-              label="Descripción"
-              value={mockForm.description.trim() || 'Sin descripción'}
-            />
-            <ReviewRow label="Etiquetas" value={mockForm.tags.trim() || 'Sin etiquetas'} />
-            <ReviewRow
-              label="Activación inicial"
-              value={mockForm.activateImmediately ? 'Activa al crear' : 'Creación en pausa'}
-            />
+            <ReviewRow label="Alertas" value={alertLabel} />
           </div>
         </section>
       </div>
@@ -606,688 +396,141 @@ export default function CreateMonitorPage() {
     <main style={styles.main}>
       <AppTopbar
         title="Crear nuevo monitor"
-        subtitle="Configura los parametros de monitorizacion para empezar a supervisar tu servicio."
+        subtitle="Configura HTTP, SSL, TCP o DNS desde la interfaz."
         onRefresh={() => undefined}
-        eyebrow={(
-          <>
-            <span>Webs monitorizadas</span>
-            <span>&gt;</span>
-            <strong>Crear monitor</strong>
-          </>
-        )}
+        eyebrow={<><span>Webs monitorizadas</span><span>&gt;</span><strong>Crear monitor</strong></>}
       />
-
-      <div style={styles.actionsTop}>
-        <NavigationButtons
-          currentStep={currentStep}
-          isSubmitting={isSubmitting}
-          onBack={() => goToStep((currentStep - 1) as WizardStep)}
-          onCancel={() => navigate('/monitors')}
-        />
-      </div>
 
       <section style={styles.steps}>
         {stepItems.map((item) => (
-          <Step
-            key={item.step}
-            number={String(item.step)}
-            title={item.title}
-            text={item.text}
-            active={item.step === currentStep}
-            completed={item.step < currentStep}
-            onClick={() => goToStep(item.step)}
-          />
+          <Step key={item.step} number={String(item.step)} title={item.title} text={item.text} active={item.step === currentStep} completed={item.step < currentStep} onClick={() => goToStep(item.step)} />
         ))}
       </section>
 
       <section style={styles.layout}>
         <form id="create-monitor-form" onSubmit={handleSubmit} style={styles.formCard}>
-          {error && (
-            <div style={styles.errorBanner}>
-              <strong style={styles.errorTitle}>Revisa este paso</strong>
-              <p style={styles.errorMessage}>{error}</p>
-            </div>
-          )}
-
+          {error && <div style={styles.errorBanner}><strong>Revisa este paso</strong><p>{error}</p></div>}
           <div style={styles.formHeader}>
-            <div>
-              <span style={styles.stepBadge}>Paso {currentStep} de 4</span>
-              <h2 style={styles.cardTitle}>{stepMeta.title}</h2>
-            </div>
-            <p style={styles.cardDescription}>{stepMeta.text}</p>
+            <div><span style={styles.stepBadge}>Paso {currentStep} de 4</span><h2 style={styles.cardTitle}>{stepItems[currentStep - 1].title}</h2></div>
+            <p style={styles.cardDescription}>{typeConfig.helper}</p>
           </div>
-
           {renderStepContent()}
         </form>
 
         <aside style={styles.sidePanel}>
           <section style={styles.previewCard}>
-            <h2 style={styles.cardTitle}>Vista previa del monitor</h2>
-
+            <h2 style={styles.cardTitle}>Vista previa</h2>
             <div style={styles.previewHeader}>
-              <div style={styles.previewIcon}>
-                <GlobeIcon size={34} />
-              </div>
-
-              <div>
-                <span style={styles.typeBadge}>{typeLabel}</span>
-                <h3 style={styles.previewTitle}>{previewName}</h3>
-                <p style={styles.previewUrl}>{previewTarget} ↗</p>
-              </div>
+              <div style={styles.previewIcon}><GlobeIcon size={34} /></div>
+              <div><span style={styles.typeBadge}>{typeConfig.shortLabel}</span><h3 style={styles.previewTitle}>{previewName}</h3><p style={styles.previewUrl}>{previewTarget}</p></div>
             </div>
-
             <div style={styles.previewList}>
-              <InfoRow icon={<MonitorIcon size={15} />} label="Tipo" value={typeLabel} />
-              <InfoRow icon={<ActivityIcon size={15} />} label="Método" value={mockForm.method} />
+              <InfoRow icon={<MonitorIcon size={15} />} label="Tipo" value={typeConfig.label} />
+              <InfoRow icon={<ActivityIcon size={15} />} label="Validación" value={getValidationSummary(form)} />
               <InfoRow icon={<ClockIcon size={15} />} label="Frecuencia" value={frequencyLabel} />
-              <InfoRow
-                icon={<ClockIcon size={15} />}
-                label="Timeout"
-                value={`${form.timeoutSeconds} segundos`}
-              />
               <InfoRow icon={<GlobeIcon size={15} />} label="Ubicaciones" value={selectedLocationsLabel} />
               <InfoRow icon={<BellIcon size={15} />} label="Alertas" value={alertLabel} />
-              <InfoRow
-                icon={<CheckCircleIcon size={15} />}
-                label="Estado"
-                value={mockForm.activateImmediately ? 'Activo al crear' : 'Creación en pausa'}
-                highlighted
-              />
+              <InfoRow icon={<CheckCircleIcon size={15} />} label="Estado" value="Activo al crear" highlighted />
             </div>
-          </section>
-
-          <section style={styles.testCard}>
-            <h2 style={styles.sideTitle}>Paso actual</h2>
-            <p>
-              {stepMeta.footerText}
-            </p>
-            <div style={styles.sideStepPill}>{stepMeta.title}</div>
           </section>
         </aside>
       </section>
 
       <footer style={styles.footerBar}>
-        <div style={styles.footerInfo}>
-          <span>ⓘ</span>
-          {stepMeta.footerText}
-        </div>
-
+        <div style={styles.footerInfo}><span>ⓘ</span> {stepItems[currentStep - 1].text}</div>
         <div style={styles.footerActions}>
-          <NavigationButtons
-            currentStep={currentStep}
-            isSubmitting={isSubmitting}
-            onBack={() => goToStep((currentStep - 1) as WizardStep)}
-            onCancel={() => navigate('/monitors')}
-          />
+          <button type="button" style={styles.cancelButton} onClick={() => navigate('/monitors')} disabled={isSubmitting}>Cancelar</button>
+          {currentStep > 1 && <button type="button" style={styles.secondaryButton} onClick={() => goToStep((currentStep - 1) as WizardStep)} disabled={isSubmitting}>Anterior</button>}
+          <button type="submit" form="create-monitor-form" style={styles.primaryButton} disabled={isSubmitting}>
+            {currentStep === 4 && isSubmitting ? <LoadingState variant="button" label="Creando monitor" /> : currentStep === 4 ? 'Crear monitor' : 'Siguiente'}
+            {currentStep < 4 && <span>→</span>}
+          </button>
         </div>
       </footer>
     </main>
   );
 }
 
-function NavigationButtons({
-  currentStep,
-  isSubmitting,
-  onBack,
-  onCancel,
-}: {
-  currentStep: WizardStep;
-  isSubmitting: boolean;
-  onBack: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <>
-      <button
-        type="button"
-        style={styles.cancelButton}
-        onClick={onCancel}
-        disabled={isSubmitting}
-      >
-        Cancelar
-      </button>
-
-      {currentStep > 1 && (
-        <button
-          type="button"
-          style={styles.secondaryButton}
-          onClick={onBack}
-          disabled={isSubmitting}
-        >
-          Anterior
-        </button>
-      )}
-
-      <button
-        type="submit"
-        form="create-monitor-form"
-        style={styles.primaryButton}
-        disabled={isSubmitting}
-      >
-        {currentStep === 4 && isSubmitting ? (
-          <LoadingState variant="button" label="Creando monitor" />
-        ) : currentStep === 4 ? (
-          'Crear monitor'
-        ) : (
-          'Siguiente'
-        )}
-        {currentStep < 4 && <span>→</span>}
-      </button>
-    </>
-  );
+function getValidationSummary(form: CreateMonitorInput) {
+  if (form.type === 'TCP') return `Puerto ${form.tcpPort ?? '-'}`;
+  if (form.type === 'SSL') return `Caducidad < ${form.sslWarningDays ?? 14} días`;
+  if (form.type === 'DNS') return `${form.dnsRecordType ?? 'A'}${form.dnsExpectedValue ? ` contiene ${form.dnsExpectedValue}` : ''}`;
+  return `HTTP ${form.expectedStatusCode}${form.keyword ? ` + keyword` : ''}`;
 }
 
-function Step({
-  number,
-  title,
-  text,
-  active,
-  completed,
-  onClick,
-}: {
-  number: string;
-  title: string;
-  text: string;
-  active?: boolean;
-  completed?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" style={styles.stepButton} onClick={onClick}>
-      <div style={styles.step}>
-        <span
-          style={
-            active
-              ? styles.stepCircleActive
-              : completed
-                ? styles.stepCircleDone
-                : styles.stepCircle
-          }
-        >
-          {number}
-        </span>
-        <div>
-          <strong style={active || completed ? styles.stepTitleActive : styles.stepTitle}>
-            {title}
-          </strong>
-          <p style={styles.stepText}>{text}</p>
-        </div>
-      </div>
-    </button>
-  );
+function Step({ number, title, text, active, completed, onClick }: { number: string; title: string; text: string; active?: boolean; completed?: boolean; onClick: () => void }) {
+  return <button type="button" style={styles.stepButton} onClick={onClick}><div style={styles.step}><span style={active ? styles.stepCircleActive : completed ? styles.stepCircleDone : styles.stepCircle}>{number}</span><div><strong style={active || completed ? styles.stepTitleActive : styles.stepTitle}>{title}</strong><p style={styles.stepText}>{text}</p></div></div></button>;
 }
 
-function Field({
-  label,
-  helper,
-  required,
-  children,
-}: {
-  label: string;
-  helper: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <label style={styles.field}>
-      <span style={styles.labelText}>
-        {label} {required && <b>*</b>}
-      </span>
-      {children}
-      <span style={styles.helper}>{helper}</span>
-    </label>
-  );
+function Field({ label, helper, required, children }: { label: string; helper: string; required?: boolean; children: React.ReactNode }) {
+  return <label style={styles.field}><span style={styles.labelText}>{label} {required && <b>*</b>}</span>{children}<span style={styles.helper}>{helper}</span></label>;
 }
 
-function InfoRow({
-  icon,
-  label,
-  value,
-  highlighted,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  highlighted?: boolean;
-}) {
-  return (
-    <div style={styles.infoRow}>
-      <span style={styles.infoIcon}>{icon}</span>
-      <span>{label}</span>
-      <strong style={highlighted ? styles.highlightValue : undefined}>{value}</strong>
-    </div>
-  );
+function InfoRow({ icon, label, value, highlighted }: { icon: React.ReactNode; label: string; value: string; highlighted?: boolean }) {
+  return <div style={styles.infoRow}><span style={styles.infoIcon}>{icon}</span><span>{label}</span><strong style={highlighted ? styles.highlightValue : undefined}>{value}</strong></div>;
 }
 
 function ReviewRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={styles.reviewRow}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+  return <div style={styles.reviewRow}><span>{label}</span><strong>{value}</strong></div>;
 }
 
 const styles: Record<string, CSSProperties> = {
-  main: { ...pageMain, overflow: 'auto' },
-  actionsTop: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: 12,
-    marginTop: -12,
-    marginBottom: 24,
-  },
-  primaryButton: {
-    ...primaryButtonBase,
-    minHeight: 40,
-    padding: '0 18px',
-    borderRadius: uiTheme.radii.sm,
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  cancelButton: {
-    ...secondaryButtonBase,
-    minHeight: 40,
-    padding: '0 18px',
-    borderRadius: uiTheme.radii.sm,
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  secondaryButton: {
-    ...secondaryButtonBase,
-    minHeight: 40,
-    padding: '0 18px',
-    borderRadius: uiTheme.radii.sm,
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  steps: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    borderBottom: `1px solid ${uiTheme.colors.border}`,
-    marginBottom: 28,
-    gap: 12,
-  },
-  stepButton: {
-    border: 'none',
-    background: 'transparent',
-    padding: 0,
-    textAlign: 'left',
-    cursor: 'pointer',
-  },
-  step: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 14,
-    paddingBottom: 20,
-    position: 'relative',
-    color: uiTheme.colors.text,
-  },
-  stepCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    border: `1px solid ${uiTheme.colors.borderStrong}`,
-    display: 'grid',
-    placeItems: 'center',
-    color: uiTheme.colors.muted,
-    background: '#fff',
-    fontWeight: 600,
-  },
-  stepCircleActive: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    border: `1px solid ${uiTheme.colors.primary}`,
-    display: 'grid',
-    placeItems: 'center',
-    color: uiTheme.colors.primary,
-    background: uiTheme.colors.primarySoft,
-    fontWeight: 600,
-    boxShadow: `0 18px 0 -16px ${uiTheme.colors.primary}`,
-  },
-  stepCircleDone: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    border: `1px solid ${uiTheme.colors.primaryLight}`,
-    display: 'grid',
-    placeItems: 'center',
-    color: uiTheme.colors.primary,
-    background: uiTheme.colors.primarySoft,
-    fontWeight: 600,
-  },
-  stepTitle: {
-    color: uiTheme.colors.text,
-  },
-  stepTitleActive: {
-    color: uiTheme.colors.primary,
-  },
-  stepText: {
-    margin: '4px 0 0',
-    color: uiTheme.colors.muted,
-    fontSize: 12,
-  },
-  layout: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 360px',
-    gap: 24,
-  },
-  formCard: {
-    ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
-    padding: 24,
-    display: 'grid',
-    gap: 24,
-    alignContent: 'start',
-  },
-  formHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 20,
-    paddingBottom: 20,
-    borderBottom: `1px solid ${uiTheme.colors.border}`,
-  },
-  stepBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '6px 10px',
-    borderRadius: 999,
-    background: uiTheme.colors.primarySoft,
-    color: uiTheme.colors.primary,
-    fontSize: 12,
-    fontWeight: 600,
-    marginBottom: 10,
-  },
-  cardTitle: {
-    margin: 0,
-    fontSize: 17,
-    fontWeight: 900,
-    color: uiTheme.colors.text,
-  },
-  cardDescription: {
-    margin: 0,
-    maxWidth: 280,
-    color: uiTheme.colors.muted,
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-  errorBanner: {
-    border: `1px solid #fecaca`,
-    background: uiTheme.colors.dangerSoft,
-    color: uiTheme.colors.danger,
-    borderRadius: uiTheme.radii.sm,
-    padding: '14px 16px',
-    display: 'grid',
-    gap: 6,
-  },
-  errorTitle: {
-    fontSize: 13,
-  },
-  errorMessage: {
-    margin: 0,
-    fontSize: 13,
-    fontWeight: 500,
-  },
-  formGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 22,
-  },
-  field: {
-    display: 'grid',
-    gap: 8,
-  },
-  labelText: {
-    color: uiTheme.colors.text,
-    fontSize: 13,
-    fontWeight: 600,
-  },
+  main: { ...pageMain, overflow: 'auto', paddingBottom: 100 },
+  primaryButton: { ...primaryButtonBase, minHeight: 40, padding: '0 18px', borderRadius: uiTheme.radii.sm, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600 },
+  cancelButton: { ...secondaryButtonBase, minHeight: 40, padding: '0 18px', borderRadius: uiTheme.radii.sm, cursor: 'pointer', fontWeight: 600 },
+  secondaryButton: { ...secondaryButtonBase, minHeight: 40, padding: '0 18px', borderRadius: uiTheme.radii.sm, cursor: 'pointer', fontWeight: 600 },
+  steps: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', borderBottom: `1px solid ${uiTheme.colors.border}`, marginBottom: 28, gap: 12 },
+  stepButton: { border: 'none', background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer' },
+  step: { display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 20, color: uiTheme.colors.text },
+  stepCircle: { width: 34, height: 34, borderRadius: 999, border: `1px solid ${uiTheme.colors.borderStrong}`, display: 'grid', placeItems: 'center', color: uiTheme.colors.muted, background: '#fff', fontWeight: 600 },
+  stepCircleActive: { width: 34, height: 34, borderRadius: 999, border: `1px solid ${uiTheme.colors.primary}`, display: 'grid', placeItems: 'center', color: uiTheme.colors.primary, background: uiTheme.colors.primarySoft, fontWeight: 600 },
+  stepCircleDone: { width: 34, height: 34, borderRadius: 999, border: `1px solid ${uiTheme.colors.primaryLight}`, display: 'grid', placeItems: 'center', color: uiTheme.colors.primary, background: uiTheme.colors.primarySoft, fontWeight: 600 },
+  stepTitle: { color: uiTheme.colors.text },
+  stepTitleActive: { color: uiTheme.colors.primary },
+  stepText: { margin: '4px 0 0', color: uiTheme.colors.muted, fontSize: 12 },
+  layout: { display: 'grid', gridTemplateColumns: '1fr 360px', gap: 24 },
+  formCard: { ...surfaceCard, borderRadius: uiTheme.radii.md, padding: 24, display: 'grid', gap: 24, alignContent: 'start' },
+  formHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, paddingBottom: 20, borderBottom: `1px solid ${uiTheme.colors.border}` },
+  stepBadge: { display: 'inline-flex', padding: '6px 10px', borderRadius: 999, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary, fontSize: 12, fontWeight: 600, marginBottom: 10 },
+  cardTitle: { margin: 0, fontSize: 17, fontWeight: 900, color: uiTheme.colors.text },
+  cardDescription: { margin: 0, maxWidth: 340, color: uiTheme.colors.muted, fontSize: 13, lineHeight: 1.5 },
+  errorBanner: { border: `1px solid #fecaca`, background: uiTheme.colors.dangerSoft, color: uiTheme.colors.danger, borderRadius: uiTheme.radii.sm, padding: '14px 16px', display: 'grid', gap: 6 },
+  typeGrid: { display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 12 },
+  typeCard: { ...surfaceCard, padding: 14, display: 'grid', gap: 8, textAlign: 'left', cursor: 'pointer', background: '#fff' },
+  typeCardActive: { ...surfaceCard, padding: 14, display: 'grid', gap: 8, textAlign: 'left', cursor: 'pointer', borderColor: uiTheme.colors.primary, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary },
+  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22 },
+  field: { display: 'grid', gap: 8 },
+  labelText: { color: uiTheme.colors.text, fontSize: 13, fontWeight: 600 },
   input: inputBase,
-  helper: {
-    color: uiTheme.colors.muted,
-    fontSize: 12,
-  },
-  textarea: {
-    ...inputBase,
-    minHeight: 88,
-    padding: '12px 14px',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  descriptionGroup: {
-    display: 'grid',
-    gap: 8,
-  },
-  tagsRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 22,
-  },
-  toggleRow: {
-    display: 'grid',
-    gridTemplateColumns: '18px 1fr',
-    gap: 14,
-    alignItems: 'start',
-    padding: 16,
-    border: `1px solid ${uiTheme.colors.border}`,
-    borderRadius: uiTheme.radii.sm,
-    background: uiTheme.colors.iconSoft,
-  },
-  toggleRowCard: {
-    display: 'grid',
-    gridTemplateColumns: '18px 1fr',
-    gap: 14,
-    alignItems: 'start',
-    padding: 16,
-    border: `1px solid ${uiTheme.colors.border}`,
-    borderRadius: uiTheme.radii.sm,
-    background: '#fff',
-  },
-  toggleTitle: {
-    color: uiTheme.colors.text,
-    fontSize: 14,
-  },
-  toggleText: {
-    margin: '6px 0 0',
-    color: uiTheme.colors.muted,
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-  inlineCard: {
-    border: `1px solid ${uiTheme.colors.border}`,
-    borderRadius: uiTheme.radii.sm,
-    background: uiTheme.colors.iconSoft,
-  },
-  sectionBlock: {
-    display: 'grid',
-    gap: 18,
-  },
-  sectionHeader: {
-    display: 'grid',
-    gap: 6,
-  },
-  sectionTitle: {
-    margin: 0,
-    color: uiTheme.colors.text,
-    fontSize: 15,
-    fontWeight: 900,
-  },
-  sectionCopy: {
-    margin: 0,
-    color: uiTheme.colors.muted,
-    fontSize: 13,
-    lineHeight: 1.5,
-  },
-  locationGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 16,
-  },
-  locationCard: {
-    display: 'grid',
-    gridTemplateColumns: '18px 1fr',
-    gap: 14,
-    alignItems: 'start',
-    padding: 16,
-    border: `1px solid ${uiTheme.colors.border}`,
-    borderRadius: uiTheme.radii.sm,
-    background: '#fff',
-  },
-  locationCopy: {
-    margin: '6px 0 0',
-    color: uiTheme.colors.muted,
-    fontSize: 12,
-  },
-  alertGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 16,
-  },
-  reviewLayout: {
-    display: 'grid',
-    gap: 18,
-  },
-  reviewCard: {
-    border: `1px solid ${uiTheme.colors.border}`,
-    borderRadius: uiTheme.radii.sm,
-    background: '#fbfdff',
-    padding: 18,
-    display: 'grid',
-    gap: 16,
-  },
-  reviewTitle: {
-    margin: 0,
-    fontSize: 15,
-    fontWeight: 900,
-    color: uiTheme.colors.text,
-  },
-  reviewList: {
-    display: 'grid',
-    gap: 12,
-  },
-  reviewRow: {
-    display: 'grid',
-    gridTemplateColumns: '180px 1fr',
-    gap: 14,
-    color: uiTheme.colors.muted,
-    fontSize: 13,
-    alignItems: 'start',
-  },
-  sidePanel: {
-    display: 'grid',
-    gap: 20,
-    alignContent: 'start',
-  },
-  previewCard: {
-    ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
-    padding: 20,
-  },
-  previewHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 18,
-    padding: '22px 0',
-    borderBottom: `1px solid ${uiTheme.colors.border}`,
-  },
-  previewIcon: {
-    width: 76,
-    height: 76,
-    borderRadius: 999,
-    background: uiTheme.colors.primarySoft,
-    color: uiTheme.colors.primary,
-    display: 'grid',
-    placeItems: 'center',
-  },
-  typeBadge: {
-    background: uiTheme.colors.primarySoft,
-    color: uiTheme.colors.primary,
-    borderRadius: 8,
-    padding: '5px 9px',
-    fontSize: 12,
-    fontWeight: 600,
-  },
-  previewTitle: {
-    margin: '10px 0 4px',
-    fontSize: 18,
-    color: uiTheme.colors.text,
-  },
-  previewUrl: {
-    margin: 0,
-    color: uiTheme.colors.primary,
-    fontSize: 13,
-    wordBreak: 'break-word',
-  },
-  previewList: {
-    display: 'grid',
-    gap: 14,
-    marginTop: 18,
-  },
-  infoRow: {
-    display: 'grid',
-    gridTemplateColumns: '20px 1fr auto',
-    alignItems: 'center',
-    gap: 10,
-    color: uiTheme.colors.muted,
-    fontSize: 13,
-  },
-  infoIcon: {
-    color: uiTheme.colors.muted,
-    display: 'grid',
-    placeItems: 'center',
-  },
-  highlightValue: {
-    color: uiTheme.colors.primary,
-    background: uiTheme.colors.primarySoft,
-    padding: '5px 8px',
-    borderRadius: 7,
-  },
-  testCard: {
-    border: `1px solid ${uiTheme.colors.primaryLight}`,
-    background: uiTheme.colors.iconSoft,
-    borderRadius: uiTheme.radii.md,
-    padding: 20,
-  },
-  sideTitle: {
-    margin: '0 0 10px',
-    fontSize: 15,
-    fontWeight: 900,
-  },
-  sideStepPill: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    marginTop: 12,
-    padding: '6px 10px',
-    borderRadius: 999,
-    background: uiTheme.colors.primarySoft,
-    color: uiTheme.colors.primary,
-    fontSize: 12,
-    fontWeight: 600,
-  },
-  footerBar: {
-    ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
-    marginTop: 28,
-    padding: 16,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 16,
-  },
-  footerInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    color: uiTheme.colors.muted,
-    fontSize: 13,
-  },
-  footerActions: {
-    display: 'flex',
-    gap: 12,
-  },
+  helper: { color: uiTheme.colors.muted, fontSize: 12 },
+  sectionBlock: { display: 'grid', gap: 16 },
+  sectionHeader: { display: 'grid', gap: 4 },
+  sectionTitle: { margin: 0, fontSize: 16, fontWeight: 800, color: uiTheme.colors.text },
+  sectionCopy: { margin: 0, color: uiTheme.colors.muted, fontSize: 13 },
+  locationGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 },
+  locationCard: { ...surfaceCard, display: 'grid', gridTemplateColumns: '18px 1fr', gap: 12, padding: 14 },
+  locationCopy: { margin: '4px 0 0', color: uiTheme.colors.muted, fontSize: 12 },
+  alertGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 },
+  toggleRowCard: { display: 'grid', gridTemplateColumns: '18px 1fr', gap: 14, alignItems: 'start', padding: 16, border: `1px solid ${uiTheme.colors.border}`, borderRadius: uiTheme.radii.sm, background: '#fff' },
+  toggleTitle: { color: uiTheme.colors.text, fontSize: 14 },
+  toggleText: { margin: '6px 0 0', color: uiTheme.colors.muted, fontSize: 13, lineHeight: 1.5 },
+  reviewLayout: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
+  reviewCard: { ...surfaceCard, padding: 18, display: 'grid', gap: 14 },
+  reviewTitle: { margin: 0, fontSize: 16 },
+  reviewList: { display: 'grid', gap: 12 },
+  reviewRow: { display: 'flex', justifyContent: 'space-between', gap: 16, color: uiTheme.colors.muted, fontSize: 13 },
+  sidePanel: { display: 'grid', gap: 16, alignContent: 'start' },
+  previewCard: { ...surfaceCard, padding: 22, display: 'grid', gap: 20 },
+  previewHeader: { display: 'flex', alignItems: 'center', gap: 16 },
+  previewIcon: { width: 58, height: 58, borderRadius: 20, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary, display: 'grid', placeItems: 'center' },
+  typeBadge: { display: 'inline-flex', padding: '5px 9px', borderRadius: 999, background: uiTheme.colors.iconSoft, color: uiTheme.colors.muted, fontSize: 11, fontWeight: 700 },
+  previewTitle: { margin: '8px 0 4px', color: uiTheme.colors.text, fontSize: 18 },
+  previewUrl: { margin: 0, color: uiTheme.colors.muted, wordBreak: 'break-all', fontSize: 13 },
+  previewList: { display: 'grid', gap: 12 },
+  infoRow: { display: 'grid', gridTemplateColumns: '24px 90px 1fr', gap: 10, alignItems: 'center', color: uiTheme.colors.muted, fontSize: 13 },
+  infoIcon: { width: 24, height: 24, borderRadius: 8, display: 'grid', placeItems: 'center', background: uiTheme.colors.iconSoft, color: uiTheme.colors.primary },
+  highlightValue: { color: uiTheme.colors.success },
+  footerBar: { position: 'fixed', left: 0, right: 0, bottom: 0, minHeight: 72, borderTop: `1px solid ${uiTheme.colors.border}`, background: 'rgba(255,255,255,0.94)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', zIndex: 20 },
+  footerInfo: { display: 'flex', alignItems: 'center', gap: 10, color: uiTheme.colors.muted, fontSize: 13 },
+  footerActions: { display: 'flex', alignItems: 'center', gap: 12 },
 };

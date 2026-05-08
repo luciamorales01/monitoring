@@ -516,11 +516,31 @@ export default function MonitorDetailPage() {
               </div>
 
               <InfoRow label="URL" value={monitor.target} strong />
-              <InfoRow label="Protocolo" value={monitor.type} />
-              <InfoRow
-                label="Código esperado"
-                value={String(monitor.expectedStatusCode)}
-              />
+              <InfoRow label="Tipo" value={getMonitorTypeLabel(monitor.type)} />
+              {(monitor.type === "HTTP" || monitor.type === "HTTPS") && (
+                <InfoRow
+                  label="Código esperado"
+                  value={String(monitor.expectedStatusCode)}
+                />
+              )}
+              {monitor.keyword && (
+                <InfoRow label="Keyword" value={monitor.keyword} />
+              )}
+              {monitor.type === "TCP" && (
+                <InfoRow label="Puerto TCP" value={String(monitor.tcpPort ?? "-")} />
+              )}
+              {monitor.type === "SSL" && (
+                <InfoRow
+                  label="Aviso SSL"
+                  value={`${monitor.sslWarningDays ?? 14} días`}
+                />
+              )}
+              {monitor.type === "DNS" && (
+                <InfoRow
+                  label="DNS"
+                  value={`${monitor.dnsRecordType ?? "A"}${monitor.dnsExpectedValue ? ` · ${monitor.dnsExpectedValue}` : ""}`}
+                />
+              )}
               <InfoRow label="Timeout" value={`${monitor.timeoutSeconds}s`} />
               <InfoRow
                 label="Ubicaciones"
@@ -650,6 +670,18 @@ function KpiCard({
       <span style={styles.kpiDescription}>{description}</span>
     </div>
   );
+}
+
+function getMonitorTypeLabel(type: Monitor["type"]) {
+  const labels: Record<Monitor["type"], string> = {
+    HTTPS: "HTTP(s)",
+    HTTP: "HTTP",
+    SSL: "Certificado SSL",
+    TCP: "TCP / Puerto",
+    DNS: "DNS",
+  };
+
+  return labels[type] ?? type;
 }
 
 function StatusBadge({ status }: { status: MonitorStatus }) {
