@@ -1,29 +1,36 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import ForgotPasswordPage from '../modules/auth/ForgotPasswordPage';
-import LoginPage from '../modules/auth/LoginPage';
-import RegisterPage from '../modules/auth/RegisterPage';
-import CreateMonitorPage from '../modules/monitors/CreateMonitorPage';
-import IncidentsPage from '../modules/incidents/IncidentsPage';
-import IncidentDetailPage from '../modules/incidents/IncidentDetailPage';
-import { ProtectedRoute } from './ProtectedRoute';
-import DashboardPage from '../modules/dashboard/DashboardPage';
-import AppLayout from './AppLayout';
-import MonitorDetailPage from '../modules/monitors/MonitorDetailPage';
-import MonitorsPage from '../modules/monitors/MonitorsPage';
-import SectionDetailPage from '../modules/sections/SectionDetailPage';
-import SectionsPage from '../modules/sections/SectionsPage';
-import UsersPage from '../modules/users/UsersPage';
-import SettingsPage from '../modules/settings/SettingsPage';
-import ReportsPage from '../modules/reports/ReportsPage';
-import ProfilePage from '../modules/profile/ProfilePage';
-import PublicStatusPage from '../modules/status/PublicStatusPage';
-import AuthRedirect from './AuthRedirect';
-import RouteErrorPage from './RouteErrorPage';
-import NotFoundPage from './NotFoundPage';
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import ForgotPasswordPage from "../modules/auth/ForgotPasswordPage";
+import LoginPage from "../modules/auth/LoginPage";
+import RegisterPage from "../modules/auth/RegisterPage";
+import CreateMonitorPage from "../modules/monitors/CreateMonitorPage";
+import IncidentsPage from "../modules/incidents/IncidentsPage";
+import IncidentDetailPage from "../modules/incidents/IncidentDetailPage";
+import { ProtectedRoute } from "./ProtectedRoute";
+import DashboardPage from "../modules/dashboard/DashboardPage";
+import AppLayout from "./AppLayout";
+import MonitorDetailPage from "../modules/monitors/MonitorDetailPage";
+import MonitorsPage from "../modules/monitors/MonitorsPage";
+import SectionDetailPage from "../modules/sections/SectionDetailPage";
+import SectionsPage from "../modules/sections/SectionsPage";
+import UsersPage from "../modules/users/UsersPage";
+import SettingsPage from "../modules/settings/SettingsPage";
+import ReportsPage from "../modules/reports/ReportsPage";
+import ProfilePage from "../modules/profile/ProfilePage";
+import NotificationsPage from "../modules/notifications/NotificationsPage";
+import PublicStatusPage from "../modules/status/PublicStatusPage";
+import AuthRedirect from "./AuthRedirect";
+import RouteErrorPage from "./RouteErrorPage";
+import NotFoundPage from "./NotFoundPage";
+import ResetPasswordPage from "../modules/auth/ResetPasswordPage";
 
 export const router = createBrowserRouter([
   {
-    path: '/login',
+    path: "/restablecer-password",
+    element: <ResetPasswordPage />,
+    errorElement: <RouteErrorPage />,
+  },
+  {
+    path: "/login",
     element: (
       <AuthRedirect>
         <LoginPage />
@@ -32,7 +39,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
   },
   {
-    path: '/registro',
+    path: "/registro",
     element: (
       <AuthRedirect>
         <RegisterPage />
@@ -40,12 +47,13 @@ export const router = createBrowserRouter([
     ),
     errorElement: <RouteErrorPage />,
   },
-  { path: '/register', element: <Navigate to="/registro" replace /> },
-  { path: '/recuperar-password', element: <ForgotPasswordPage /> },
-  { path: '/status/:slug', element: <PublicStatusPage /> },
-  { path: '/mi-perfil', element: <Navigate to="/profile" replace /> },
+  { path: "/register", element: <Navigate to="/registro" replace /> },
+  { path: "/recuperar-password", element: <ForgotPasswordPage /> },
+  {path: "/restablecer-password", element: <ResetPasswordPage />,},
+  { path: "/status/:slug", element: <PublicStatusPage /> },
+  { path: "/mi-perfil", element: <Navigate to="/profile" replace /> },
   {
-    path: '/',
+    path: "/",
     element: (
       <ProtectedRoute>
         <AppLayout />
@@ -54,20 +62,21 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'monitors/create', element: <CreateMonitorPage /> },
-      { path: 'incidents', element: <IncidentsPage /> },
-      { path: 'incidents/:id', element: <IncidentDetailPage /> },
-      { path: 'monitors/:id', element: <MonitorDetailPage /> },
-      { path: 'monitors', element: <MonitorsPage /> },
-      { path: 'sections/:sectionId', element: <SectionDetailPage /> },
-      { path: 'sections', element: <SectionsPage /> },
-      { path: 'reports', element: <ReportsPage /> },
-      { path: 'users', element: <UsersPage /> },
-      { path: 'settings', element: <SettingsPage /> },
-      { path: 'profile', element: <ProfilePage /> },
-      { path: '*', element: <NotFoundPage /> },
+      { path: "dashboard", element: <DashboardPage /> },
+      { path: "monitors/create", element: <CreateMonitorPage /> },
+      { path: "incidents", element: <IncidentsPage /> },
+      { path: "incidents/:id", element: <IncidentDetailPage /> },
+      { path: "monitors/:id", element: <MonitorDetailPage /> },
+      { path: "monitors", element: <MonitorsPage /> },
+      { path: "sections/:sectionId", element: <SectionDetailPage /> },
+      { path: "sections", element: <SectionsPage /> },
+      { path: "reports", element: <ReportsPage /> },
+      { path: "notifications", element: <NotificationsPage /> },
+      { path: "users", element: <UsersPage /> },
+      { path: "settings", element: <SettingsPage /> },
+      { path: "profile", element: <ProfilePage /> },
+      { path: "*", element: <NotFoundPage /> },
     ],
   },
-  { path: '*', element: <Navigate to="/login" replace /> },
+  { path: "*", element: <Navigate to="/login" replace /> },
 ]);

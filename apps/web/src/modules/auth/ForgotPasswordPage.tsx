@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
+import { forgotPassword } from './authApi';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -32,11 +33,8 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Conectar endpoint real de recuperación cuando exista en authApi.ts.
-      console.log('TODO: password recovery', { email: trimmedEmail });
-      setSuccessMessage(
-        'Si existe una cuenta asociada, recibirás instrucciones para restablecer tu contraseña.',
-      );
+      const res = await forgotPassword(trimmedEmail);
+      setSuccessMessage(res.resetUrl ? `${res.message} En desarrollo: ${res.resetUrl}` : res.message);
     } catch (err) {
       setSubmitError(
         err instanceof Error

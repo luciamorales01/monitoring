@@ -28,6 +28,11 @@ const navItems = [
     label: "Incidencias",
     to: "/incidents",
   },
+  {
+    icon: <AlertTriangleIcon size={16} />,
+    label: "Notificaciones",
+    to: "/notifications",
+  },
   { icon: <SettingsIcon size={16} />, label: "Configuración", to: "/settings" },
   { icon: <UsersIcon size={16} />, label: "Mi perfil", to: "/profile" },
   { icon: <UsersIcon size={16} />, label: "Usuarios", to: "/users" },

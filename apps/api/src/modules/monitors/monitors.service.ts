@@ -7,6 +7,7 @@ import {
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateMonitorDto } from './create-monitor.dto';
 import { UpdateMonitorDto } from './update-monitor.dto';
 
@@ -18,6 +19,7 @@ const MonitorStatus = {
 
 const IncidentStatus = {
   OPEN: 'OPEN',
+  ACKNOWLEDGED: 'ACKNOWLEDGED',
   RESOLVED: 'RESOLVED',
 } as const;
 
@@ -39,6 +41,7 @@ type MonitorEntity = {
   isActive?: boolean;
   locations?: string[] | null;
   alertThreshold?: number | null;
+  alertEmail?: boolean | null;
 };
 
 type CheckResultEntity = {
@@ -65,7 +68,10 @@ type MonitorCheckBatchResult = {
 
 @Injectable()
 export class MonitorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(dto: CreateMonitorDto, user: AuthenticatedUser) {
     await this.assertPublicHttpTarget(dto.target);
@@ -374,7 +380,14 @@ export class MonitorsService {
   private async persistCheckResults(
     monitor: Pick<
       MonitorEntity,
-      'id' | 'frequencySeconds' | 'name' | 'alertThreshold' | 'locations'
+      | 'id'
+      | 'frequencySeconds'
+      | 'name'
+      | 'target'
+      | 'organizationId'
+      | 'alertThreshold'
+      | 'alertEmail'
+      | 'locations'
     >,
     outcomes: MonitorCheckOutcome[],
   ): Promise<MonitorCheckBatchResult> {
@@ -606,14 +619,17 @@ export class MonitorsService {
 
   private async syncIncidentForCheck(
     tx: any,
-    monitor: Pick<MonitorEntity, 'id' | 'alertThreshold' | 'locations'>,
+    monitor: Pick<
+      MonitorEntity,
+      'id' | 'name' | 'target' | 'organizationId' | 'alertThreshold' | 'alertEmail' | 'locations'
+    >,
     outcome: MonitorCheckOutcome,
     outcomes: MonitorCheckOutcome[],
   ) {
     const openIncident = await tx.incident.findFirst({
       where: {
         monitorId: monitor.id,
-        status: IncidentStatus.OPEN,
+        status: { in: [IncidentStatus.OPEN, IncidentStatus.ACKNOWLEDGED] },
       },
       orderBy: {
         startedAt: 'desc',
@@ -647,7 +663,7 @@ export class MonitorsService {
         return;
       }
 
-      await tx.incident.create({
+      const incident = await tx.incident.create({
         data: {
           monitorId: monitor.id,
           status: IncidentStatus.OPEN,
@@ -659,6 +675,23 @@ export class MonitorsService {
         },
       });
 
+      if (monitor.alertEmail !== false) {
+        await this.notificationsService.notifyMonitorDown(
+          {
+            monitorId: monitor.id,
+            incidentId: incident.id,
+            organizationId: monitor.organizationId,
+            monitorName: monitor.name ?? `Monitor #${monitor.id}`,
+            monitorTarget: monitor.target,
+            title: incident.title,
+            severity: incident.severity,
+            errorMessage: outcome.errorMessage,
+            startedAt: incident.startedAt,
+          },
+          tx,
+        );
+      }
+
       return;
     }
 
@@ -666,7 +699,7 @@ export class MonitorsService {
       return;
     }
 
-    await tx.incident.update({
+    const resolvedIncident = await tx.incident.update({
       where: {
         id: openIncident.id,
       },
@@ -680,8 +713,25 @@ export class MonitorsService {
               1000,
           ),
         ),
+        lastStatusChangeAt: outcome.checkedAt,
       },
     });
+
+    if (monitor.alertEmail !== false) {
+      await this.notificationsService.notifyMonitorRecovered(
+        {
+          monitorId: monitor.id,
+          incidentId: resolvedIncident.id,
+          organizationId: monitor.organizationId,
+          monitorName: monitor.name ?? `Monitor #${monitor.id}`,
+          monitorTarget: monitor.target,
+          title: resolvedIncident.title,
+          severity: resolvedIncident.severity,
+          resolvedAt: outcome.checkedAt,
+        },
+        tx,
+      );
+    }
   }
 
   private findMonitorById(id: number): Promise<MonitorEntity | null> {

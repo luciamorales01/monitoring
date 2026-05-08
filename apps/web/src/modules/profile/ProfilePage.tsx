@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getMe } from '../auth/authApi';
+import { changePassword, getMe, logout } from '../auth/authApi';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
 import { tokenStorage } from '../../shared/tokenStorage';
@@ -89,6 +89,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [dataSource, setDataSource] = useState<'api' | 'mock'>('mock');
   const [statusMessage, setStatusMessage] = useState('');
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
   const loadProfile = async () => {
     try {
@@ -163,16 +164,54 @@ export default function ProfilePage() {
     );
   };
 
-  const handleQuickAction = (actionId: string) => {
+  const handleQuickAction = async (actionId: string) => {
     if (actionId === 'logout') {
+      const refreshToken = tokenStorage.getRefreshToken();
+      if (refreshToken) {
+        try {
+          await logout(refreshToken);
+        } catch {
+          // Cerrar sesión local aunque el token ya estuviera caducado.
+        }
+      }
       tokenStorage.clear();
-      window.localStorage.removeItem('session');
-      window.sessionStorage.clear();
       navigate('/login', { replace: true });
       return;
     }
 
+    if (actionId === 'password') {
+      setActiveTab('security');
+      return;
+    }
+
     console.log(`profile-action:${actionId}`);
+  };
+
+  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setStatusMessage('');
+
+    if (passwordForm.newPassword.length < 6) {
+      setStatusMessage('La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setStatusMessage('Las contraseñas no coinciden.');
+      return;
+    }
+
+    try {
+      await changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+      tokenStorage.clear();
+      setStatusMessage('Contraseña actualizada. Vuelve a iniciar sesión.');
+      window.setTimeout(() => navigate('/login', { replace: true }), 900);
+    } catch (err) {
+      setStatusMessage(err instanceof Error ? err.message : 'No se pudo cambiar la contraseña.');
+    }
   };
 
   return (
@@ -330,6 +369,55 @@ export default function ProfilePage() {
                       {statusMessage ? <span style={styles.successMessage}>{statusMessage}</span> : <span />}
                       <button type="submit" style={styles.primaryButton}>
                         Guardar cambios
+                      </button>
+                    </div>
+                  </form>
+                </section>
+              ) : activeTab === 'security' ? (
+                <section style={styles.formCard}>
+                  <div style={styles.cardHeader}>
+                    <div>
+                      <h3 style={styles.cardTitle}>Seguridad de la cuenta</h3>
+                      <p style={styles.cardSubtitle}>Cambia tu contraseña y cierra sesiones anteriores.</p>
+                    </div>
+                    <span style={styles.statusPill}>Sesión protegida</span>
+                  </div>
+
+                  <form onSubmit={handlePasswordSubmit} style={styles.profileForm}>
+                    <Field label="Contraseña actual">
+                      <input
+                        value={passwordForm.currentPassword}
+                        onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+                        style={styles.input}
+                        type="password"
+                        autoComplete="current-password"
+                      />
+                    </Field>
+
+                    <Field label="Nueva contraseña">
+                      <input
+                        value={passwordForm.newPassword}
+                        onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+                        style={styles.input}
+                        type="password"
+                        autoComplete="new-password"
+                      />
+                    </Field>
+
+                    <Field label="Confirmar nueva contraseña" wide>
+                      <input
+                        value={passwordForm.confirmPassword}
+                        onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                        style={styles.input}
+                        type="password"
+                        autoComplete="new-password"
+                      />
+                    </Field>
+
+                    <div style={styles.formFooter}>
+                      {statusMessage ? <span style={styles.successMessage}>{statusMessage}</span> : <span />}
+                      <button type="submit" style={styles.primaryButton}>
+                        Cambiar contraseña
                       </button>
                     </div>
                   </form>

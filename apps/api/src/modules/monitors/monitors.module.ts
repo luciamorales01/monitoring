@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { MonitorsController } from './monitors.controller';
 import { MonitorSchedulerService } from './monitor-scheduler.service';
 import { MonitorsService } from './monitors.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [MonitorsController],
   providers: [MonitorsService, MonitorSchedulerService],
 })

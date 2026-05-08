@@ -3,11 +3,16 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { randomBytes, createHash } from 'crypto';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { LoginDto } from './login.dto';
 import { RegisterDto } from './register.dto';
+import { ForgotPasswordDto } from './forgot-password.dto';
+import { ResetPasswordDto } from './reset-password.dto';
+import { ChangePasswordDto } from './change-password.dto';
 
 const UserRole = {
   OWNER: 'OWNER',
@@ -38,6 +43,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -86,17 +92,7 @@ export class AuthService {
       return { organization, user };
     });
 
-    const accessToken = this.signToken(
-      user.id,
-      user.email,
-      user.role as UserRoleValue,
-      user.organizationId,
-    );
-
-    return {
-      accessToken,
-      user: this.toAuthUser(user as AuthUserInput),
-    };
+    return this.buildSession(user as AuthUserInput, true);
   }
 
   async login(dto: LoginDto) {
@@ -109,7 +105,9 @@ export class AuthService {
     }
 
     if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Usuario inactivo o pendiente de activación');
+      throw new UnauthorizedException(
+        'Usuario inactivo o pendiente de activación',
+      );
     }
 
     const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
@@ -123,17 +121,180 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    const accessToken = this.signToken(
-      user.id,
-      user.email,
-      user.role as UserRoleValue,
-      user.organizationId,
+    return this.buildSession(user as AuthUserInput, Boolean(dto.rememberMe));
+  }
+
+  async refresh(refreshToken: string) {
+    const tokenHash = this.hashToken(refreshToken);
+    const storedToken = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (
+      !storedToken ||
+      storedToken.revokedAt ||
+      storedToken.expiresAt <= new Date()
+    ) {
+      throw new UnauthorizedException(
+        'Sesión expirada. Vuelve a iniciar sesión.',
+      );
+    }
+
+    if (storedToken.user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException(
+        'Usuario inactivo o pendiente de activación',
+      );
+    }
+
+    await this.prisma.refreshToken.update({
+      where: { id: storedToken.id },
+      data: { revokedAt: new Date() },
+    });
+
+    return this.buildSession(
+      storedToken.user as AuthUserInput,
+      storedToken.rememberMe,
+    );
+  }
+
+  async logout(refreshToken: string) {
+    const tokenHash = this.hashToken(refreshToken);
+    await this.prisma.refreshToken.updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { success: true };
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      return {
+        message:
+          'Si el email existe, recibirás instrucciones para restablecer la contraseña.',
+      };
+    }
+
+    const resetToken = this.createOpaqueToken();
+    const expiresAt = new Date(Date.now() + this.getResetTokenTtlMs());
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        organizationId: user.organizationId,
+        tokenHash: this.hashToken(resetToken),
+        expiresAt,
+      },
+    });
+
+    const origins =
+      this.configService.get<string>('CORS_ORIGINS')?.split(',') ?? [];
+
+    const appUrl =
+  this.configService.get<string>('FRONTEND_URL') ??
+  'http://localhost:5173';
+
+    const resetUrl = `${appUrl.replace(/\/$/, '')}/restablecer-password?token=${encodeURIComponent(resetToken)}`;
+
+    const payload: { message: string; resetUrl?: string; resetToken?: string } =
+      {
+        message:
+          'Si el email existe, recibirás instrucciones para restablecer la contraseña.',
+      };
+
+    if (this.configService.get('NODE_ENV') !== 'production') {
+      payload.resetUrl = resetUrl;
+      payload.resetToken = resetToken;
+    }
+
+    // La integración SMTP real se puede conectar aquí. En desarrollo se devuelve resetUrl para poder probar el flujo.
+    return payload;
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const tokenHash = this.hashToken(dto.token);
+    const storedToken = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (
+      !storedToken ||
+      storedToken.usedAt ||
+      storedToken.expiresAt <= new Date()
+    ) {
+      throw new BadRequestException(
+        'El enlace de recuperación no es válido o ha caducado.',
+      );
+    }
+
+    if (storedToken.user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException(
+        'Usuario inactivo o pendiente de activación',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: storedToken.userId },
+        data: { passwordHash },
+      }),
+      this.prisma.passwordResetToken.update({
+        where: { id: storedToken.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: storedToken.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    return { success: true };
+  }
+
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Usuario no encontrado o inactivo');
+    }
+
+    const passwordValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash,
     );
 
-    return {
-      accessToken,
-      user: this.toAuthUser(user as AuthUserInput),
-    };
+    if (!passwordValid) {
+      throw new BadRequestException('La contraseña actual no es correcta.');
+    }
+
+    if (dto.currentPassword === dto.newPassword) {
+      throw new BadRequestException(
+        'La nueva contraseña debe ser distinta a la actual.',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    return { success: true };
   }
 
   async me(userId: number) {
@@ -147,7 +308,9 @@ export class AuthService {
     }
 
     if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Usuario inactivo o pendiente de activación');
+      throw new UnauthorizedException(
+        'Usuario inactivo o pendiente de activación',
+      );
     }
 
     return {
@@ -159,6 +322,36 @@ export class AuthService {
             slug: user.organization.slug,
           }
         : null,
+    };
+  }
+
+  private async buildSession(user: AuthUserInput, rememberMe: boolean) {
+    const accessToken = this.signToken(
+      user.id,
+      user.email,
+      user.role as UserRoleValue,
+      user.organizationId,
+    );
+
+    const refreshToken = this.createOpaqueToken();
+    const expiresAt = new Date(
+      Date.now() + this.getRefreshTokenTtlMs(rememberMe),
+    );
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        organizationId: user.organizationId,
+        tokenHash: this.hashToken(refreshToken),
+        rememberMe,
+        expiresAt,
+      },
+    });
+
+    return {
+      accessToken,
+      refreshToken,
+      user: this.toAuthUser(user),
     };
   }
 
@@ -185,5 +378,35 @@ export class AuthService {
       role,
       organizationId,
     });
+  }
+
+  private createOpaqueToken() {
+    return randomBytes(48).toString('hex');
+  }
+
+  private hashToken(token: string) {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private getRefreshTokenTtlMs(rememberMe: boolean) {
+    const envValue = rememberMe
+      ? this.configService.get<string>('JWT_REMEMBER_ME_EXPIRES_IN')
+      : this.configService.get<string>('JWT_REFRESH_EXPIRES_IN');
+
+    const seconds = Number(
+      envValue ?? (rememberMe ? 60 * 60 * 24 * 365 : 60 * 60 * 24),
+    );
+    return Number.isFinite(seconds) && seconds > 0
+      ? seconds * 1000
+      : 24 * 60 * 60 * 1000;
+  }
+
+  private getResetTokenTtlMs() {
+    const minutes = Number(
+      this.configService.get<string>('PASSWORD_RESET_TOKEN_MINUTES') ?? 30,
+    );
+    return Number.isFinite(minutes) && minutes > 0
+      ? minutes * 60 * 1000
+      : 30 * 60 * 1000;
   }
 }

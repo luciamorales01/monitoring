@@ -1,4 +1,5 @@
-const TOKEN_KEY = 'accessToken';
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
 const PERSISTENCE_KEY = 'tokenPersistence';
 
 type TokenPersistence = 'local' | 'session';
@@ -14,17 +15,33 @@ function getStorage(persistence?: TokenPersistence) {
 
 export const tokenStorage = {
   get() {
-    return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(ACCESS_TOKEN_KEY) ?? sessionStorage.getItem(ACCESS_TOKEN_KEY);
   },
-  set(token: string, persistence: TokenPersistence = 'local') {
-    localStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(TOKEN_KEY);
+  getRefreshToken() {
+    return localStorage.getItem(REFRESH_TOKEN_KEY) ?? sessionStorage.getItem(REFRESH_TOKEN_KEY);
+  },
+  getPersistence(): TokenPersistence {
+    return (localStorage.getItem(PERSISTENCE_KEY) as TokenPersistence | null) ?? 'local';
+  },
+  set(token: string, persistence: TokenPersistence = 'local', refreshToken?: string) {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.setItem(PERSISTENCE_KEY, persistence);
-    getStorage(persistence).setItem(TOKEN_KEY, token);
+    getStorage(persistence).setItem(ACCESS_TOKEN_KEY, token);
+
+    if (refreshToken) {
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+      sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+      getStorage(persistence).setItem(REFRESH_TOKEN_KEY, refreshToken);
+    }
   },
   clear() {
-    localStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(PERSISTENCE_KEY);
   },
 };
+
+export type { TokenPersistence };

@@ -17,6 +17,8 @@ model Organization {
 
   users     User[]
   monitors  Monitor[]
+  refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model User {
@@ -31,6 +33,8 @@ model User {
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdMonitors Monitor[]
+  refreshTokens RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
 
   status UserStatus @default(ACTIVE)
   lastLoginAt DateTime?
@@ -90,6 +94,7 @@ model Monitor {
   createdBy          User          @relation(fields: [createdById], references: [id])
   checkResults       CheckResult[]
   incidents          Incident[]
+  notificationEvents NotificationEvent[]
 
   @@index([isActive, nextCheckAt])
 
@@ -139,8 +144,82 @@ model Incident {
   updatedAt          DateTime         @updatedAt
 
   monitor            Monitor          @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  notificationEvents NotificationEvent[]
 
   @@index([monitorId, status])
   @@index([status, startedAt])
   @@index([severity, status])
+}
+
+
+enum NotificationType {
+  MONITOR_DOWN
+  MONITOR_RECOVERED
+}
+
+enum NotificationChannel {
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model NotificationEvent {
+  id           Int                 @id @default(autoincrement())
+  monitorId    Int
+  incidentId   Int?
+  type         NotificationType
+  channel      NotificationChannel @default(EMAIL)
+  status       NotificationStatus  @default(PENDING)
+  recipient    String?
+  subject      String?
+  errorMessage String?
+  sentAt       DateTime?
+  createdAt    DateTime            @default(now())
+
+  monitor      Monitor             @relation(fields: [monitorId], references: [id], onDelete: Cascade)
+  incident     Incident?           @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([monitorId, createdAt])
+  @@index([incidentId])
+  @@index([type, status])
+}
+
+
+model RefreshToken {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  organizationId Int
+  tokenHash      String   @unique
+  rememberMe     Boolean  @default(false)
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  organizationId Int
+  tokenHash      String   @unique
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+  @@index([expiresAt])
 }

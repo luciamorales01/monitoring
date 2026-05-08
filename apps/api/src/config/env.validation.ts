@@ -19,5 +19,13 @@ export function validateEnv(config: RawEnv) {
     throw new Error('API_PORT debe ser numérico');
   }
 
+  if (config.SMTP_PORT && Number.isNaN(Number(config.SMTP_PORT))) {
+    throw new Error('SMTP_PORT debe ser numérico');
+  }
+
+  if (config.SMTP_SECURE && !['true', 'false'].includes(config.SMTP_SECURE)) {
+    throw new Error('SMTP_SECURE debe ser true o false');
+  }
+
   return config;
 }

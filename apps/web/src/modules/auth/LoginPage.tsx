@@ -25,8 +25,12 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const res = await login({ email: email.trim(), password });
-      tokenStorage.set(res.accessToken, rememberSession ? 'local' : 'session');
+      const res = await login({ email: email.trim(), password, rememberMe: rememberSession });
+      tokenStorage.set(
+        res.accessToken,
+        rememberSession ? 'local' : 'session',
+        res.refreshToken,
+      );
       const redirectTo = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ?? '/dashboard';
       navigate(redirectTo, { replace: true });
     } catch (err) {

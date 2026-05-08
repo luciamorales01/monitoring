@@ -84,7 +84,7 @@ export default function RegisterPage() {
         organizationName: organizationName.trim(),
       });
 
-      tokenStorage.set(res.accessToken, 'local');
+      tokenStorage.set(res.accessToken, 'local', res.refreshToken);
       navigate('/dashboard', { replace: true });
     } catch (err) {
       setSubmitError(

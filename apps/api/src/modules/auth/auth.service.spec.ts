@@ -37,6 +37,7 @@ describe('AuthService', () => {
     service = new AuthService(
       prisma as unknown as PrismaService,
       jwtService as unknown as JwtService,
+      { get: jest.fn(), getOrThrow: jest.fn() } as any,
     );
   });
 
