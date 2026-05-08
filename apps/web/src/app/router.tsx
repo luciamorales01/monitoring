@@ -22,6 +22,7 @@ import AuthRedirect from "./AuthRedirect";
 import RouteErrorPage from "./RouteErrorPage";
 import NotFoundPage from "./NotFoundPage";
 import ResetPasswordPage from "../modules/auth/ResetPasswordPage";
+import AcceptInvitationPage from "../modules/auth/AcceptInvitationPage";
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
   { path: "/register", element: <Navigate to="/registro" replace /> },
   { path: "/recuperar-password", element: <ForgotPasswordPage /> },
   {path: "/restablecer-password", element: <ResetPasswordPage />,},
+  {path: "/aceptar-invitacion", element: <AcceptInvitationPage />,},
   { path: "/status/:slug", element: <PublicStatusPage /> },
   { path: "/mi-perfil", element: <Navigate to="/profile" replace /> },
   {

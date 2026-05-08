@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getActiveIncidents, type Incident } from './incidentApi';
 import { tokenStorage } from './tokenStorage';
-import { AlertTriangleIcon, BellIcon, PlusIcon, RefreshIcon, SearchIcon, SettingsIcon, UsersIcon } from './uiIcons';
+import {
+  getNotifications,
+  markAllNotificationsAsRead,
+  markNotificationsAsRead,
+  type NotificationEvent,
+} from './notificationApi';
+import { BellIcon, PlusIcon, RefreshIcon, SearchIcon, SettingsIcon, UsersIcon } from './uiIcons';
 import { useAsyncAction } from './useAsyncAction';
 import LoadingState from './LoadingState';
 import {
@@ -45,6 +50,11 @@ type AppTopbarProps = {
   userSummary?: TopbarUserSummary;
 };
 
+const typeLabels: Record<NotificationEvent['type'], string> = {
+  MONITOR_DOWN: 'Monitor caído',
+  MONITOR_RECOVERED: 'Monitor recuperado',
+};
+
 export default function AppTopbar({
   breadcrumb,
   cta,
@@ -60,31 +70,64 @@ export default function AppTopbar({
   userSummary,
 }: AppTopbarProps) {
   const navigate = useNavigate();
-  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [notifications, setNotifications] = useState<NotificationEvent[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  const [toast, setToast] = useState<NotificationEvent | null>(null);
+  const knownNotificationIds = useRef<Set<number>>(new Set());
+  const initializedNotifications = useRef(false);
   const { isRunning: isRefreshing, run: runRefresh } = useAsyncAction(onRefresh);
+
+  const loadNotifications = async (showToast = false) => {
+    const data = await getNotifications({ limit: 8 });
+    const safeData = Array.isArray(data) ? data : [];
+
+    if (showToast && initializedNotifications.current) {
+      const newestUnread = safeData.find((item) => !knownNotificationIds.current.has(item.id));
+      if (newestUnread) setToast(newestUnread);
+    }
+
+    knownNotificationIds.current = new Set(safeData.map((item) => item.id));
+    initializedNotifications.current = true;
+    setNotifications(safeData);
+  };
 
   useEffect(() => {
     let cancelled = false;
 
-    const loadIncidents = async () => {
+    const poll = async (showToast = false) => {
       try {
-        const activeIncidents = await getActiveIncidents();
-        if (!cancelled) setIncidents(activeIncidents);
+        const data = await getNotifications({ limit: 8 });
+        if (cancelled) return;
+
+        const safeData = Array.isArray(data) ? data : [];
+        if (showToast && initializedNotifications.current) {
+          const newestUnread = safeData.find((item) => !knownNotificationIds.current.has(item.id));
+          if (newestUnread) setToast(newestUnread);
+        }
+
+        knownNotificationIds.current = new Set(safeData.map((item) => item.id));
+        initializedNotifications.current = true;
+        setNotifications(safeData);
       } catch {
-        if (!cancelled) setIncidents([]);
+        if (!cancelled) setNotifications([]);
       }
     };
 
-    void loadIncidents();
-    const intervalId = window.setInterval(loadIncidents, 15000);
+    void poll(false);
+    const intervalId = window.setInterval(() => void poll(true), 10000);
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
     };
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timeout = window.setTimeout(() => setToast(null), 5500);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
 
   useEffect(() => {
     const closeMenus = () => {
@@ -96,13 +139,50 @@ export default function AppTopbar({
     return () => window.removeEventListener('click', closeMenus);
   }, []);
 
-  const recentIncidents = useMemo(() => incidents.slice(0, 5), [incidents]);
+  const unreadCount = useMemo(
+    () => notifications.filter((item) => !item.readAt).length,
+    [notifications],
+  );
 
   const handleLogout = () => {
     tokenStorage.clear();
     window.localStorage.removeItem('session');
     window.sessionStorage.clear();
     navigate('/login', { replace: true });
+  };
+
+  const handleNotificationClick = async (notification: NotificationEvent) => {
+    if (!notification.readAt) {
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item,
+        ),
+      );
+      try {
+        await markNotificationsAsRead([notification.id]);
+      } catch {
+        await loadNotifications(false);
+      }
+    }
+
+    setNotificationsOpen(false);
+
+    if (notification.incidentId) {
+      navigate(`/incidents/${notification.incidentId}`);
+    } else if (notification.monitorId) {
+      navigate(`/monitors/${notification.monitorId}`);
+    } else {
+      navigate('/notifications');
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    setNotifications((current) => current.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
+    try {
+      await markAllNotificationsAsRead();
+    } catch {
+      await loadNotifications(false);
+    }
   };
 
   const ctaContent = (
@@ -164,37 +244,46 @@ export default function AppTopbar({
             title="Notificaciones"
           >
             <BellIcon size={16} />
-            {incidents.length > 0 ? (
-              <span style={styles.bellBadge}>{incidents.length}</span>
-            ) : null}
+            {unreadCount > 0 ? <span style={styles.bellBadge}>{unreadCount}</span> : null}
           </button>
 
           {notificationsOpen ? (
             <div style={styles.dropdown}>
               <div style={styles.dropdownHeader}>
-                <strong>Alertas recientes</strong>
-                <Link to="/incidents" style={styles.dropdownLink}>
-                  Ver todas
+                <strong>Centro de alertas</strong>
+                <Link to="/notifications" style={styles.dropdownLink}>
+                  Ver historial
                 </Link>
               </div>
 
-              {recentIncidents.length === 0 ? (
-                <div style={styles.emptyState}>No hay alertas activas.</div>
+              {notifications.length > 0 ? (
+                <button type="button" style={styles.markAllButton} onClick={() => void handleMarkAllAsRead()}>
+                  Marcar todas como leídas
+                </button>
+              ) : null}
+
+              {notifications.length === 0 ? (
+                <div style={styles.emptyState}>No hay notificaciones recientes.</div>
               ) : (
-                recentIncidents.map((incident) => (
-                  <Link
-                    key={incident.id}
-                    to={`/incidents/${incident.id}`}
-                    style={styles.alertItem}
+                notifications.map((notification) => (
+                  <button
+                    key={notification.id}
+                    type="button"
+                    style={{
+                      ...styles.alertItem,
+                      ...(!notification.readAt ? styles.alertItemUnread : {}),
+                    }}
+                    onClick={() => void handleNotificationClick(notification)}
                   >
-                    <span style={styles.alertIcon}>
-                      <AlertTriangleIcon size={14} />
+                    <span style={notification.type === 'MONITOR_DOWN' ? styles.alertIconDanger : styles.alertIconSuccess}>
+                      <BellIcon size={14} />
                     </span>
-                    <span>
-                      <strong>{incident.title}</strong>
-                      <small>{incident.monitor?.name ?? 'Monitor'}</small>
+                    <span style={styles.alertCopy}>
+                      <strong>{typeLabels[notification.type]}</strong>
+                      <small>{notification.monitor?.name ?? 'Monitor'} · {formatRelativeDate(notification.createdAt)}</small>
                     </span>
-                  </Link>
+                    {!notification.readAt ? <span style={styles.unreadDot} /> : null}
+                  </button>
                 ))
               )}
             </div>
@@ -233,10 +322,10 @@ export default function AppTopbar({
               </Link>
               <Link to="/settings" style={styles.userMenuItem}>
                 <SettingsIcon size={15} />
-                Configuracion
+                Configuración
               </Link>
               <button type="button" style={styles.userMenuItem} onClick={handleLogout}>
-                Cerrar sesion
+                Cerrar sesión
               </button>
             </div>
           ) : null}
@@ -254,12 +343,38 @@ export default function AppTopbar({
           )
         ) : null}
       </div>
+
+      {toast ? (
+        <button
+          type="button"
+          style={styles.toast}
+          onClick={() => void handleNotificationClick(toast)}
+        >
+          <span style={toast.type === 'MONITOR_DOWN' ? styles.toastIconDanger : styles.toastIconSuccess}>
+            <BellIcon size={15} />
+          </span>
+          <span>
+            <strong>{typeLabels[toast.type]}</strong>
+            <small>{toast.monitor?.name ?? 'Monitor'} · abrir detalle</small>
+          </span>
+        </button>
+      ) : null}
     </header>
   );
 }
 
+function formatRelativeDate(value: string) {
+  const diffMs = Date.now() - new Date(value).getTime();
+  const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
+  if (diffMinutes < 1) return 'ahora';
+  if (diffMinutes < 60) return `hace ${diffMinutes} min`;
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `hace ${diffHours} h`;
+  return new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
+}
+
 const styles: Record<string, CSSProperties> = {
-  topbar: topbarBase,
+  topbar: { ...topbarBase, position: 'relative' },
   topActions: topActionsBase,
   title: pageTitle,
   subtitle: pageSubtitle,
@@ -400,7 +515,7 @@ const styles: Record<string, CSSProperties> = {
     top: 46,
     right: 0,
     zIndex: 40,
-    width: 320,
+    width: 360,
     padding: 8,
     display: 'grid',
     gap: 4,
@@ -419,24 +534,62 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 12,
     fontWeight: 600,
   },
+  markAllButton: {
+    border: 0,
+    background: 'transparent',
+    color: uiTheme.colors.primary,
+    fontWeight: 700,
+    fontSize: 12,
+    textAlign: 'left',
+    padding: '4px 10px 8px',
+    cursor: 'pointer',
+  },
   alertItem: {
+    width: '100%',
+    border: 0,
+    background: 'transparent',
     display: 'grid',
-    gridTemplateColumns: '28px 1fr',
+    gridTemplateColumns: '30px 1fr 8px',
     gap: 10,
     alignItems: 'center',
     padding: '10px',
     borderRadius: uiTheme.radii.sm,
     textDecoration: 'none',
     color: uiTheme.colors.text,
+    cursor: 'pointer',
+    textAlign: 'left',
   },
-  alertIcon: {
-    width: 28,
-    height: 28,
+  alertItemUnread: {
+    background: uiTheme.colors.primarySoft,
+  },
+  alertCopy: {
+    display: 'grid',
+    gap: 3,
+    minWidth: 0,
+  },
+  alertIconDanger: {
+    width: 30,
+    height: 30,
     display: 'grid',
     placeItems: 'center',
     borderRadius: 999,
     color: uiTheme.colors.danger,
     background: uiTheme.colors.dangerSoft,
+  },
+  alertIconSuccess: {
+    width: 30,
+    height: 30,
+    display: 'grid',
+    placeItems: 'center',
+    borderRadius: 999,
+    color: uiTheme.colors.success,
+    background: uiTheme.colors.successSoft,
+  },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    background: uiTheme.colors.primary,
   },
   emptyState: {
     padding: 18,
@@ -470,5 +623,40 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 500,
     textAlign: 'left',
     textDecoration: 'none',
+  },
+  toast: {
+    ...surfaceCard,
+    position: 'fixed',
+    right: 24,
+    bottom: 24,
+    zIndex: 100,
+    width: 330,
+    border: 0,
+    display: 'grid',
+    gridTemplateColumns: '34px 1fr',
+    gap: 12,
+    alignItems: 'center',
+    padding: 14,
+    cursor: 'pointer',
+    textAlign: 'left',
+    color: uiTheme.colors.text,
+  },
+  toastIconDanger: {
+    width: 34,
+    height: 34,
+    display: 'grid',
+    placeItems: 'center',
+    borderRadius: 999,
+    color: uiTheme.colors.danger,
+    background: uiTheme.colors.dangerSoft,
+  },
+  toastIconSuccess: {
+    width: 34,
+    height: 34,
+    display: 'grid',
+    placeItems: 'center',
+    borderRadius: 999,
+    color: uiTheme.colors.success,
+    background: uiTheme.colors.successSoft,
   },
 };

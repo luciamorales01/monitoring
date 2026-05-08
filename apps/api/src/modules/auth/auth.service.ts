@@ -13,6 +13,7 @@ import { RegisterDto } from './register.dto';
 import { ForgotPasswordDto } from './forgot-password.dto';
 import { ResetPasswordDto } from './reset-password.dto';
 import { ChangePasswordDto } from './change-password.dto';
+import { AcceptInvitationDto } from './accept-invitation.dto';
 
 const UserRole = {
   OWNER: 'OWNER',
@@ -257,6 +258,59 @@ export class AuthService {
     ]);
 
     return { success: true };
+  }
+
+
+  async acceptInvitation(dto: AcceptInvitationDto) {
+    const tokenHash = this.hashToken(dto.token);
+    const invitation = await this.prisma.userInvitation.findUnique({
+      where: { tokenHash },
+      include: { organization: true },
+    });
+
+    if (
+      !invitation ||
+      invitation.acceptedAt ||
+      invitation.revokedAt ||
+      invitation.expiresAt <= new Date()
+    ) {
+      throw new BadRequestException('La invitación no es válida o ha caducado.');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: invitation.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Ya existe una cuenta con este email.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          name: dto.name.trim(),
+          email: invitation.email,
+          passwordHash,
+          role: invitation.role,
+          status: UserStatus.ACTIVE,
+          organizationId: invitation.organizationId,
+        },
+      });
+
+      await tx.userInvitation.update({
+        where: { id: invitation.id },
+        data: {
+          acceptedAt: new Date(),
+          acceptedById: createdUser.id,
+        },
+      });
+
+      return createdUser;
+    });
+
+    return this.buildSession(user as AuthUserInput, true);
   }
 
   async changePassword(userId: number, dto: ChangePasswordDto) {

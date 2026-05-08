@@ -83,3 +83,12 @@ export function changePassword(data: { currentPassword: string; newPassword: str
 export function getMe() {
   return apiClient<AuthResponse['user']>('/auth/me');
 }
+
+
+export function acceptInvitation(data: { token: string; name: string; password: string }) {
+  return apiClient<AuthResponse>('/auth/accept-invitation', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify(data),
+  });
+}

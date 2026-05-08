@@ -19,6 +19,7 @@ model Organization {
   monitors  Monitor[]
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  invitations UserInvitation[]
   sections  Section[]
 }
 
@@ -36,6 +37,7 @@ model User {
   createdMonitors Monitor[]
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  invitedUsers UserInvitation[] @relation("InvitationAcceptedUser")
 
   status UserStatus @default(ACTIVE)
   lastLoginAt DateTime?
@@ -200,6 +202,8 @@ model NotificationEvent {
   @@index([monitorId, createdAt])
   @@index([incidentId])
   @@index([type, status])
+
+  readAt DateTime?
 }
 
 
@@ -218,6 +222,29 @@ model RefreshToken {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+
+model UserInvitation {
+  id             Int        @id @default(autoincrement())
+  email          String
+  role           UserRole   @default(VIEWER)
+  tokenHash      String     @unique
+  organizationId Int
+  invitedById    Int?
+  acceptedById   Int?       @unique
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  acceptedBy   User?        @relation("InvitationAcceptedUser", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, email])
+  @@index([tokenHash])
   @@index([expiresAt])
 }
 

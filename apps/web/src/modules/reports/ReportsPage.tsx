@@ -12,7 +12,7 @@ import {
   uiTheme,
 } from "../../theme/commonStyles";
 import { ActivityIcon, ClockIcon, GlobeIcon, RefreshIcon } from "../../shared/uiIcons";
-import { getReportsSummary, type ReportRange, type ReportRow, type ReportsSummary } from "../../shared/reportsApi";
+import { downloadReportExport, getReportsSummary, type ReportFormat, type ReportRange, type ReportRow, type ReportsSummary } from "../../shared/reportsApi";
 
 type StatusFilter = "all" | "UP" | "DOWN" | "PAUSED";
 
@@ -31,6 +31,11 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function exportReport(format: ReportFormat, onlySelectedMonitor = false) {
+    const monitorId = onlySelectedMonitor ? selectedMonitor : undefined;
+    await downloadReportExport(range, format, monitorId);
   }
 
   useEffect(() => {
@@ -68,22 +73,6 @@ export default function ReportsPage() {
     };
   }, [filteredRows]);
 
-  function exportGeneralCsv() {
-    downloadCsv("informe-general-monitoring.csv", [
-      ["Monitor", "URL", "Estado", "Disponibilidad", "Tiempo medio", "Incidencias", "Checks", "Última caída"],
-      ...filteredRows.map((row) => [
-        row.monitor.name,
-        row.monitor.target,
-        getStatusLabel(getRowStatus(row)),
-        `${row.uptimePercent}%`,
-        `${row.averageResponseTimeMs} ms`,
-        String(row.incidents),
-        String(row.checks),
-        formatDate(row.lastDowntime),
-      ]),
-    ]);
-  }
-
   return (
     <main style={styles.main}>
       <header style={styles.header}>
@@ -100,8 +89,14 @@ export default function ReportsPage() {
           <button type="button" style={styles.iconButton} onClick={() => void loadReports()} title="Refrescar">
             <RefreshIcon size={15} />
           </button>
-          <button type="button" style={styles.primaryButton} onClick={exportGeneralCsv} disabled={loading || filteredRows.length === 0}>
-            Exportar CSV
+          <button type="button" style={styles.secondaryButton} onClick={() => void exportReport("csv", false)} disabled={loading || rows.length === 0}>
+            CSV general
+          </button>
+          <button type="button" style={styles.secondaryButton} onClick={() => void exportReport("xlsx", selectedMonitor !== "all")} disabled={loading || filteredRows.length === 0}>
+            Excel {selectedMonitor === "all" ? "general" : "del monitor"}
+          </button>
+          <button type="button" style={styles.primaryButton} onClick={() => void exportReport("pdf", selectedMonitor !== "all")} disabled={loading || filteredRows.length === 0}>
+            PDF {selectedMonitor === "all" ? "general" : "del monitor"}
           </button>
         </div>
       </header>
@@ -248,17 +243,6 @@ function formatDate(value?: string | null) {
   return new Intl.DateTimeFormat("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
 }
 
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 const styles: Record<string, CSSProperties> = {
   main: { ...pageMain, display: "grid", gap: 20 },
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 18 },
@@ -269,6 +253,7 @@ const styles: Record<string, CSSProperties> = {
   actionsRow: { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" },
   iconButton: { ...secondaryButtonBase, width: 40, height: 40, padding: 0, borderRadius: uiTheme.radii.sm, display: "grid", placeItems: "center", cursor: "pointer" },
   primaryButton: { ...primaryButtonBase, minHeight: 40, padding: "0 14px", borderRadius: uiTheme.radii.sm, fontWeight: 600, cursor: "pointer" },
+  secondaryButton: { ...secondaryButtonBase, minHeight: 40, padding: "0 14px", borderRadius: uiTheme.radii.sm, fontWeight: 600, cursor: "pointer" },
   filtersCard: { ...surfaceCard, padding: 20, display: "grid", gridTemplateColumns: "1.35fr 1fr 1fr 1fr", gap: 14 },
   filterGroup: { display: "grid", gap: 8, color: uiTheme.colors.muted, fontSize: 12 },
   input: { ...inputBase, height: 44, borderRadius: uiTheme.radii.sm },

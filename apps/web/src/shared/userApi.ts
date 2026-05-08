@@ -1,7 +1,8 @@
 import { apiClient } from './apiClient';
 
 export type UserRole = 'OWNER' | 'ADMIN' | 'VIEWER';
-export type UserStatus = 'ACTIVE' | 'INACTIVE';
+export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING';
+export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
 
 export type User = {
   id: number;
@@ -19,8 +20,28 @@ export type User = {
   } | null;
 };
 
+export type UserInvitation = {
+  id: number;
+  email: string;
+  role: UserRole;
+  organizationId: number;
+  status: InvitationStatus;
+  expiresAt: string;
+  acceptedAt?: string | null;
+  revokedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  inviteUrl?: string;
+  inviteToken?: string;
+};
+
 export type UpdateUserInput = {
   name: string;
+  email: string;
+  role: UserRole;
+};
+
+export type CreateInvitationInput = {
   email: string;
   role: UserRole;
 };
@@ -33,5 +54,29 @@ export const updateUser = async (id: number, data: UpdateUserInput) => {
   return apiClient<User>(`/users/${encodeURIComponent(String(id))}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
+  });
+};
+
+export const updateUserStatus = async (id: number, status: Exclude<UserStatus, 'PENDING'>) => {
+  return apiClient<User>(`/users/${encodeURIComponent(String(id))}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+};
+
+export const getInvitations = async () => {
+  return apiClient<UserInvitation[]>('/users/invitations');
+};
+
+export const createInvitation = async (data: CreateInvitationInput) => {
+  return apiClient<UserInvitation>('/users/invitations', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};
+
+export const revokeInvitation = async (id: number) => {
+  return apiClient<UserInvitation>(`/users/invitations/${encodeURIComponent(String(id))}`, {
+    method: 'DELETE',
   });
 };

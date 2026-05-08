@@ -7,6 +7,7 @@ import { RefreshTokenDto } from './refresh-token.dto';
 import { ForgotPasswordDto } from './forgot-password.dto';
 import { ResetPasswordDto } from './reset-password.dto';
 import { ChangePasswordDto } from './change-password.dto';
+import { AcceptInvitationDto } from './accept-invitation.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -40,6 +41,11 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @Post('accept-invitation')
+  acceptInvitation(@Body() dto: AcceptInvitationDto) {
+    return this.authService.acceptInvitation(dto);
   }
 
   @UseGuards(JwtAuthGuard)

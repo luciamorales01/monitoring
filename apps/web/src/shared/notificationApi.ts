@@ -14,6 +14,7 @@ export type NotificationEvent = {
   subject?: string | null;
   errorMessage?: string | null;
   sentAt?: string | null;
+  readAt?: string | null;
   createdAt: string;
   monitor?: {
     id: number;
@@ -28,6 +29,30 @@ export type NotificationEvent = {
   } | null;
 };
 
-export function getNotifications() {
-  return apiClient<NotificationEvent[]>('/notifications');
+export type NotificationUnreadCount = { count: number };
+export type NotificationUpdateResult = { updated: number };
+
+export function getNotifications(options?: { limit?: number; unreadOnly?: boolean }) {
+  const params = new URLSearchParams();
+  if (options?.limit) params.set('limit', String(options.limit));
+  if (options?.unreadOnly) params.set('unreadOnly', 'true');
+  const query = params.toString();
+  return apiClient<NotificationEvent[]>(`/notifications${query ? `?${query}` : ''}`);
+}
+
+export function getUnreadNotificationsCount() {
+  return apiClient<NotificationUnreadCount>('/notifications/unread-count');
+}
+
+export function markNotificationsAsRead(ids: number[]) {
+  return apiClient<NotificationUpdateResult>('/notifications/read', {
+    method: 'PATCH',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export function markAllNotificationsAsRead() {
+  return apiClient<NotificationUpdateResult>('/notifications/read-all', {
+    method: 'POST',
+  });
 }

@@ -22,6 +22,7 @@ import {
   getMonitorStatusToast,
   type MonitorStatusToast,
 } from "../../shared/monitorStatusToast";
+import { downloadReportExport, type ReportFormat, type ReportRange } from "../../shared/reportsApi";
 import AppTopbar from "../../shared/AppTopbar";
 import LoadingState from "../../shared/LoadingState";
 import {
@@ -45,6 +46,8 @@ export default function MonitorDetailPage() {
   const [checking, setChecking] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [toast, setToast] = useState<MonitorStatusToast>(null);
+  const [exportRange, setExportRange] = useState<ReportRange>("7d");
+  const [exportingFormat, setExportingFormat] = useState<ReportFormat | null>(null);
 
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
   const [locationFilter, setLocationFilter] = useState("all");
@@ -100,6 +103,20 @@ export default function MonitorDetailPage() {
       setTimeout(() => setToast(null), 2500);
     } finally {
       setToggling(false);
+    }
+  };
+
+
+  const handleExportReport = async (format: ReportFormat) => {
+    try {
+      setExportingFormat(format);
+      await downloadReportExport(exportRange, format, monitorId);
+      setToast({ text: "Informe exportado", type: "ok" });
+    } catch {
+      setToast({ text: "No se pudo exportar el informe", type: "error" });
+    } finally {
+      setExportingFormat(null);
+      setTimeout(() => setToast(null), 2500);
     }
   };
 
@@ -389,6 +406,55 @@ export default function MonitorDetailPage() {
         />
       </section>
 
+
+      <section style={styles.exportCard}>
+        <div>
+          <h2 style={styles.exportTitle}>Exportar informe de este monitor</h2>
+          <p style={styles.exportSubtitle}>
+            Genera un informe filtrado solo para {monitor.name}, con SLA, checks e incidencias del periodo seleccionado.
+          </p>
+        </div>
+
+        <div style={styles.exportControls}>
+          <select
+            value={exportRange}
+            onChange={(event) => setExportRange(event.target.value as ReportRange)}
+            style={styles.select}
+          >
+            <option value="24h">Últimas 24 horas</option>
+            <option value="7d">Últimos 7 días</option>
+            <option value="30d">Últimos 30 días</option>
+          </select>
+
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            onClick={() => void handleExportReport("csv")}
+            disabled={exportingFormat !== null}
+          >
+            {exportingFormat === "csv" ? "Exportando..." : "CSV"}
+          </button>
+
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            onClick={() => void handleExportReport("xlsx")}
+            disabled={exportingFormat !== null}
+          >
+            {exportingFormat === "xlsx" ? "Exportando..." : "Excel"}
+          </button>
+
+          <button
+            type="button"
+            style={styles.primaryButton}
+            onClick={() => void handleExportReport("pdf")}
+            disabled={exportingFormat !== null}
+          >
+            {exportingFormat === "pdf" ? "Exportando..." : "PDF"}
+          </button>
+        </div>
+      </section>
+
       {checks.length === 0 ? (
         <>
           <section style={styles.card}>
@@ -516,31 +582,11 @@ export default function MonitorDetailPage() {
               </div>
 
               <InfoRow label="URL" value={monitor.target} strong />
-              <InfoRow label="Tipo" value={getMonitorTypeLabel(monitor.type)} />
-              {(monitor.type === "HTTP" || monitor.type === "HTTPS") && (
-                <InfoRow
-                  label="Código esperado"
-                  value={String(monitor.expectedStatusCode)}
-                />
-              )}
-              {monitor.keyword && (
-                <InfoRow label="Keyword" value={monitor.keyword} />
-              )}
-              {monitor.type === "TCP" && (
-                <InfoRow label="Puerto TCP" value={String(monitor.tcpPort ?? "-")} />
-              )}
-              {monitor.type === "SSL" && (
-                <InfoRow
-                  label="Aviso SSL"
-                  value={`${monitor.sslWarningDays ?? 14} días`}
-                />
-              )}
-              {monitor.type === "DNS" && (
-                <InfoRow
-                  label="DNS"
-                  value={`${monitor.dnsRecordType ?? "A"}${monitor.dnsExpectedValue ? ` · ${monitor.dnsExpectedValue}` : ""}`}
-                />
-              )}
+              <InfoRow label="Protocolo" value={monitor.type} />
+              <InfoRow
+                label="Código esperado"
+                value={String(monitor.expectedStatusCode)}
+              />
               <InfoRow label="Timeout" value={`${monitor.timeoutSeconds}s`} />
               <InfoRow
                 label="Ubicaciones"
@@ -670,18 +716,6 @@ function KpiCard({
       <span style={styles.kpiDescription}>{description}</span>
     </div>
   );
-}
-
-function getMonitorTypeLabel(type: Monitor["type"]) {
-  const labels: Record<Monitor["type"], string> = {
-    HTTPS: "HTTP(s)",
-    HTTP: "HTTP",
-    SSL: "Certificado SSL",
-    TCP: "TCP / Puerto",
-    DNS: "DNS",
-  };
-
-  return labels[type] ?? type;
 }
 
 function StatusBadge({ status }: { status: MonitorStatus }) {
@@ -1393,6 +1427,40 @@ const styles: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
+  },
+
+  exportCard: {
+    ...surfaceCard,
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 14,
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 16,
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.045)",
+  },
+
+  exportTitle: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 800,
+    letterSpacing: "-0.02em",
+  },
+
+  exportSubtitle: {
+    margin: "6px 0 0",
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+    maxWidth: 620,
+  },
+
+  exportControls: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
   },
 
   kpiGrid: {
