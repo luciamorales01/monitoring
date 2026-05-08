@@ -1,207 +1,362 @@
-import { PrismaClient, MonitorStatus, MonitorType, IncidentStatus, UserRole } from '@prisma/client';
+import { PrismaClient, UserRole, MonitorType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Iniciando seed...');
+  const passwordHash = await bcrypt.hash('Monitoring123!', 10);
 
-  await prisma.incident.deleteMany();
-  await prisma.checkResult.deleteMany();
-  await prisma.monitor.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.organization.deleteMany();
-
-  const passwordHash = await bcrypt.hash('123456', 10);
-
-  const organization = await prisma.organization.create({
-    data: {
-      name: 'Monitor Dinan',
-      slug: 'monitor-dinan',
+  const organization = await prisma.organization.upsert({
+    where: {
+      slug: 'monitoring-demo',
+    },
+    update: {},
+    create: {
+      name: 'Monitoring Demo',
+      slug: 'monitoring-demo',
     },
   });
 
-  const user = await prisma.user.create({
-    data: {
-      name: 'Lucía Admin',
-      email: 'lucia@demo.com',
+  const user = await prisma.user.upsert({
+    where: {
+      email: 'luciamoralesalv1@gmail.com',
+    },
+    update: {
+      passwordHash,
+      role: UserRole.OWNER,
+      organizationId: organization.id,
+    },
+    create: {
+      email: 'luciamoralesalv1@gmail.com',
+      name: 'Lucía Morales',
       passwordHash,
       role: UserRole.OWNER,
       organizationId: organization.id,
     },
   });
 
-  const now = new Date();
+  const monitors = [
+    {
+      name: 'Google',
+      target: 'https://www.google.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 60,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'GitHub',
+      target: 'https://github.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 60,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['paris'],
+    },
+    {
+      name: 'Cloudflare',
+      target: 'https://www.cloudflare.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'OpenAI',
+      target: 'https://openai.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 90,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['london'],
+    },
+    {
+      name: 'Wikipedia',
+      target: 'https://www.wikipedia.org',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['frankfurt'],
+    },
+    {
+      name: 'Amazon',
+      target: 'https://www.amazon.es',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'Netflix',
+      target: 'https://www.netflix.com/es',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['paris'],
+    },
+    {
+      name: 'YouTube',
+      target: 'https://www.youtube.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 90,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['london'],
+    },
+    {
+      name: 'X / Twitter',
+      target: 'https://x.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 90,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'Twitch',
+      target: 'https://www.twitch.tv',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['frankfurt'],
+    },
+    {
+      name: 'Reddit',
+      target: 'https://www.reddit.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'Spotify',
+      target: 'https://open.spotify.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['paris'],
+    },
+    {
+      name: 'Stripe',
+      target: 'https://stripe.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['london'],
+    },
+    {
+      name: 'Vercel',
+      target: 'https://vercel.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['frankfurt'],
+    },
+    {
+      name: 'Supabase',
+      target: 'https://supabase.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 90,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'DigitalOcean',
+      target: 'https://www.digitalocean.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['paris'],
+    },
+    {
+      name: 'Discord',
+      target: 'https://discord.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 90,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['london'],
+    },
+    {
+      name: 'Figma',
+      target: 'https://www.figma.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['frankfurt'],
+    },
+    {
+      name: 'Canva',
+      target: 'https://www.canva.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'LinkedIn',
+      target: 'https://www.linkedin.com',
+      expectedStatusCode: 999,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['paris'],
+    },
 
-  const monitors = await prisma.monitor.createManyAndReturn({
-    data: [
-      {
-        name: 'Web corporativa',
-        type: MonitorType.HTTPS,
-        target: 'https://dinaninformatica.es',
-        expectedStatusCode: 200,
-        frequencySeconds: 60,
-        timeoutSeconds: 10,
-        currentStatus: MonitorStatus.UP,
-        lastResponseTime: 184,
-        lastCheckedAt: new Date(now.getTime() - 2 * 60 * 1000),
-        nextCheckAt: new Date(now.getTime() + 60 * 1000),
-        isActive: true,
-        organizationId: organization.id,
-        createdById: user.id,
-        locations: ['Madrid', 'Sevilla'],
-        alertEmail: true,
-        alertPush: true,
-        alertThreshold: 3,
-      },
-      {
-        name: 'API clientes',
-        type: MonitorType.HTTPS,
-        target: 'https://api.dinaninformatica.es/health',
-        expectedStatusCode: 200,
-        frequencySeconds: 30,
-        timeoutSeconds: 8,
-        currentStatus: MonitorStatus.DOWN,
-        lastResponseTime: null,
-        lastCheckedAt: new Date(now.getTime() - 1 * 60 * 1000),
-        nextCheckAt: new Date(now.getTime() + 30 * 1000),
-        isActive: true,
-        organizationId: organization.id,
-        createdById: user.id,
-        locations: ['Madrid', 'Barcelona'],
-        alertEmail: true,
-        alertPush: true,
-        alertThreshold: 2,
-      },
-      {
-        name: 'Panel interno',
-        type: MonitorType.HTTPS,
-        target: 'https://panel.dinaninformatica.es',
-        expectedStatusCode: 200,
-        frequencySeconds: 120,
-        timeoutSeconds: 12,
-        currentStatus: MonitorStatus.UP,
-        lastResponseTime: 326,
-        lastCheckedAt: new Date(now.getTime() - 5 * 60 * 1000),
-        nextCheckAt: new Date(now.getTime() + 2 * 60 * 1000),
-        isActive: true,
-        organizationId: organization.id,
-        createdById: user.id,
-        locations: ['Sevilla'],
-        alertEmail: true,
-        alertPush: false,
-        alertThreshold: 3,
-      },
-      {
-        name: 'Servidor legacy HTTP',
-        type: MonitorType.HTTP,
-        target: 'http://legacy.dinaninformatica.es',
-        expectedStatusCode: 200,
-        frequencySeconds: 300,
-        timeoutSeconds: 15,
-        currentStatus: MonitorStatus.UNKNOWN,
-        lastResponseTime: null,
-        lastCheckedAt: null,
-        nextCheckAt: now,
-        isActive: true,
-        organizationId: organization.id,
-        createdById: user.id,
-        locations: ['Default'],
-        alertEmail: false,
-        alertPush: false,
-        alertThreshold: 5,
-      },
-      {
-        name: 'Servicio pausado de pruebas',
-        type: MonitorType.HTTPS,
-        target: 'https://test.dinaninformatica.es',
-        expectedStatusCode: 200,
-        frequencySeconds: 60,
-        timeoutSeconds: 10,
-        currentStatus: MonitorStatus.UNKNOWN,
-        lastResponseTime: null,
-        lastCheckedAt: null,
-        nextCheckAt: now,
-        isActive: false,
-        organizationId: organization.id,
-        createdById: user.id,
-        locations: [],
-        alertEmail: false,
-        alertPush: false,
-        alertThreshold: 3,
-      },
-    ],
-  });
+    // Monitores problemáticos para demo real
+
+    {
+      name: 'HTTP 500 Demo',
+      target: 'https://httpstat.us/500',
+      expectedStatusCode: 200,
+      frequencySeconds: 45,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'HTTP 404 Demo',
+      target: 'https://httpstat.us/404',
+      expectedStatusCode: 200,
+      frequencySeconds: 45,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['paris'],
+    },
+    {
+      name: 'Slow Response Demo',
+      target: 'https://httpstat.us/200?sleep=8000',
+      expectedStatusCode: 200,
+      frequencySeconds: 60,
+      timeoutSeconds: 5,
+      type: 'HTTP',
+      locations: ['london'],
+    },
+    {
+      name: 'Random Status Demo',
+      target: 'https://httpstat.us/random/200,500',
+      expectedStatusCode: 200,
+      frequencySeconds: 30,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['frankfurt'],
+    },
+    {
+      name: 'Temporary Redirect Demo',
+      target: 'https://httpstat.us/302',
+      expectedStatusCode: 200,
+      frequencySeconds: 45,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'Maintenance Demo',
+      target: 'https://httpstat.us/503',
+      expectedStatusCode: 200,
+      frequencySeconds: 45,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['paris'],
+    },
+    {
+      name: 'Timeout Demo',
+      target: 'https://deelay.me/10000/https://google.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 60,
+      timeoutSeconds: 3,
+      type: 'HTTP',
+      locations: ['london'],
+    },
+    {
+      name: 'JSON API Demo',
+      target: 'https://jsonplaceholder.typicode.com/posts',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+    {
+      name: 'GitHub API',
+      target: 'https://api.github.com',
+      expectedStatusCode: 200,
+      frequencySeconds: 120,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['frankfurt'],
+    },
+    {
+      name: 'Open Meteo API',
+      target:
+        'https://api.open-meteo.com/v1/forecast?latitude=36.5&longitude=-6.3&hourly=temperature_2m',
+      expectedStatusCode: 200,
+      frequencySeconds: 180,
+      timeoutSeconds: 10,
+      type: 'HTTP',
+      locations: ['madrid'],
+    },
+  ];
 
   for (const monitor of monitors) {
-    await prisma.checkResult.createMany({
-      data: [
-        {
-          monitorId: monitor.id,
-          status: monitor.currentStatus === MonitorStatus.DOWN ? MonitorStatus.DOWN : MonitorStatus.UP,
-          responseTimeMs: monitor.currentStatus === MonitorStatus.DOWN ? null : 210,
-          statusCode: monitor.currentStatus === MonitorStatus.DOWN ? null : 200,
-          errorMessage: monitor.currentStatus === MonitorStatus.DOWN ? 'Timeout al conectar con el servicio' : null,
-          location: 'Madrid',
-          checkedAt: new Date(now.getTime() - 30 * 60 * 1000),
-        },
-        {
-          monitorId: monitor.id,
-          status: monitor.currentStatus === MonitorStatus.DOWN ? MonitorStatus.DOWN : MonitorStatus.UP,
-          responseTimeMs: monitor.currentStatus === MonitorStatus.DOWN ? null : 245,
-          statusCode: monitor.currentStatus === MonitorStatus.DOWN ? 500 : 200,
-          errorMessage: monitor.currentStatus === MonitorStatus.DOWN ? 'Respuesta HTTP 500' : null,
-          location: 'Sevilla',
-          checkedAt: new Date(now.getTime() - 15 * 60 * 1000),
-        },
-        {
-          monitorId: monitor.id,
-          status: monitor.currentStatus,
-          responseTimeMs: monitor.lastResponseTime,
-          statusCode: monitor.currentStatus === MonitorStatus.UP ? 200 : null,
-          errorMessage: monitor.currentStatus === MonitorStatus.DOWN ? 'Servicio no disponible' : null,
-          location: 'Barcelona',
-          checkedAt: new Date(now.getTime() - 5 * 60 * 1000),
-        },
-      ],
-    });
-  }
-
-  const apiMonitor = monitors.find((m) => m.name === 'API clientes');
-  const webMonitor = monitors.find((m) => m.name === 'Web corporativa');
-
-  if (apiMonitor) {
-    await prisma.incident.create({
-      data: {
-        monitorId: apiMonitor.id,
-        status: IncidentStatus.OPEN,
-        title: 'API clientes no responde',
-        startedAt: new Date(now.getTime() - 45 * 60 * 1000),
+    const existingMonitor = await prisma.monitor.findFirst({
+      where: {
+        organizationId: organization.id,
+        name: monitor.name,
       },
     });
+
+    if (existingMonitor) {
+      await prisma.monitor.update({
+        where: { id: existingMonitor.id },
+        data: {
+          type: MonitorType.HTTP,
+          target: monitor.target,
+          expectedStatusCode: monitor.expectedStatusCode,
+          frequencySeconds: monitor.frequencySeconds,
+          timeoutSeconds: monitor.timeoutSeconds,
+          locations: monitor.locations,
+          isActive: true,
+        },
+      });
+    } else {
+      await prisma.monitor.create({
+        data: {
+          name: monitor.name,
+          type: MonitorType.HTTP,
+          target: monitor.target,
+          expectedStatusCode: monitor.expectedStatusCode,
+          frequencySeconds: monitor.frequencySeconds,
+          timeoutSeconds: monitor.timeoutSeconds,
+          locations: monitor.locations,
+          isActive: true,
+          organizationId: organization.id,
+          createdById: user.id,
+        },
+      });
+    }
   }
 
-  if (webMonitor) {
-    await prisma.incident.create({
-      data: {
-        monitorId: webMonitor.id,
-        status: IncidentStatus.RESOLVED,
-        title: 'Caída temporal de la web corporativa',
-        startedAt: new Date(now.getTime() - 3 * 60 * 60 * 1000),
-        resolvedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
-        durationSeconds: 3600,
-      },
-    });
-  }
-
-  console.log('✅ Seed completado');
-  console.log('Usuario demo: lucia@demo.com');
-  console.log('Contraseña: 123456');
+  console.log(`✅ Seed completado con ${monitors.length} monitores.`);
 }
 
 main()
   .catch((error) => {
-    console.error('❌ Error ejecutando seed:', error);
+    console.error(error);
     process.exit(1);
   })
   .finally(async () => {

@@ -11,7 +11,7 @@ import {
   surfaceCard,
   uiTheme,
 } from '../../theme/commonStyles';
-import { getMonitors, type Monitor } from '../../shared/monitorApi';
+import type { Monitor } from '../../shared/monitorApi';
 import {
   getMonitorViewStatus,
   type MonitorViewStatus,
@@ -19,12 +19,8 @@ import {
 import { useLocalPagination } from '../../shared/useLocalPagination';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
-import {
-  readSections,
-  sanitizeSections,
-  writeSections,
-  type MonitorSection,
-} from '../../shared/sectionsStore';
+import type { MonitorSection } from '../../shared/sectionsStore';
+import { getSection, runSectionChecks } from '../../shared/sectionsApi';
 import {
   CheckCircleIcon,
   ChevronRightIcon,
@@ -71,32 +67,29 @@ export default function SectionDetailPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL');
   const [activeTab, setActiveTab] = useState<ActiveTab>('monitors');
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
 
   const loadData = async () => {
+    if (!sectionId) {
+      setError('Seccion no encontrada.');
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const sections = readSections();
-      const currentSection = sections.find((item) => item.id === sectionId) ?? null;
-      const nextMonitors = await getMonitors();
-      const sanitizedSections = sanitizeSections(
-        sections,
-        nextMonitors.map((monitor) => monitor.id),
-      );
-      const sanitizedSection =
-        sanitizedSections.find((item) => item.id === sectionId) ?? null;
+      const nextSection = await getSection(sectionId);
 
-      if (JSON.stringify(sections) !== JSON.stringify(sanitizedSections)) {
-        writeSections(sanitizedSections);
-      }
-
-      setSection(sanitizedSection ?? currentSection);
-      setMonitors(nextMonitors);
+      setSection(nextSection);
+      setMonitors(nextSection.monitors ?? []);
       setError(null);
     } catch (currentError) {
       console.error('Error loading section detail', currentError);
-      setError('No se pudo cargar la seccion.');
+      setError(currentError instanceof Error ? currentError.message : 'No se pudo cargar la seccion.');
       setMonitors([]);
+      setSection(null);
     } finally {
       setLoading(false);
     }
@@ -105,6 +98,35 @@ export default function SectionDetailPage() {
   useEffect(() => {
     void loadData();
   }, [sectionId]);
+
+
+  const handleRunSectionChecks = async () => {
+    if (!sectionId) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Se va a comprobar ahora todos los monitores activos de esta seccion. Esto puede generar checks e incidencias reales. ¿Quieres continuar?',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsChecking(true);
+    setFeedback(null);
+
+    try {
+      const result = await runSectionChecks(sectionId);
+      setFeedback(`Comprobacion lanzada: ${result.checked} monitores activos revisados.`);
+      await loadData();
+    } catch (currentError) {
+      console.error('Error running section checks', currentError);
+      setFeedback(currentError instanceof Error ? currentError.message : 'No se pudo comprobar la seccion.');
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   const sectionMonitors = useMemo(() => {
     if (!section) {
@@ -258,7 +280,16 @@ export default function SectionDetailPage() {
             <SettingsIcon size={16} />
             Configurar seccion
           </Link>
-          <Link to="/monitors/create" style={styles.primaryButton}>
+          <button
+            type="button"
+            style={styles.primaryButton}
+            onClick={handleRunSectionChecks}
+            disabled={isChecking || sectionMonitors.length === 0}
+          >
+            <CheckCircleIcon size={16} />
+            {isChecking ? 'Comprobando...' : 'Comprobar todos'}
+          </button>
+          <Link to="/monitors/create" style={styles.secondaryButton}>
             <PlusIcon size={16} />
             Anadir monitor
           </Link>
@@ -267,6 +298,8 @@ export default function SectionDetailPage() {
           </button>
         </div>
       </header>
+
+      {feedback && <div style={styles.feedbackInfo}>{feedback}</div>}
 
       <section style={styles.kpiGrid}>
         <KpiCard
@@ -662,6 +695,14 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 22,
+  },
+  feedbackInfo: {
+    ...surfaceCard,
+    padding: '14px 18px',
+    color: uiTheme.colors.primary,
+    background: uiTheme.colors.primarySoft,
+    borderColor: uiTheme.colors.primarySoft,
+    fontWeight: 600,
   },
   breadcrumb: {
     display: 'flex',

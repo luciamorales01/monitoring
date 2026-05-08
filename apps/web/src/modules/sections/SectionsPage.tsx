@@ -42,13 +42,13 @@ import {
   CheckCircleIcon,
   ClockIcon,
 } from '../../shared/uiIcons';
+import type { MonitorSection, SectionIcon } from '../../shared/sectionsStore';
 import {
-  readSections,
-  sanitizeSections,
-  writeSections,
-  type MonitorSection,
-  type SectionIcon,
-} from '../../shared/sectionsStore';
+  createSection,
+  deleteSection,
+  getSections,
+  updateSection,
+} from '../../shared/sectionsApi';
 import {
   SectionIconGlyph,
   getSectionIconWrapStyle,
@@ -106,10 +106,6 @@ export default function SectionsPage() {
   );
 
   useEffect(() => {
-    setSections(readSections());
-  }, []);
-
-  useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
 
@@ -126,27 +122,19 @@ export default function SectionsPage() {
     setLoading(true);
 
     try {
-      const nextMonitors = await getMonitors();
+      const [nextMonitors, nextSections] = await Promise.all([
+        getMonitors(),
+        getSections(),
+      ]);
 
       setMonitors(nextMonitors);
+      setSections(nextSections);
       setError(null);
-
-      setSections((currentSections) => {
-        const sanitizedSections = sanitizeSections(
-          currentSections,
-          nextMonitors.map((monitor) => monitor.id),
-        );
-
-        if (JSON.stringify(currentSections) !== JSON.stringify(sanitizedSections)) {
-          writeSections(sanitizedSections);
-        }
-
-        return sanitizedSections;
-      });
     } catch (currentError) {
-      console.error('Error loading monitors for sections', currentError);
-      setError('No se pudieron cargar los monitores para agruparlos.');
+      console.error('Error loading sections', currentError);
+      setError('No se pudieron cargar las secciones.');
       setMonitors([]);
+      setSections([]);
     } finally {
       setLoading(false);
     }
@@ -272,71 +260,52 @@ export default function SectionsPage() {
     setEditorState({ isOpen: false, section: null });
   };
 
-  const handleSaveSection = (payload: {
+  const handleSaveSection = async (payload: {
     name: string;
     description: string;
     icon: SectionIcon;
     monitorIds: number[];
   }) => {
-    setSections((currentSections) => {
-      const nextTimestamp = new Date().toISOString();
-      const nextSection: MonitorSection = editorState.section
-        ? {
-            ...editorState.section,
-            ...payload,
-            updatedAt: nextTimestamp,
-          }
-        : {
-            id:
-              typeof crypto !== 'undefined' && 'randomUUID' in crypto
-                ? crypto.randomUUID()
-                : `${Date.now()}`,
-            ...payload,
-            createdAt: nextTimestamp,
-            updatedAt: nextTimestamp,
-          };
+    try {
+      if (editorState.section) {
+        await updateSection(editorState.section.id, payload);
+      } else {
+        await createSection(payload);
+      }
 
-      const normalizedSections = currentSections.map((currentSection) => {
-        if (currentSection.id === editorState.section?.id) {
-          return nextSection;
-        }
-
-        return {
-          ...currentSection,
-          monitorIds: currentSection.monitorIds.filter(
-            (monitorId) => !payload.monitorIds.includes(monitorId),
-          ),
-        };
+      setFeedback({
+        type: 'success',
+        text: editorState.section
+          ? 'Seccion actualizada correctamente.'
+          : 'Seccion creada y lista para agrupar monitores.',
       });
-
-      const nextSections = editorState.section
-        ? normalizedSections
-        : [nextSection, ...normalizedSections];
-
-      writeSections(nextSections);
-      return nextSections;
-    });
-
-    setFeedback({
-      type: 'success',
-      text: editorState.section
-        ? 'Seccion actualizada correctamente.'
-        : 'Seccion creada y lista para agrupar monitores.',
-    });
-    handleCloseEditor();
+      handleCloseEditor();
+      await loadMonitors();
+    } catch (currentError) {
+      console.error('Error saving section', currentError);
+      setFeedback({
+        type: 'error',
+        text: currentError instanceof Error ? currentError.message : 'No se pudo guardar la seccion.',
+      });
+    }
   };
 
-  const handleDeleteSection = (sectionId: string) => {
-    setSections((currentSections) => {
-      const nextSections = currentSections.filter((section) => section.id !== sectionId);
-      writeSections(nextSections);
-      return nextSections;
-    });
-    setFeedback({
-      type: 'success',
-      text: 'Seccion eliminada. Los monitores quedan sin agrupar.',
-    });
-    setActiveMenuId(null);
+  const handleDeleteSection = async (sectionId: string) => {
+    try {
+      await deleteSection(sectionId);
+      setFeedback({
+        type: 'success',
+        text: 'Seccion eliminada. Los monitores quedan sin agrupar.',
+      });
+      setActiveMenuId(null);
+      await loadMonitors();
+    } catch (currentError) {
+      console.error('Error deleting section', currentError);
+      setFeedback({
+        type: 'error',
+        text: currentError instanceof Error ? currentError.message : 'No se pudo eliminar la seccion.',
+      });
+    }
   };
 
   return (
@@ -455,7 +424,7 @@ export default function SectionsPage() {
               </strong>
               <p style={styles.emptyCopy}>
                 {sectionSummaries.length === 0
-                  ? 'Crea la primera seccion para empezar a agrupar monitores sin tocar backend.'
+                  ? 'Crea la primera seccion para agrupar monitores reales en la base de datos.'
                   : 'Prueba otro nombre o cambia el filtro actual.'}
               </p>
               <div style={styles.emptyActions}>
@@ -804,7 +773,7 @@ function SectionEditorModal({
           <div style={styles.field}>
             <span>Monitores asignados</span>
             <p style={styles.fieldHint}>
-              Si seleccionas un monitor ya agrupado, se movera a esta seccion.
+              Puedes asignar un mismo monitor a varias secciones si tiene sentido operativo.
             </p>
             <div style={styles.monitorSelector}>
               {monitors.length === 0 ? (

@@ -19,7 +19,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { JobsModule } from './modules/jobs/jobs.module';
-import { StatusModule } from './modules/status/status.module';
+import { SectionsModule } from './modules/sections/sections.module';
 
 @Module({
   imports: [
@@ -40,7 +40,7 @@ import { StatusModule } from './modules/status/status.module';
     NotificationsModule,
     ReportsModule,
     JobsModule,
-    StatusModule,
+    SectionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
