@@ -26,26 +26,23 @@ import {
 } from "../../theme/commonStyles";
 import AppTopbar from "../../shared/AppTopbar";
 import LoadingState from "../../shared/LoadingState";
+import type { Monitor, MonitorSortOption, UpdateMonitorInput } from "../../shared/monitorApi";
 import {
-  deleteMonitor,
-  getMonitors,
-  runMonitorCheck,
-  toggleMonitorActive,
-  updateMonitor,
-  type Monitor,
-  type UpdateMonitorInput,
-} from "../../shared/monitorApi";
+  useDeleteMonitorsMutation,
+  usePaginatedMonitorsQuery,
+  useRunMonitorCheckMutation,
+  useToggleMonitorActiveMutation,
+  useUpdateMonitorMutation,
+} from "../../shared/monitorQueries";
 import {
-  filterMonitors,
   getMonitorLocationOptions,
   getMonitorViewStatus,
-  sortMonitors,
   type MonitorStatusFilter,
   type MonitorTypeFilter,
   type MonitorViewStatus,
 } from "../../shared/monitorFilters";
 import { useUrlFilterState } from "../../shared/useUrlFilterState";
-import { useLocalPagination } from "../../shared/useLocalPagination";
+import { useDebouncedValue } from "../../shared/useDebouncedValue";
 import { useCurrentUserPermissions } from "../../shared/permissions";
 import {
   ActivityIcon,
@@ -68,20 +65,29 @@ import MonitorEditModal from "./MonitorEditModal";
 
 const monitorFilterDefaults = {
   location: "ALL",
+  sort: "status",
   search: "",
   status: "ALL",
   type: "ALL",
 };
 
 const monitorAllowedValues = {
+  sort: ["status", "name", "latest-check", "created-at"],
   status: ["ALL", "UP", "DOWN", "PAUSED", "UNKNOWN"],
-  type: ["ALL", "HTTP", "HTTPS"],
+  type: ["ALL", "HTTP", "HTTPS", "SSL", "TCP", "DNS"],
 } as const;
+
+const MONITORS_PAGE_SIZE = 10;
+const EMPTY_MONITORS: Monitor[] = [];
 
 type FeedbackState = {
   text: string;
   type: "success" | "error";
 } | null;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 export default function MonitorsPage() {
   const navigate = useNavigate();
@@ -89,9 +95,7 @@ export default function MonitorsPage() {
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const lastSelectedMonitorIdRef = useRef<number | null>(null);
 
-  const [monitors, setMonitors] = useState<Monitor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
   const [openMenuMonitorId, setOpenMenuMonitorId] = useState<number | null>(null);
@@ -107,36 +111,52 @@ export default function MonitorsPage() {
 
   const { filters, hasActiveFilters, resetFilters, setFilter } =
     useUrlFilterState(monitorFilterDefaults, monitorAllowedValues);
-
-  const loadMonitors = async ({
-    initial = false,
-  }: { initial?: boolean } = {}) => {
-    if (initial) {
-      setLoading(true);
-    }
-
-    try {
-      setError(null);
-      const data = await getMonitors();
-      setMonitors(data);
-      setSelectedMonitorIds((current) =>
-        current.filter((id) => data.some((monitor) => monitor.id === id)),
-      );
-    } catch (currentError) {
-      console.error("Error loading monitors", currentError);
-      setError("No se pudieron cargar las webs monitorizadas.");
-      setMonitors([]);
-      setSelectedMonitorIds([]);
-    } finally {
-      if (initial) {
-        setLoading(false);
-      }
-    }
+  const debouncedSearch = useDebouncedValue(filters.search, 300);
+  const handleSetFilter = (key: keyof typeof monitorFilterDefaults, value: string) => {
+    clearSelection();
+    setPage(1);
+    setFilter(key, value);
   };
-
-  useEffect(() => {
-    void loadMonitors({ initial: true });
-  }, []);
+  const handleResetFilters = () => {
+    clearSelection();
+    setPage(1);
+    resetFilters();
+  };
+  const handleSetPage = (nextPage: number) => {
+    clearSelection();
+    setPage(nextPage);
+  };
+  const listQuery = useMemo(
+    () => ({
+      limit: MONITORS_PAGE_SIZE,
+      location: filters.location,
+      page,
+      search: debouncedSearch,
+      sort: filters.sort as MonitorSortOption,
+      status: filters.status as MonitorStatusFilter,
+      type: filters.type as MonitorTypeFilter,
+    }),
+    [
+      debouncedSearch,
+      filters.location,
+      filters.sort,
+      filters.status,
+      filters.type,
+      page,
+    ],
+  );
+  const monitorsQuery = usePaginatedMonitorsQuery(listQuery);
+  const runCheckMutation = useRunMonitorCheckMutation();
+  const toggleActiveMutation = useToggleMonitorActiveMutation();
+  const updateMonitorMutation = useUpdateMonitorMutation();
+  const deleteMonitorsMutation = useDeleteMonitorsMutation();
+  const monitors = monitorsQuery.data?.items ?? EMPTY_MONITORS;
+  const totalMonitors = monitorsQuery.data?.total ?? 0;
+  const totalPages = monitorsQuery.data?.totalPages ?? 1;
+  const loading = monitorsQuery.isPending;
+  const error = monitorsQuery.isError
+    ? "No se pudieron cargar las webs monitorizadas."
+    : null;
 
   useEffect(() => {
     const closeMenu = () => setOpenMenuMonitorId(null);
@@ -147,7 +167,7 @@ export default function MonitorsPage() {
   }, []);
 
   const stats = useMemo(() => {
-    const total = monitors.length;
+    const total = totalMonitors;
     const online = monitors.filter(
       (monitor) => getMonitorViewStatus(monitor) === "UP",
     ).length;
@@ -175,52 +195,28 @@ export default function MonitorsPage() {
       paused,
       response: averageResponseTime,
     };
-  }, [monitors]);
+  }, [monitors, totalMonitors]);
 
   const locationOptions = useMemo(
     () => getMonitorLocationOptions(monitors),
     [monitors],
   );
 
-  const filteredMonitors = useMemo(() => {
-    return sortMonitors(
-      filterMonitors(monitors, {
-        location: filters.location,
-        search: filters.search,
-        status: filters.status as MonitorStatusFilter,
-        type: filters.type as MonitorTypeFilter,
-      }),
-    );
-  }, [
-    filters.location,
-    filters.search,
-    filters.status,
-    filters.type,
-    monitors,
-  ]);
-
-  const {
-    page,
-    setPage,
-    pageItems,
-    totalPages,
-    rangeStart,
-    rangeEnd,
-    hasPreviousPage,
-    hasNextPage,
-  } = useLocalPagination(filteredMonitors, {
-    pageSize: 10,
-    resetKey: `${filters.search}|${filters.status}|${filters.type}|${filters.location}|${filteredMonitors.length}`,
-  });
+  const pageItems = monitors;
+  const rangeStart =
+    totalMonitors === 0 ? 0 : (page - 1) * MONITORS_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * MONITORS_PAGE_SIZE, totalMonitors);
+  const hasPreviousPage = page > 1;
+  const hasNextPage = page < totalPages;
 
   const currentPageIds = useMemo(
     () => pageItems.map((monitor) => monitor.id),
     [pageItems],
   );
 
-  const filteredMonitorIds = useMemo(
-    () => filteredMonitors.map((monitor) => monitor.id),
-    [filteredMonitors],
+  const visibleMonitorIds = useMemo(
+    () => monitors.map((monitor) => monitor.id),
+    [monitors],
   );
 
   const selectedMonitors = useMemo(
@@ -256,13 +252,13 @@ export default function MonitorsPage() {
       if (isTypingTarget) return;
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
-        if (filteredMonitorIds.length === 0) return;
+        if (visibleMonitorIds.length === 0) return;
 
         event.preventDefault();
         setSelectedMonitorIds((current) =>
-          Array.from(new Set([...current, ...filteredMonitorIds])),
+          Array.from(new Set([...current, ...visibleMonitorIds])),
         );
-        lastSelectedMonitorIdRef.current = filteredMonitorIds.at(-1) ?? null;
+        lastSelectedMonitorIdRef.current = visibleMonitorIds.at(-1) ?? null;
         return;
       }
 
@@ -275,7 +271,7 @@ export default function MonitorsPage() {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canWriteActions, filteredMonitorIds, selectedMonitorIds.length]);
+  }, [canWriteActions, selectedMonitorIds.length, visibleMonitorIds]);
 
   const setSuccess = (text: string) => {
     setFeedback({ type: "success", text });
@@ -298,12 +294,12 @@ export default function MonitorsPage() {
       if (
         options?.range &&
         lastSelectedMonitorIdRef.current !== null &&
-        filteredMonitorIds.includes(lastSelectedMonitorIdRef.current)
+        visibleMonitorIds.includes(lastSelectedMonitorIdRef.current)
       ) {
-        const startIndex = filteredMonitorIds.indexOf(
+        const startIndex = visibleMonitorIds.indexOf(
           lastSelectedMonitorIdRef.current,
         );
-        const endIndex = filteredMonitorIds.indexOf(id);
+        const endIndex = visibleMonitorIds.indexOf(id);
 
         if (startIndex >= 0 && endIndex >= 0) {
           const [from, to] =
@@ -311,7 +307,7 @@ export default function MonitorsPage() {
               ? [startIndex, endIndex]
               : [endIndex, startIndex];
 
-          const rangeIds = filteredMonitorIds.slice(from, to + 1);
+          const rangeIds = visibleMonitorIds.slice(from, to + 1);
           const nextSelection = options.additive ? [...current] : [...current];
 
           return Array.from(new Set([...nextSelection, ...rangeIds]));
@@ -338,17 +334,17 @@ export default function MonitorsPage() {
     });
   };
 
-  const clearSelection = () => {
+  function clearSelection() {
     setSelectedMonitorIds([]);
     lastSelectedMonitorIdRef.current = null;
-  };
+  }
 
   const handleRunCheck = async (id: number) => {
     try {
       setCheckingId(id);
       setFeedback(null);
-      await runMonitorCheck(id);
-      await loadMonitors();
+      await runCheckMutation.mutateAsync(id);
+      await monitorsQuery.refetch();
       setSuccess("Comprobación ejecutada correctamente.");
     } catch (currentError) {
       console.error(`Error running monitor check for ${id}`, currentError);
@@ -362,8 +358,8 @@ export default function MonitorsPage() {
     try {
       setTogglingId(id);
       setFeedback(null);
-      await toggleMonitorActive(id);
-      await loadMonitors();
+      await toggleActiveMutation.mutateAsync(id);
+      await monitorsQuery.refetch();
       setSuccess("Estado del monitor actualizado.");
     } catch (currentError) {
       console.error(`Error toggling monitor ${id}`, currentError);
@@ -393,12 +389,12 @@ export default function MonitorsPage() {
       setIsSavingEdit(true);
       setEditError(null);
       setFeedback(null);
-      await updateMonitor(editingMonitor.id, data);
-      await loadMonitors();
+      await updateMonitorMutation.mutateAsync({ id: editingMonitor.id, data });
+      await monitorsQuery.refetch();
       setEditingMonitor(null);
       setSuccess("Monitor actualizado correctamente.");
-    } catch (currentError: any) {
-      setEditError(currentError.message ?? "No se pudo guardar el monitor.");
+    } catch (currentError: unknown) {
+      setEditError(getErrorMessage(currentError, "No se pudo guardar el monitor."));
     } finally {
       setIsSavingEdit(false);
     }
@@ -423,19 +419,19 @@ export default function MonitorsPage() {
       setIsDeleting(true);
       setDeleteError(null);
       setFeedback(null);
-      await Promise.all(selectedMonitorIds.map((id) => deleteMonitor(id)));
+      await deleteMonitorsMutation.mutateAsync(selectedMonitorIds);
       const deletedCount = selectedMonitorIds.length;
       setSelectedMonitorIds([]);
       setIsDeleteModalOpen(false);
-      await loadMonitors();
+      await monitorsQuery.refetch();
       setSuccess(
         deletedCount === 1
           ? "Monitor eliminado correctamente."
           : `${deletedCount} monitores eliminados correctamente.`,
       );
-    } catch (currentError: any) {
+    } catch (currentError: unknown) {
       setDeleteError(
-        currentError.message ?? "No se pudieron eliminar los monitores.",
+        getErrorMessage(currentError, "No se pudieron eliminar los monitores."),
       );
     } finally {
       setIsDeleting(false);
@@ -448,7 +444,7 @@ export default function MonitorsPage() {
         <AppTopbar
           title="Webs monitorizadas"
           subtitle="Gestiona y consulta el estado de todas las webs que tienes monitorizadas."
-          onRefresh={loadMonitors}
+          onRefresh={() => monitorsQuery.refetch()}
           cta={
             canWriteActions
               ? {
@@ -504,7 +500,7 @@ export default function MonitorsPage() {
               style={styles.search}
               placeholder="Buscar por nombre o URL..."
               value={filters.search}
-              onChange={(event) => setFilter("search", event.target.value)}
+              onChange={(event) => handleSetFilter("search", event.target.value)}
             />
 
             <label style={styles.filterGroup}>
@@ -512,7 +508,7 @@ export default function MonitorsPage() {
               <select
                 style={styles.select}
                 value={filters.status}
-                onChange={(event) => setFilter("status", event.target.value)}
+                onChange={(event) => handleSetFilter("status", event.target.value)}
               >
                 <option value="ALL">Todos</option>
                 <option value="UP">Operativas</option>
@@ -527,11 +523,14 @@ export default function MonitorsPage() {
               <select
                 style={styles.select}
                 value={filters.type}
-                onChange={(event) => setFilter("type", event.target.value)}
+                onChange={(event) => handleSetFilter("type", event.target.value)}
               >
                 <option value="ALL">Todos</option>
                 <option value="HTTP">HTTP</option>
                 <option value="HTTPS">HTTPS</option>
+                <option value="SSL">SSL</option>
+                <option value="TCP">TCP</option>
+                <option value="DNS">DNS</option>
               </select>
             </label>
 
@@ -540,7 +539,7 @@ export default function MonitorsPage() {
               <select
                 style={styles.select}
                 value={filters.location}
-                onChange={(event) => setFilter("location", event.target.value)}
+                onChange={(event) => handleSetFilter("location", event.target.value)}
               >
                 <option value="ALL">Todas</option>
                 {locationOptions.map((location) => (
@@ -551,10 +550,24 @@ export default function MonitorsPage() {
               </select>
             </label>
 
+            <label style={styles.filterGroup}>
+              <span>Orden</span>
+              <select
+                style={styles.select}
+                value={filters.sort}
+                onChange={(event) => handleSetFilter("sort", event.target.value)}
+              >
+                <option value="status">Estado</option>
+                <option value="name">Nombre</option>
+                <option value="latest-check">Última comprobación</option>
+                <option value="created-at">Creación</option>
+              </select>
+            </label>
+
             <button
               type="button"
               style={styles.secondaryButton}
-              onClick={resetFilters}
+              onClick={handleResetFilters}
               disabled={!hasActiveFilters}
             >
               <FilterIcon size={14} />
@@ -576,7 +589,7 @@ export default function MonitorsPage() {
                     : "webs seleccionadas"}
                 </strong>
                 <p style={styles.bulkCopy}>
-                  Atajos: `Ctrl/Cmd + A` selecciona visibles. `Esc` limpia.
+                  Atajos: `Ctrl/Cmd + A` selecciona esta página. `Esc` limpia.
                   `Shift + click` amplía rango.
                 </p>
               </div>
@@ -621,7 +634,7 @@ export default function MonitorsPage() {
             <LoadingState variant="table" label="Cargando webs monitorizadas" rows={7} />
           ) : error ? (
             <p style={styles.empty}>{error}</p>
-          ) : filteredMonitors.length === 0 ? (
+          ) : monitors.length === 0 ? (
             <p style={styles.empty}>
               No hay webs que coincidan con los filtros.
             </p>
@@ -835,7 +848,7 @@ export default function MonitorsPage() {
 
           <div style={styles.pagination}>
             <span style={styles.paginationText}>
-              Mostrando {rangeStart} a {rangeEnd} de {filteredMonitors.length}{" "}
+              Mostrando {rangeStart} a {rangeEnd} de {totalMonitors}{" "}
               webs
             </span>
 
@@ -844,7 +857,7 @@ export default function MonitorsPage() {
                 type="button"
                 style={styles.pageArrow}
                 aria-label="Página anterior"
-                onClick={() => setPage(page - 1)}
+                onClick={() => handleSetPage(page - 1)}
                 disabled={!hasPreviousPage}
               >
                 <span style={styles.pageArrowLeft}>
@@ -852,28 +865,26 @@ export default function MonitorsPage() {
                 </span>
               </button>
 
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                (pageNumber) => (
-                  <button
-                    key={pageNumber}
-                    type="button"
-                    style={
-                      pageNumber === page
-                        ? styles.pageActiveButton
-                        : styles.pageNumberButton
-                    }
-                    onClick={() => setPage(pageNumber)}
-                  >
-                    {pageNumber}
-                  </button>
-                ),
-              )}
+              {getVisiblePageNumbers(page, totalPages).map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  style={
+                    pageNumber === page
+                      ? styles.pageActiveButton
+                      : styles.pageNumberButton
+                  }
+                  onClick={() => handleSetPage(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              ))}
 
               <button
                 type="button"
                 style={styles.pageArrow}
                 aria-label="Página siguiente"
-                onClick={() => setPage(page + 1)}
+                onClick={() => handleSetPage(page + 1)}
                 disabled={!hasNextPage}
               >
                 <ChevronRightIcon size={14} />
@@ -1138,6 +1149,21 @@ function formatRelativeDate(value?: string | null) {
   });
 }
 
+function getVisiblePageNumbers(page: number, totalPages: number) {
+  const maxVisiblePages = 5;
+  const halfWindow = Math.floor(maxVisiblePages / 2);
+  const startPage = Math.max(
+    1,
+    Math.min(page - halfWindow, totalPages - maxVisiblePages + 1),
+  );
+  const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+  return Array.from(
+    { length: endPage - startPage + 1 },
+    (_, index) => startPage + index,
+  );
+}
+
 const styles: Record<string, CSSProperties> = {
   main: {
     ...pageMain,
@@ -1205,7 +1231,7 @@ const styles: Record<string, CSSProperties> = {
   filters: {
     display: "grid",
     gridTemplateColumns:
-      "minmax(280px, 1.8fr) minmax(150px, 0.9fr) minmax(150px, 0.9fr) minmax(150px, 0.9fr) auto 40px",
+      "minmax(260px, 1.6fr) repeat(4, minmax(140px, 0.85fr)) auto 40px",
     gap: 14,
     padding: 20,
     alignItems: "end",

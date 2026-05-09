@@ -1,17 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  NotificationChannel,
+  NotificationStatus,
+  NotificationType,
+  Prisma,
+} from '@prisma/client';
 import nodemailer from 'nodemailer';
 import { PrismaService } from '../../database/prisma/prisma.service';
 
-type PrismaLike = {
-  user: {
-    findMany: (args: unknown) => Promise<Array<{ email: string; name: string }>>;
-  };
-  notificationEvent?: {
-    create: (args: unknown) => Promise<{ id: number }>;
-    update: (args: unknown) => Promise<unknown>;
-  };
-};
+type NotificationPrisma = Pick<
+  Prisma.TransactionClient,
+  'notificationEvent' | 'user'
+>;
 
 type MonitorNotificationPayload = {
   monitorId: number;
@@ -33,12 +34,12 @@ type MailMessage = {
   html: string;
 };
 
-const EMAIL_CHANNEL = 'EMAIL';
-const EVENT_DOWN = 'MONITOR_DOWN';
-const EVENT_RECOVERED = 'MONITOR_RECOVERED';
-const STATUS_SENT = 'SENT';
-const STATUS_FAILED = 'FAILED';
-const STATUS_SKIPPED = 'SKIPPED';
+const EMAIL_CHANNEL = NotificationChannel.EMAIL;
+const EVENT_DOWN = NotificationType.MONITOR_DOWN;
+const EVENT_RECOVERED = NotificationType.MONITOR_RECOVERED;
+const STATUS_SENT = NotificationStatus.SENT;
+const STATUS_FAILED = NotificationStatus.FAILED;
+const STATUS_SKIPPED = NotificationStatus.SKIPPED;
 
 @Injectable()
 export class NotificationsService {
@@ -49,13 +50,16 @@ export class NotificationsService {
     private readonly configService: ConfigService,
   ) {}
 
-  async notifyMonitorDown(payload: MonitorNotificationPayload, tx?: PrismaLike) {
+  async notifyMonitorDown(
+    payload: MonitorNotificationPayload,
+    tx?: NotificationPrisma,
+  ) {
     await this.sendMonitorAlert(EVENT_DOWN, payload, tx);
   }
 
   async notifyMonitorRecovered(
     payload: MonitorNotificationPayload,
-    tx?: PrismaLike,
+    tx?: NotificationPrisma,
   ) {
     await this.sendMonitorAlert(EVENT_RECOVERED, payload, tx);
   }
@@ -63,7 +67,7 @@ export class NotificationsService {
   private async sendMonitorAlert(
     type: typeof EVENT_DOWN | typeof EVENT_RECOVERED,
     payload: MonitorNotificationPayload,
-    tx?: PrismaLike,
+    tx?: NotificationPrisma,
   ) {
     const prisma = tx ?? this.prisma;
     const recipients = await this.getOrganizationRecipients(
@@ -81,7 +85,12 @@ export class NotificationsService {
     );
 
     if (recipients.length === 0) {
-      await this.markEvent(prisma, event?.id, STATUS_SKIPPED, 'Sin destinatarios');
+      await this.markEvent(
+        prisma,
+        event?.id,
+        STATUS_SKIPPED,
+        'Sin destinatarios',
+      );
       return;
     }
 
@@ -121,13 +130,17 @@ export class NotificationsService {
 
       await this.markEvent(prisma, event?.id, STATUS_SENT);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error desconocido';
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
       await this.markEvent(prisma, event?.id, STATUS_FAILED, message);
       this.logger.error(`Error enviando notificación ${type}: ${message}`);
     }
   }
 
-  private async getOrganizationRecipients(organizationId: number, prisma: PrismaLike) {
+  private async getOrganizationRecipients(
+    organizationId: number,
+    prisma: NotificationPrisma,
+  ) {
     const users = await prisma.user.findMany({
       where: {
         organizationId,
@@ -147,11 +160,14 @@ export class NotificationsService {
     recipients: string[],
   ): MailMessage {
     const appName = this.configService.get<string>('APP_NAME') ?? 'Monitoring';
-    const subjectPrefix = type === EVENT_DOWN ? 'Monitor caído' : 'Monitor recuperado';
+    const subjectPrefix =
+      type === EVENT_DOWN ? 'Monitor caído' : 'Monitor recuperado';
     const subject = `[${appName}] ${subjectPrefix}: ${payload.monitorName}`;
     const statusLabel = type === EVENT_DOWN ? 'caído' : 'recuperado';
     const severity = payload.severity ? `\nSeveridad: ${payload.severity}` : '';
-    const error = payload.errorMessage ? `\nError: ${payload.errorMessage}` : '';
+    const error = payload.errorMessage
+      ? `\nError: ${payload.errorMessage}`
+      : '';
     const timestamp = payload.resolvedAt ?? payload.startedAt ?? new Date();
 
     const text = [
@@ -181,14 +197,12 @@ export class NotificationsService {
   }
 
   private async createNotificationEvent(
-    prisma: PrismaLike,
-    type: string,
+    prisma: NotificationPrisma,
+    type: NotificationType,
     payload: MonitorNotificationPayload,
     message: MailMessage,
     recipients: string[],
   ) {
-    if (!prisma.notificationEvent) return null;
-
     return prisma.notificationEvent.create({
       data: {
         monitorId: payload.monitorId,
@@ -203,12 +217,12 @@ export class NotificationsService {
   }
 
   private async markEvent(
-    prisma: PrismaLike,
+    prisma: NotificationPrisma,
     eventId: number | undefined,
-    status: string,
+    status: NotificationStatus,
     errorMessage?: string,
   ) {
-    if (!eventId || !prisma.notificationEvent) return;
+    if (!eventId) return;
 
     await prisma.notificationEvent.update({
       where: { id: eventId },
@@ -223,8 +237,8 @@ export class NotificationsService {
   private isSmtpConfigured() {
     return Boolean(
       this.configService.get<string>('SMTP_HOST') &&
-        this.configService.get<string>('SMTP_USER') &&
-        this.configService.get<string>('SMTP_PASS'),
+      this.configService.get<string>('SMTP_USER') &&
+      this.configService.get<string>('SMTP_PASS'),
     );
   }
 

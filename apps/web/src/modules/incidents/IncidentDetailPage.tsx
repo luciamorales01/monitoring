@@ -8,6 +8,7 @@ import {
   type Incident,
   type IncidentSeverity,
 } from '../../shared/incidentApi';
+import { realtimeEventName, type MonitoringRealtimeEvent } from '../../shared/realtimeEvents';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
 import { useCurrentUserPermissions } from '../../shared/permissions';
@@ -38,6 +39,18 @@ export default function IncidentDetailPage() {
     loadData()
       .catch(() => setError('No se pudo cargar la incidencia.'))
       .finally(() => setLoading(false));
+  }, [incidentId]);
+
+  useEffect(() => {
+    const refreshIncident = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as MonitoringRealtimeEvent;
+      if (detail.payload.incidentId !== incidentId) return;
+      void loadData().catch(() => setError('No se pudo cargar la incidencia.'));
+    };
+
+    window.addEventListener(realtimeEventName, refreshIncident);
+    return () => window.removeEventListener(realtimeEventName, refreshIncident);
   }, [incidentId]);
 
   const runAction = async (action: () => Promise<Incident>) => {

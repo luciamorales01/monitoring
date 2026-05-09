@@ -1,6 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { IncidentSeverity, IncidentStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { EventsService } from '../events/events.service';
+import { MonitoringEventName } from '../events/events.types';
 import { UpdateIncidentDto } from './update-incident.dto';
 
 type AuthenticatedUser = {
@@ -10,7 +12,10 @@ type AuthenticatedUser = {
 
 @Injectable()
 export class IncidentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+  ) {}
 
   findAll(user: AuthenticatedUser) {
     return this.prisma.incident.findMany({
@@ -49,7 +54,7 @@ export class IncidentsService {
     const incident = await this.findOne(id, user);
     if (incident.status === IncidentStatus.RESOLVED) return incident;
 
-    return this.prisma.incident.update({
+    const updatedIncident = await this.prisma.incident.update({
       where: { id },
       data: {
         status: IncidentStatus.ACKNOWLEDGED,
@@ -59,6 +64,8 @@ export class IncidentsService {
       },
       include: { monitor: true },
     });
+
+    return updatedIncident;
   }
 
   async resolve(id: number, dto: UpdateIncidentDto, user: AuthenticatedUser) {
@@ -69,7 +76,7 @@ export class IncidentsService {
       Math.floor((resolvedAt.getTime() - incident.startedAt.getTime()) / 1000),
     );
 
-    return this.prisma.incident.update({
+    const updatedIncident = await this.prisma.incident.update({
       where: { id },
       data: {
         status: IncidentStatus.RESOLVED,
@@ -82,6 +89,12 @@ export class IncidentsService {
       },
       include: { monitor: true },
     });
+
+    if (incident.status !== IncidentStatus.RESOLVED) {
+      await this.publishIncidentResolved(updatedIncident);
+    }
+
+    return updatedIncident;
   }
 
   async updateSeverity(id: number, severity: IncidentSeverity, user: AuthenticatedUser) {
@@ -128,10 +141,36 @@ export class IncidentsService {
     if (Object.keys(data).length === 0) return incident;
     data.lastStatusChangeAt = new Date();
 
-    return this.prisma.incident.update({
+    const updatedIncident = await this.prisma.incident.update({
       where: { id },
       data,
       include: { monitor: true },
+    });
+
+    if (
+      incident.status !== IncidentStatus.RESOLVED &&
+      updatedIncident.status === IncidentStatus.RESOLVED
+    ) {
+      await this.publishIncidentResolved(updatedIncident);
+    }
+
+    return updatedIncident;
+  }
+
+  private async publishIncidentResolved(incident: {
+    id: number;
+    monitorId: number;
+    monitor: { organizationId: number };
+    resolvedAt: Date | null;
+  }) {
+    await this.eventsService.publish({
+      name: MonitoringEventName.INCIDENT_RESOLVED,
+      payload: {
+        incidentId: incident.id,
+        monitorId: incident.monitorId,
+        organizationId: incident.monitor.organizationId,
+        resolvedAt: (incident.resolvedAt ?? new Date()).toISOString(),
+      },
     });
   }
 }

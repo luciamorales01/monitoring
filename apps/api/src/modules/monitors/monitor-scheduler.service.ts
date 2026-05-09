@@ -1,18 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { MonitorsService } from './monitors.service';
+import { MonitorChecksQueueService } from './monitor-checks-queue.service';
 
 @Injectable()
 export class MonitorSchedulerService {
   private readonly logger = new Logger(MonitorSchedulerService.name);
   private isRunning = false;
 
-  constructor(private readonly monitorsService: MonitorsService) {}
+  constructor(
+    private readonly monitorsService: MonitorsService,
+    private readonly monitorChecksQueue: MonitorChecksQueueService,
+  ) {}
 
   @Cron(CronExpression.EVERY_10_SECONDS)
   async runDueMonitorChecks() {
     if (this.isRunning) {
-      this.logger.warn('Saltando ciclo de scheduler porque el anterior sigue en curso');
+      this.logger.warn(
+        'Saltando ciclo de scheduler porque el anterior sigue en curso',
+      );
       return;
     }
 
@@ -20,7 +26,8 @@ export class MonitorSchedulerService {
 
     try {
       this.logger.log('Iniciando ciclo de scheduler de monitores');
-      const dueMonitorIds = await this.monitorsService.findDueActiveMonitorIds();
+      const dueMonitorIds =
+        await this.monitorsService.findDueActiveMonitorIds();
       this.logger.log(
         `Scheduler de monitores encontró ${dueMonitorIds.length} monitor(es) pendientes`,
       );
@@ -29,25 +36,16 @@ export class MonitorSchedulerService {
         return;
       }
 
-      const results = await Promise.allSettled(
-        dueMonitorIds.map((monitorId) =>
-          this.monitorsService.runAutomatedCheck(monitorId),
-        ),
-      );
-
-      const rejectedChecks = results.filter(
-        (result) => result.status === 'rejected',
-      ).length;
-      const processedChecks = results.length - rejectedChecks;
-
-      if (rejectedChecks > 0) {
-        this.logger.error(
-          `Fallaron ${rejectedChecks} checks automáticos de ${dueMonitorIds.length}`,
-        );
-      }
+      const summary =
+        await this.monitorChecksQueue.enqueueDueChecks(dueMonitorIds);
 
       this.logger.log(
-        `Scheduler de monitores procesó ${processedChecks}/${dueMonitorIds.length} monitor(es)`,
+        JSON.stringify({
+          enqueued: summary.enqueued,
+          event: 'monitor_checks_enqueued',
+          failed: summary.failed,
+          total: summary.total,
+        }),
       );
     } finally {
       this.logger.log('Finalizó ciclo de scheduler de monitores');

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUniqueOptions, matchesSearchTerm, normalizeSearchTerm } from '../../shared/filterUtils';
 import { getIncidents, type Incident } from '../../shared/incidentApi';
+import { realtimeEventName, type MonitoringRealtimeEvent } from '../../shared/realtimeEvents';
 import { useLocalPagination } from '../../shared/useLocalPagination';
 import { useUrlFilterState } from '../../shared/useUrlFilterState';
 import {
@@ -70,6 +71,18 @@ export default function IncidentsPage() {
 
   useEffect(() => {
     loadData().finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const refreshIncidents = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as MonitoringRealtimeEvent;
+      if (detail.name !== 'incident.created' && detail.name !== 'incident.resolved') return;
+      void loadData();
+    };
+
+    window.addEventListener(realtimeEventName, refreshIncidents);
+    return () => window.removeEventListener(realtimeEventName, refreshIncidents);
   }, []);
 
   const activeIncidents = useMemo(

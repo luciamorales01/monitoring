@@ -15,6 +15,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMonitorDto } from './create-monitor.dto';
+import { ListMonitorsQueryDto } from './list-monitors-query.dto';
 import { MonitorsService } from './monitors.service';
 import { UpdateMonitorDto } from './update-monitor.dto';
 
@@ -30,8 +31,8 @@ export class MonitorsController {
   }
 
   @Get()
-  findAll(@Req() req: any) {
-    return this.monitorsService.findAll(req.user);
+  findAll(@Query() query: ListMonitorsQueryDto, @Req() req: any) {
+    return this.monitorsService.findAll(req.user, query);
   }
 
   @Get(':id')

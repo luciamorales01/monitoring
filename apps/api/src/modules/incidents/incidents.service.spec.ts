@@ -2,6 +2,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { IncidentStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { EventsService } from '../events/events.service';
 import { IncidentsService } from './incidents.service';
 
 describe('IncidentsService', () => {
@@ -11,6 +12,9 @@ describe('IncidentsService', () => {
       findMany: jest.Mock;
       findUnique: jest.Mock;
     };
+  };
+  let eventsService: {
+    publish: jest.Mock;
   };
 
   const user = {
@@ -25,6 +29,9 @@ describe('IncidentsService', () => {
         findUnique: jest.fn(),
       },
     };
+    eventsService = {
+      publish: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -32,6 +39,10 @@ describe('IncidentsService', () => {
         {
           provide: PrismaService,
           useValue: prisma,
+        },
+        {
+          provide: EventsService,
+          useValue: eventsService,
         },
       ],
     }).compile();
@@ -71,7 +82,7 @@ describe('IncidentsService', () => {
 
     expect(prisma.incident.findMany).toHaveBeenCalledWith({
       where: {
-        status: IncidentStatus.OPEN,
+        status: { in: [IncidentStatus.OPEN, IncidentStatus.ACKNOWLEDGED] },
         monitor: {
           organizationId: user.organizationId,
         },
@@ -79,9 +90,7 @@ describe('IncidentsService', () => {
       include: {
         monitor: true,
       },
-      orderBy: {
-        startedAt: 'desc',
-      },
+      orderBy: [{ severity: 'desc' }, { startedAt: 'desc' }],
     });
     expect(result).toEqual([{ id: 2, status: IncidentStatus.OPEN }]);
   });

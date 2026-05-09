@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   controlBase,
@@ -19,13 +19,13 @@ import {
 } from "../../theme/commonStyles";
 import AppTopbar from "../../shared/AppTopbar";
 import LoadingState from "../../shared/LoadingState";
+import type { Monitor } from "../../shared/monitorApi";
 import {
-  getMonitors,
-  runMonitorCheck,
-  toggleMonitorActive,
-  type Monitor,
-} from "../../shared/monitorApi";
-import { getDashboardSummary, type DashboardSummary } from "../../shared/dashboardApi";
+  useAllMonitorsQuery,
+  useDashboardSummaryQuery,
+  useRunMonitorCheckMutation,
+  useToggleMonitorActiveMutation,
+} from "../../shared/monitorQueries";
 import {
   filterMonitors,
   getMonitorViewStatus,
@@ -59,10 +59,9 @@ const dashboardAllowedValues = {
   status: ["ALL", "UP", "DOWN", "PAUSED", "UNKNOWN"],
 } as const;
 
+const EMPTY_MONITORS: Monitor[] = [];
+
 export default function DashboardPage() {
-  const [monitors, setMonitors] = useState<Monitor[]>([]);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
@@ -78,25 +77,27 @@ export default function DashboardPage() {
     dashboardAllowedValues,
   );
 
+  const monitorsQuery = useAllMonitorsQuery({ adaptiveRefetchInterval: true });
+  const summaryQuery = useDashboardSummaryQuery();
+  const runCheckMutation = useRunMonitorCheckMutation();
+  const toggleActiveMutation = useToggleMonitorActiveMutation();
+  const monitors = monitorsQuery.data ?? EMPTY_MONITORS;
+  const summary = summaryQuery.data ?? null;
+  const loading = monitorsQuery.isPending;
+
   const refreshMonitors = async () => {
-    const [data, dashboardSummary] = await Promise.all([
-      getMonitors(),
-      getDashboardSummary().catch(() => null),
+    const [monitorsResult] = await Promise.all([
+      monitorsQuery.refetch(),
+      summaryQuery.refetch(),
     ]);
 
-    setMonitors(data);
-    setSummary(dashboardSummary);
-    return data;
+    return monitorsResult.data ?? [];
   };
-
-  useEffect(() => {
-    refreshMonitors().finally(() => setLoading(false));
-  }, []);
 
   const handleRunCheck = async (id: number) => {
     try {
       setCheckingId(id);
-      await runMonitorCheck(id);
+      await runCheckMutation.mutateAsync(id);
 
       const updatedMonitors = await refreshMonitors();
       const updatedMonitor = updatedMonitors.find(
@@ -115,7 +116,7 @@ export default function DashboardPage() {
   const handleToggleActive = async (id: number) => {
     try {
       setTogglingId(id);
-      await toggleMonitorActive(id);
+      await toggleActiveMutation.mutateAsync(id);
       await refreshMonitors();
     } catch {
       setToast({ text: "Error al actualizar", type: "error" });
@@ -174,16 +175,6 @@ export default function DashboardPage() {
       response: `${responseMs} ms`,
     };
   }, [monitors, summary]);
-
-  useEffect(() => {
-    const intervalMs = stats.alerts > 0 ? 10000 : 30000;
-
-    const intervalId = window.setInterval(() => {
-      void refreshMonitors();
-    }, intervalMs);
-
-    return () => window.clearInterval(intervalId);
-  }, [stats.alerts]);
 
   return (
     <main style={styles.main}>

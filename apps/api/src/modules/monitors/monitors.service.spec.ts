@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { EventsService } from '../events/events.service';
 import { MonitorsService } from './monitors.service';
 
 const MonitorStatus = {
@@ -40,6 +41,9 @@ describe('MonitorsService', () => {
     notifyMonitorDown: jest.Mock;
     notifyMonitorRecovered: jest.Mock;
   };
+  let eventsService: {
+    publish: jest.Mock;
+  };
 
   const user = {
     organizationId: 10,
@@ -77,14 +81,23 @@ describe('MonitorsService', () => {
       notifyMonitorDown: jest.fn(),
       notifyMonitorRecovered: jest.fn(),
     };
+    eventsService = {
+      publish: jest.fn(),
+    };
 
     service = new MonitorsService(
       prisma as unknown as PrismaService,
-      notificationsService as any,
+      notificationsService as unknown as ConstructorParameters<typeof MonitorsService>[1],
+      eventsService as unknown as EventsService,
     );
     jest.spyOn(global, 'fetch');
     jest
-      .spyOn(service as any, 'assertPublicHostTarget')
+      .spyOn(
+        service as MonitorsService & {
+          assertPublicHostTarget: (target: string) => Promise<string>;
+        },
+        'assertPublicHostTarget',
+      )
       .mockImplementation(async (target: string) => target);
   });
 

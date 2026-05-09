@@ -38,6 +38,27 @@ export type MonitorCheck = {
   checkedAt: string;
 };
 
+export type PaginatedMonitors = {
+  items: Monitor[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export type MonitorSortOption = 'status' | 'name' | 'latest-check' | 'created-at';
+export type MonitorViewStatusFilter = 'ALL' | 'UP' | 'DOWN' | 'PAUSED' | 'UNKNOWN';
+
+export type MonitorListQuery = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  sort?: MonitorSortOption;
+  status?: MonitorViewStatusFilter;
+  type?: 'ALL' | MonitorType;
+  location?: string;
+};
+
 export type CreateMonitorInput = {
   name: string;
   type: MonitorType;
@@ -58,8 +79,53 @@ export type CreateMonitorInput = {
 
 export type UpdateMonitorInput = CreateMonitorInput;
 
+const MONITOR_LIST_FETCH_LIMIT = 100;
+
+function buildMonitorListPath(query: MonitorListQuery = {}) {
+  const params = new URLSearchParams();
+
+  for (const [key, rawValue] of Object.entries(query)) {
+    if (rawValue === undefined || rawValue === '' || rawValue === 'ALL') {
+      continue;
+    }
+
+    params.set(key, String(rawValue));
+  }
+
+  const queryString = params.toString();
+  return `/monitors${queryString ? `?${queryString}` : ''}`;
+}
+
+export const getPaginatedMonitors = async (
+  query: MonitorListQuery = {},
+  signal?: AbortSignal,
+) => {
+  return apiClient<PaginatedMonitors>(buildMonitorListPath(query), { signal });
+};
+
 export const getMonitors = async () => {
-  return apiClient<Monitor[]>('/monitors');
+  const firstPage = await getPaginatedMonitors({
+    limit: MONITOR_LIST_FETCH_LIMIT,
+    page: 1,
+  });
+
+  if (firstPage.totalPages <= 1) {
+    return firstPage.items;
+  }
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: firstPage.totalPages - 1 }, (_, index) =>
+      getPaginatedMonitors({
+        limit: MONITOR_LIST_FETCH_LIMIT,
+        page: index + 2,
+      }),
+    ),
+  );
+
+  return [
+    ...firstPage.items,
+    ...remainingPages.flatMap((page) => page.items),
+  ];
 };
 
 export const createMonitor = async (data: CreateMonitorInput) => {

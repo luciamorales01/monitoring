@@ -14,10 +14,17 @@ import {
   resolveTxt,
 } from 'node:dns/promises';
 import { isIP, Socket } from 'node:net';
-import { connect as tlsConnect } from 'node:tls';
+import { connect as tlsConnect, type PeerCertificate } from 'node:tls';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { EventsService } from '../events/events.service';
+import { MonitoringEventName } from '../events/events.types';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateMonitorDto } from './create-monitor.dto';
+import {
+  ListMonitorsQueryDto,
+  type MonitorListSortOption,
+} from './list-monitors-query.dto';
 import { UpdateMonitorDto } from './update-monitor.dto';
 
 const MonitorStatus = {
@@ -48,6 +55,7 @@ type MonitorEntity = {
   frequencySeconds: number;
   timeoutSeconds: number;
   organizationId: number;
+  currentStatus?: MonitorStatusValue | null;
   isActive?: boolean;
   locations?: string[] | null;
   alertThreshold?: number | null;
@@ -81,6 +89,17 @@ type MonitorCheckBatchResult = {
   results: unknown[];
 };
 
+type IncidentSyncResult =
+  | { type: 'created'; incidentId: number; happenedAt: Date }
+  | { type: 'resolved'; incidentId: number; happenedAt: Date }
+  | null;
+
+type PersistedCheckResult = MonitorCheckBatchResult & {
+  checkedAt: Date;
+  incidentSync: IncidentSyncResult;
+  previousStatus: MonitorStatusValue | null;
+};
+
 @Injectable()
 export class MonitorsService {
   private readonly logger = new Logger(MonitorsService.name);
@@ -88,6 +107,7 @@ export class MonitorsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly eventsService: EventsService,
   ) {}
 
   async create(dto: CreateMonitorDto, user: AuthenticatedUser) {
@@ -116,15 +136,28 @@ export class MonitorsService {
     });
   }
 
-  findAll(user: AuthenticatedUser) {
-    return this.prisma.monitor.findMany({
-      where: {
-        organizationId: user.organizationId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+  async findAll(user: AuthenticatedUser, query: ListMonitorsQueryDto = {}) {
+    const limit = query.limit ?? 10;
+    const requestedPage = query.page ?? 1;
+    const where = this.buildMonitorListWhere(user, query);
+    const total = await this.prisma.monitor.count({ where });
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const page = Math.min(requestedPage, totalPages);
+
+    const items = await this.prisma.monitor.findMany({
+      where,
+      orderBy: this.buildMonitorListOrderBy(query.sort),
+      skip: (page - 1) * limit,
+      take: limit,
     });
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
   }
 
   async findOne(id: number, user: AuthenticatedUser) {
@@ -304,6 +337,68 @@ export class MonitorsService {
       },
       take: 50,
     });
+  }
+
+  private buildMonitorListWhere(
+    user: AuthenticatedUser,
+    query: ListMonitorsQueryDto,
+  ): Prisma.MonitorWhereInput {
+    const search = query.search?.trim();
+    const where: Prisma.MonitorWhereInput = {
+      organizationId: user.organizationId,
+    };
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { target: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (query.status && query.status !== 'ALL') {
+      if (query.status === 'PAUSED') {
+        where.isActive = false;
+      } else {
+        where.isActive = true;
+        where.currentStatus = query.status;
+      }
+    }
+
+    if (query.type) {
+      where.type = query.type;
+    }
+
+    if (query.location && query.location !== 'ALL') {
+      where.locations =
+        query.location === 'default'
+          ? { isEmpty: true }
+          : { has: query.location };
+    }
+
+    return where;
+  }
+
+  private buildMonitorListOrderBy(
+    sort: MonitorListSortOption = 'status',
+  ): Prisma.MonitorOrderByWithRelationInput[] {
+    if (sort === 'name') {
+      return [{ name: 'asc' }, { id: 'asc' }];
+    }
+
+    if (sort === 'latest-check') {
+      return [{ lastCheckedAt: 'desc' }, { name: 'asc' }, { id: 'asc' }];
+    }
+
+    if (sort === 'created-at') {
+      return [{ createdAt: 'desc' }, { id: 'desc' }];
+    }
+
+    return [
+      { currentStatus: 'asc' },
+      { isActive: 'desc' },
+      { name: 'asc' },
+      { id: 'asc' },
+    ];
   }
 
   private async executeMonitorChecks(
@@ -516,28 +611,32 @@ export class MonitorsService {
     try {
       const hostname = await this.assertPublicUrlOrHostTarget(monitor.target);
 
-      const certificate = await new Promise<any>((resolve, reject) => {
-        const socket = tlsConnect({
-          host: hostname,
-          port: 443,
-          servername: hostname,
-          rejectUnauthorized: false,
-          timeout: monitor.timeoutSeconds * 1000,
-        });
+      const certificate = await new Promise<PeerCertificate>(
+        (resolve, reject) => {
+          const socket = tlsConnect({
+            host: hostname,
+            port: 443,
+            servername: hostname,
+            rejectUnauthorized: false,
+            timeout: monitor.timeoutSeconds * 1000,
+          });
 
-        socket.once('secureConnect', () => {
-          const certificate = socket.getPeerCertificate();
-          socket.end();
-          resolve(certificate);
-        });
+          socket.once('secureConnect', () => {
+            const certificate = socket.getPeerCertificate();
+            socket.end();
+            resolve(certificate);
+          });
 
-        socket.once('timeout', () => {
-          socket.destroy();
-          reject(new Error(`Timeout tras ${monitor.timeoutSeconds} segundos`));
-        });
+          socket.once('timeout', () => {
+            socket.destroy();
+            reject(
+              new Error(`Timeout tras ${monitor.timeoutSeconds} segundos`),
+            );
+          });
 
-        socket.once('error', reject);
-      });
+          socket.once('error', reject);
+        },
+      );
 
       if (!certificate?.valid_to) {
         throw new Error('No se pudo leer el certificado SSL');
@@ -823,6 +922,7 @@ export class MonitorsService {
       | 'name'
       | 'target'
       | 'organizationId'
+      | 'currentStatus'
       | 'alertThreshold'
       | 'alertEmail'
       | 'locations'
@@ -833,8 +933,9 @@ export class MonitorsService {
     const overallStatus = this.getOverallMonitorStatus(outcomes);
     const latestCheckedAt = this.getLatestCheckedAt(outcomes);
     const averageResponseTime = this.getAverageResponseTime(outcomes);
+    const previousStatus = monitor.currentStatus ?? null;
 
-    return this.prisma.$transaction(async (tx) => {
+    const persisted = await this.prisma.$transaction(async (tx) => {
       const results = await Promise.all(
         outcomes.map((outcome) =>
           tx.checkResult.create({
@@ -861,7 +962,7 @@ export class MonitorsService {
         },
       });
 
-      await this.syncIncidentForCheck(
+      const incidentSync = await this.syncIncidentForCheck(
         tx,
         monitor,
         {
@@ -876,10 +977,79 @@ export class MonitorsService {
       );
 
       return {
+        checkedAt: latestCheckedAt,
+        incidentSync,
         overallStatus,
+        previousStatus,
         results,
-      };
+      } satisfies PersistedCheckResult;
     });
+
+    await this.publishCheckEvents(monitor.id, monitor.organizationId, persisted);
+
+    return {
+      overallStatus: persisted.overallStatus,
+      results: persisted.results,
+    };
+  }
+
+  private async publishCheckEvents(
+    monitorId: number,
+    organizationId: number,
+    result: PersistedCheckResult,
+  ) {
+    const checkedAt = result.checkedAt.toISOString();
+
+    await this.eventsService.publish({
+      name: MonitoringEventName.MONITOR_CHECKED,
+      payload: {
+        checkedAt,
+        monitorId,
+        organizationId,
+        previousStatus: result.previousStatus,
+        status: result.overallStatus,
+      },
+    });
+
+    if (
+      result.previousStatus !== null &&
+      result.previousStatus !== result.overallStatus
+    ) {
+      await this.eventsService.publish({
+        name: MonitoringEventName.MONITOR_STATUS_CHANGED,
+        payload: {
+          checkedAt,
+          monitorId,
+          organizationId,
+          previousStatus: result.previousStatus,
+          status: result.overallStatus,
+        },
+      });
+    }
+
+    if (result.incidentSync?.type === 'created') {
+      await this.eventsService.publish({
+        name: MonitoringEventName.INCIDENT_CREATED,
+        payload: {
+          incidentId: result.incidentSync.incidentId,
+          monitorId,
+          organizationId,
+          startedAt: result.incidentSync.happenedAt.toISOString(),
+        },
+      });
+    }
+
+    if (result.incidentSync?.type === 'resolved') {
+      await this.eventsService.publish({
+        name: MonitoringEventName.INCIDENT_RESOLVED,
+        payload: {
+          incidentId: result.incidentSync.incidentId,
+          monitorId,
+          organizationId,
+          resolvedAt: result.incidentSync.happenedAt.toISOString(),
+        },
+      });
+    }
   }
 
   private getOverallMonitorStatus(
@@ -1056,7 +1226,7 @@ export class MonitorsService {
   }
 
   private async syncIncidentForCheck(
-    tx: any,
+    tx: Prisma.TransactionClient,
     monitor: Pick<
       MonitorEntity,
       | 'id'
@@ -1069,7 +1239,7 @@ export class MonitorsService {
     >,
     outcome: MonitorCheckOutcome,
     outcomes: MonitorCheckOutcome[],
-  ) {
+  ): Promise<IncidentSyncResult> {
     const openIncident = await tx.incident.findFirst({
       where: {
         monitorId: monitor.id,
@@ -1082,7 +1252,7 @@ export class MonitorsService {
 
     if (outcome.status === MonitorStatus.DOWN) {
       if (openIncident) {
-        return;
+        return null;
       }
 
       const batchSize = this.normalizeLocations(monitor.locations).length;
@@ -1104,7 +1274,7 @@ export class MonitorsService {
       );
 
       if (consecutiveDownBatches.length < alertThreshold) {
-        return;
+        return null;
       }
 
       const incident = await tx.incident.create({
@@ -1136,11 +1306,15 @@ export class MonitorsService {
         );
       }
 
-      return;
+      return {
+        happenedAt: incident.startedAt ?? outcome.checkedAt,
+        incidentId: incident.id,
+        type: 'created',
+      };
     }
 
     if (!openIncident) {
-      return;
+      return null;
     }
 
     const resolvedIncident = await tx.incident.update({
@@ -1176,6 +1350,12 @@ export class MonitorsService {
         tx,
       );
     }
+
+    return {
+      happenedAt: outcome.checkedAt,
+      incidentId: resolvedIncident.id,
+      type: 'resolved',
+    };
   }
 
   private findMonitorById(id: number): Promise<MonitorEntity | null> {
@@ -1218,7 +1398,8 @@ export class MonitorsService {
   private isTimeoutError(error: unknown) {
     return (
       (error instanceof DOMException && error.name === 'AbortError') ||
-      (error instanceof Error && /^Timeout tras \d+ segundos$/.test(error.message))
+      (error instanceof Error &&
+        /^Timeout tras \d+ segundos$/.test(error.message))
     );
   }
 }

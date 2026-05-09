@@ -20,6 +20,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ReportsModule } from './modules/reports/reports.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { SectionsModule } from './modules/sections/sections.module';
+import { EventsModule } from './modules/events/events.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { SectionsModule } from './modules/sections/sections.module';
     ReportsModule,
     JobsModule,
     SectionsModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

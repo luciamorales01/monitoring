@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getActiveIncidents } from "../shared/incidentApi";
 import { appEnv } from "../shared/env";
+import {
+  realtimeEventName,
+  useMonitoringEvents,
+  type MonitoringRealtimeEvent,
+} from "../shared/realtimeEvents";
 import { surfaceCard, uiTheme } from "../theme/commonStyles";
 import {
   AlertTriangleIcon,
@@ -42,6 +47,7 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeIncidentsCount, setActiveIncidentsCount] = useState(0);
+  useMonitoringEvents();
 
   const isActive = (path?: string) => {
     if (!path) return false;
@@ -66,11 +72,20 @@ export default function AppLayout() {
       }
     };
 
+    const refreshActiveIncidentsOnRealtime = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as MonitoringRealtimeEvent;
+      if (detail.name !== "incident.created" && detail.name !== "incident.resolved") return;
+      void refreshActiveIncidents();
+    };
+
     refreshActiveIncidents();
     const intervalId = window.setInterval(refreshActiveIncidents, 10000);
+    window.addEventListener(realtimeEventName, refreshActiveIncidentsOnRealtime);
 
     return () => {
       cancelled = true;
+      window.removeEventListener(realtimeEventName, refreshActiveIncidentsOnRealtime);
       window.clearInterval(intervalId);
     };
   }, [location.pathname]);
