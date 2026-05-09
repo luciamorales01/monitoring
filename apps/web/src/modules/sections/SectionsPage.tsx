@@ -966,6 +966,8 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 22,
+    backgroundImage:
+      'linear-gradient(135deg, rgba(37, 99, 235, 0.07), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)',
   },
   topbarControls: {
     display: 'flex',
@@ -996,6 +998,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 12,
     fontWeight: 500,
     color: uiTheme.colors.muted,
+    borderRadius: 14,
   },
   searchWrap: {
     ...inputBase,
@@ -1006,6 +1009,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 10,
     color: uiTheme.colors.muted,
     paddingLeft: 14,
+    borderRadius: 14,
   },
   searchInput: {
     border: 'none',
@@ -1024,6 +1028,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 10,
     cursor: 'pointer',
     fontWeight: 600,
+    borderRadius: 14,
   },
   secondaryButton: {
     ...secondaryButtonBase,
@@ -1034,6 +1039,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 10,
     cursor: 'pointer',
     fontWeight: 500,
+    borderRadius: 14,
   },
   dangerButton: {
     ...secondaryButtonBase,
@@ -1047,6 +1053,7 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.danger,
     borderColor: '#fecaca',
     background: '#fff5f5',
+    borderRadius: 14,
   },
   tabs: {
     display: 'flex',
@@ -1093,6 +1100,7 @@ const styles: Record<string, CSSProperties> = {
     ...surfaceCard,
     overflow: 'hidden',
     minHeight: 420,
+    borderRadius: 20,
   },
   rows: {
     display: 'flex',
@@ -1106,6 +1114,7 @@ const styles: Record<string, CSSProperties> = {
     borderBottom: `1px solid ${uiTheme.colors.border}`,
     alignItems: 'center',
     cursor: 'pointer',
+    background: 'rgba(255, 255, 255, 0.88)',
   },
   rowMain: {
     display: 'flex',
@@ -1198,6 +1207,7 @@ const styles: Record<string, CSSProperties> = {
     placeItems: 'center',
     cursor: 'pointer',
     background: uiTheme.colors.surface,
+    borderRadius: 14,
   },
   menu: {
     ...surfaceCard,
@@ -1210,6 +1220,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 4,
+    borderRadius: 18,
   },
   menuItem: {
     border: 'none',
@@ -1296,6 +1307,7 @@ const styles: Record<string, CSSProperties> = {
     placeItems: 'center',
     zIndex: 30,
     padding: 24,
+    borderRadius: 20,
   },
   editorModal: {
     ...surfaceCard,
@@ -1303,6 +1315,7 @@ const styles: Record<string, CSSProperties> = {
     maxHeight: '90vh',
     overflow: 'auto',
     padding: 24,
+    borderRadius: 20,
   },
   manageModal: {
     ...surfaceCard,
@@ -1335,6 +1348,7 @@ const styles: Record<string, CSSProperties> = {
     placeItems: 'center',
     cursor: 'pointer',
     background: uiTheme.colors.surface,
+    borderRadius: 14,
   },
   formGrid: {
     display: 'grid',
@@ -1355,6 +1369,7 @@ const styles: Record<string, CSSProperties> = {
   fieldInput: {
     ...inputBase,
     height: 44,
+    borderRadius: 14,
   },
   textarea: {
     ...controlBase,
@@ -1363,6 +1378,7 @@ const styles: Record<string, CSSProperties> = {
     resize: 'vertical',
     font: 'inherit',
     color: uiTheme.colors.text,
+    borderRadius: 14,
   },
   iconPicker: {
     display: 'grid',
@@ -1381,6 +1397,7 @@ const styles: Record<string, CSSProperties> = {
     cursor: 'pointer',
     fontWeight: 500,
     background: uiTheme.colors.surface,
+    borderRadius: 14,
   },
   iconOptionActive: {
     borderColor: uiTheme.colors.primary,

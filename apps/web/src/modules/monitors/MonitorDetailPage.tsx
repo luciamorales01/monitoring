@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
+import "./monitor.css";
 import {
   pageMain,
   pageTitle,
@@ -79,6 +80,23 @@ export default function MonitorDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [monitorId]);
+
+  useEffect(() => {
+    if (!Number.isFinite(monitorId) || monitorId <= 0 || !monitor?.isActive) {
+      return;
+    }
+
+    const intervalMs = Math.min(
+      30000,
+      Math.max(10000, monitor.frequencySeconds * 1000),
+    );
+
+    const intervalId = window.setInterval(() => {
+      void loadData().catch(() => undefined);
+    }, intervalMs);
+
+    return () => window.clearInterval(intervalId);
+  }, [monitor?.frequencySeconds, monitor?.isActive, monitorId]);
 
   const handleRunCheck = async () => {
     try {
@@ -257,7 +275,7 @@ export default function MonitorDetailPage() {
   const isPaused = !monitor.isActive;
 
   return (
-    <main style={styles.main}>
+    <main style={styles.main} className="monitor-detail-page">
       <AppTopbar
         title="Detalle de monitor"
         subtitle={monitor.name}
@@ -273,7 +291,7 @@ export default function MonitorDetailPage() {
         }
       />
 
-      <div style={styles.breadcrumb}>
+      <div style={styles.breadcrumb} className="monitor-detail-breadcrumb">
         <Link to="/dashboard" style={styles.breadcrumbLink}>
           Webs monitorizadas
         </Link>
@@ -282,7 +300,7 @@ export default function MonitorDetailPage() {
       </div>
 
       {isDown && (
-        <section style={styles.alertBanner}>
+        <section style={styles.alertBanner} className="monitor-detail-alert">
           <div>
             <strong>Monitor caído</strong>
             <p>
@@ -296,8 +314,8 @@ export default function MonitorDetailPage() {
         </section>
       )}
 
-      <section style={styles.heroCard}>
-        <div style={styles.heroLeft}>
+      <section style={styles.heroCard} className="monitor-detail-hero">
+        <div style={styles.heroLeft} className="monitor-detail-hero-left">
           <div
             style={{
               ...styles.monitorIcon,
@@ -333,18 +351,19 @@ export default function MonitorDetailPage() {
           </div>
         </div>
 
-        <div style={styles.heroRight}>
-          <div style={styles.lastCheckBox}>
+        <div style={styles.heroRight} className="monitor-detail-hero-right">
+          <div style={styles.lastCheckBox} className="monitor-detail-last-check">
             <span>Último check</span>
             <strong>{stats.lastCheckRelative}</strong>
             <small>{stats.lastCheck}</small>
           </div>
 
           {canWriteActions ? (
-            <div style={styles.heroActions}>
+            <div style={styles.heroActions} className="monitor-detail-actions">
               <button
                 type="button"
                 style={styles.primaryButton}
+                className="monitor-detail-button monitor-detail-button-primary"
                 onClick={handleRunCheck}
                 disabled={checking}
               >
@@ -359,6 +378,7 @@ export default function MonitorDetailPage() {
               <button
                 type="button"
                 style={styles.secondaryButton}
+                className="monitor-detail-button monitor-detail-button-secondary"
                 onClick={handleToggleActive}
                 disabled={toggling}
               >
@@ -381,7 +401,7 @@ export default function MonitorDetailPage() {
         </div>
       </section>
 
-      <section style={styles.kpiGrid}>
+      <section style={styles.kpiGrid} className="monitor-detail-kpi-grid">
         <KpiCard
           title="Disponibilidad"
           value={stats.availability}
@@ -415,7 +435,7 @@ export default function MonitorDetailPage() {
       </section>
 
 
-      <section style={styles.exportCard}>
+      <section style={styles.exportCard} className="monitor-detail-export">
         <div>
           <h2 style={styles.exportTitle}>Exportar informe de este monitor</h2>
           <p style={styles.exportSubtitle}>
@@ -423,7 +443,7 @@ export default function MonitorDetailPage() {
           </p>
         </div>
 
-        <div style={styles.exportControls}>
+        <div style={styles.exportControls} className="monitor-detail-export-controls">
           <select
             value={exportRange}
             onChange={(event) => setExportRange(event.target.value as ReportRange)}
@@ -437,6 +457,7 @@ export default function MonitorDetailPage() {
           <button
             type="button"
             style={styles.secondaryButton}
+            className="monitor-detail-button monitor-detail-button-secondary"
             onClick={() => void handleExportReport("csv")}
             disabled={exportingFormat !== null}
           >
@@ -446,6 +467,7 @@ export default function MonitorDetailPage() {
           <button
             type="button"
             style={styles.secondaryButton}
+            className="monitor-detail-button monitor-detail-button-secondary"
             onClick={() => void handleExportReport("xlsx")}
             disabled={exportingFormat !== null}
           >
@@ -455,6 +477,7 @@ export default function MonitorDetailPage() {
           <button
             type="button"
             style={styles.primaryButton}
+            className="monitor-detail-button monitor-detail-button-primary"
             onClick={() => void handleExportReport("pdf")}
             disabled={exportingFormat !== null}
           >
@@ -484,7 +507,7 @@ export default function MonitorDetailPage() {
         </>
       ) : (
         <>
-          <section style={styles.chartToolbarCard}>
+          <section style={styles.chartToolbarCard} className="monitor-detail-toolbar">
             <div>
               <strong style={styles.toolbarTitle}>Vista de gráficas</strong>
               <p style={styles.cardSubtitle}>
@@ -492,7 +515,7 @@ export default function MonitorDetailPage() {
               </p>
             </div>
 
-            <div style={styles.toolbarControls}>
+            <div style={styles.toolbarControls} className="monitor-detail-toolbar-controls">
               <SegmentedControl
                 value={periodFilter}
                 onChange={setPeriodFilter}
@@ -520,8 +543,8 @@ export default function MonitorDetailPage() {
             </div>
           </section>
 
-          <section style={styles.grid}>
-            <div style={styles.cardLarge}>
+          <section style={styles.grid} className="monitor-detail-grid">
+            <div style={styles.cardLarge} className="monitor-detail-surface monitor-detail-card-large">
               <div style={styles.cardHeader}>
                 <div>
                   <h2 style={styles.cardTitle}>Disponibilidad</h2>
@@ -550,7 +573,7 @@ export default function MonitorDetailPage() {
               </div>
             </div>
 
-            <div style={styles.cardLarge}>
+            <div style={styles.cardLarge} className="monitor-detail-surface monitor-detail-card-large">
               <div style={styles.cardHeader}>
                 <div>
                   <h2 style={styles.cardTitle}>Tiempo de respuesta</h2>
@@ -583,7 +606,7 @@ export default function MonitorDetailPage() {
               </div>
             </div>
 
-            <div style={styles.infoCard}>
+            <div style={styles.infoCard} className="monitor-detail-surface monitor-detail-info-card">
               <div style={styles.cardHeaderCompact}>
                 <h2 style={styles.cardTitle}>Información</h2>
                 <StatusBadge status={status} />
@@ -610,12 +633,12 @@ export default function MonitorDetailPage() {
             </div>
           </section>
 
-          <section style={styles.card}>
+          <section style={styles.card} className="monitor-detail-surface monitor-detail-card">
             <LocationChecksCard locationSummaries={locationSummaries} />
           </section>
 
-          <section style={styles.bottomGrid}>
-            <div style={styles.card}>
+          <section style={styles.bottomGrid} className="monitor-detail-bottom-grid">
+            <div style={styles.card} className="monitor-detail-surface monitor-detail-card">
               <div style={styles.cardHeader}>
                 <div>
                   <h2 style={styles.cardTitle}>Últimos checks</h2>
@@ -635,7 +658,7 @@ export default function MonitorDetailPage() {
               </div>
 
               {latestChecks.map((check) => (
-                <div key={check.id} style={styles.tableRow}>
+                <div key={check.id} style={styles.tableRow} className="monitor-detail-table-row">
                   <span>{formatDateTime(check.checkedAt)}</span>
                   <span>{check.location ?? "default"}</span>
                   <span style={styles.statusInline}>
@@ -648,7 +671,7 @@ export default function MonitorDetailPage() {
               ))}
             </div>
 
-            <div style={styles.card}>
+            <div style={styles.card} className="monitor-detail-surface monitor-detail-card">
               <div style={styles.cardHeader}>
                 <div>
                   <h2 style={styles.cardTitle}>Timeline</h2>
@@ -660,7 +683,7 @@ export default function MonitorDetailPage() {
 
               <div style={styles.timeline}>
                 {latestChecks.map((check) => (
-                  <div key={check.id} style={styles.timelineItem}>
+                  <div key={check.id} style={styles.timelineItem} className="monitor-detail-timeline-item">
                     <div style={styles.timelineMarkerWrap}>
                       <StatusDot status={check.status} />
                     </div>
@@ -832,7 +855,11 @@ function LocationChecksCard({
                 : 0;
 
             return (
-              <div key={summary.location} style={styles.locationRow}>
+              <div
+                key={summary.location}
+                style={styles.locationRow}
+                className="monitor-detail-location-row"
+              >
                 <div>
                   <strong style={styles.locationName}>{summary.location}</strong>
                   <p style={styles.locationMeta}>
@@ -1232,7 +1259,7 @@ function getToneColor(tone: "green" | "blue" | "orange" | "red" | "slate") {
 function getToneBorder(tone: "green" | "blue" | "orange" | "red" | "slate") {
   const colors = {
     green: "rgba(22, 163, 74, 0.22)",
-    blue: "rgba(109, 40, 217, 0.22)",
+    blue: "rgba(37, 99, 235, 0.22)",
     orange: "rgba(245, 158, 11, 0.24)",
     red: "rgba(220, 38, 38, 0.24)",
     slate: "rgba(148, 163, 184, 0.22)",
@@ -1364,7 +1391,7 @@ const styles: Record<string, CSSProperties> = {
     ...pageTitle,
     margin: 0,
     fontSize: 27,
-    letterSpacing: "-0.04em",
+    letterSpacing: "0em",
   },
 
   url: {
@@ -1422,7 +1449,7 @@ const styles: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
-    boxShadow: "0 14px 26px rgba(109, 40, 217, 0.22)",
+    boxShadow: "0 14px 26px rgba(37, 99, 235, 0.22)",
   },
 
   secondaryButton: {
@@ -1453,7 +1480,7 @@ const styles: Record<string, CSSProperties> = {
     margin: 0,
     fontSize: 16,
     fontWeight: 800,
-    letterSpacing: "-0.02em",
+    letterSpacing: "0em",
   },
 
   exportSubtitle: {
@@ -1501,7 +1528,7 @@ const styles: Record<string, CSSProperties> = {
     display: "block",
     fontSize: 26,
     lineHeight: 1.1,
-    letterSpacing: "-0.03em",
+    letterSpacing: "0em",
   },
 
   kpiDescription: {
@@ -1625,7 +1652,7 @@ const styles: Record<string, CSSProperties> = {
     margin: 0,
     fontSize: 16,
     fontWeight: 800,
-    letterSpacing: "-0.02em",
+    letterSpacing: "0em",
   },
 
   cardSubtitle: {

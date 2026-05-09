@@ -242,7 +242,7 @@ function getMonitorDot(status: MonitorStatus): CSSProperties {
 }
 
 function getKpiDot(tone: 'success' | 'danger' | 'neutral'): CSSProperties {
-  const background = tone === 'success' ? '#22c55e' : tone === 'danger' ? '#ef4444' : '#8b5cf6';
+  const background = tone === 'success' ? '#22c55e' : tone === 'danger' ? '#ef4444' : '#2563eb';
   return { ...styles.kpiDot, background };
 }
 
@@ -309,7 +309,7 @@ const styles: Record<string, CSSProperties> = {
   main: {
     minHeight: '100vh',
     padding: '34px 22px 48px',
-    background: 'radial-gradient(circle at top left, rgba(124,58,237,0.16), transparent 34%), linear-gradient(135deg, #f8fafc 0%, #eef2ff 46%, #ffffff 100%)',
+    background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1), transparent 34%), linear-gradient(135deg, #f6f8fb 0%, #eff6ff 46%, #ffffff 100%)',
     color: uiTheme.colors.text,
   },
   hero: {
@@ -321,29 +321,29 @@ const styles: Record<string, CSSProperties> = {
   },
   heroTopline: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' },
   heroContent: { display: 'grid', gridTemplateColumns: '1fr 260px', gap: 24, alignItems: 'end', marginTop: 26 },
-  eyebrow: { margin: '0 0 8px', color: '#7c3aed', fontWeight: 900, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.8 },
-  title: { margin: 0, fontSize: 'clamp(34px, 5vw, 58px)', lineHeight: 1, letterSpacing: -1.6 },
+  eyebrow: { margin: '0 0 8px', color: '#2563eb', fontWeight: 900, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0 },
+  title: { margin: 0, fontSize: 'clamp(34px, 5vw, 58px)', lineHeight: 1, letterSpacing: 0 },
   subtitle: { margin: '14px 0 0', color: uiTheme.colors.muted, maxWidth: 620, fontSize: 16, lineHeight: 1.65 },
   generated: { color: uiTheme.colors.muted, fontSize: 13, fontWeight: 700 },
   badge: { display: 'inline-flex', borderRadius: 999, padding: '9px 13px', fontWeight: 900, fontSize: 13 },
-  scoreCard: { borderRadius: 24, padding: 20, background: 'linear-gradient(135deg, #111827, #312e81)', color: '#fff', minHeight: 150, display: 'grid', alignContent: 'center' },
+  scoreCard: { borderRadius: 24, padding: 20, background: 'linear-gradient(135deg, #0f172a, #1d4ed8)', color: '#fff', minHeight: 150, display: 'grid', alignContent: 'center' },
   scoreLabel: { opacity: 0.75, fontSize: 13, fontWeight: 800 },
-  score: { fontSize: 44, lineHeight: 1, marginTop: 8, letterSpacing: -1.4 },
+  score: { fontSize: 44, lineHeight: 1, marginTop: 8, letterSpacing: 0 },
   scoreHint: { opacity: 0.7, marginTop: 8, fontSize: 13 },
   kpiGrid: { maxWidth: 1180, margin: '0 auto 18px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14 },
   kpiCard: { ...cardBase, borderRadius: 22, padding: 20, minHeight: 112, position: 'relative', overflow: 'hidden' },
-  kpiDot: { width: 10, height: 10, borderRadius: 999, display: 'inline-block', boxShadow: '0 0 0 6px rgba(124,58,237,0.08)' },
+  kpiDot: { width: 10, height: 10, borderRadius: 999, display: 'inline-block', boxShadow: '0 0 0 6px rgba(37, 99, 235, 0.08)' },
   kpiLabel: { margin: '16px 0 4px', color: uiTheme.colors.muted, fontSize: 13, fontWeight: 800 },
-  kpiValue: { fontSize: 28, letterSpacing: -0.8 },
+  kpiValue: { fontSize: 28, letterSpacing: 0 },
   sectionGrid: { maxWidth: 1180, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 360px', gap: 18, alignItems: 'start' },
   panelLarge: { ...cardBase, borderRadius: 26, padding: 22 },
   sideColumn: { display: 'grid', gap: 18 },
   panel: { ...cardBase, borderRadius: 24, padding: 22 },
   panelWide: { ...cardBase, maxWidth: 1180, margin: '18px auto 0', borderRadius: 26, padding: 22 },
   panelHeader: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18 },
-  panelTitle: { margin: 0, fontSize: 20, letterSpacing: -0.4 },
+  panelTitle: { margin: 0, fontSize: 20, letterSpacing: 0 },
   panelSubtitle: { margin: '5px 0 0', color: uiTheme.colors.muted, fontSize: 13 },
-  panelPill: { borderRadius: 999, padding: '8px 12px', background: '#f5f3ff', color: '#6d28d9', fontWeight: 900, fontSize: 12 },
+  panelPill: { borderRadius: 999, padding: '8px 12px', background: '#eff6ff', color: '#2563eb', fontWeight: 900, fontSize: 12 },
   monitorList: { display: 'grid', gap: 12 },
   monitorRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, padding: 16, borderRadius: 18, background: '#fff', border: '1px solid rgba(226,232,240,0.9)' },
   monitorMain: { display: 'flex', alignItems: 'flex-start', gap: 12, minWidth: 0 },

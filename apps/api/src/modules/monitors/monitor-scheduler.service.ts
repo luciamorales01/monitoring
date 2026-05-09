@@ -19,7 +19,11 @@ export class MonitorSchedulerService {
     this.isRunning = true;
 
     try {
+      this.logger.log('Iniciando ciclo de scheduler de monitores');
       const dueMonitorIds = await this.monitorsService.findDueActiveMonitorIds();
+      this.logger.log(
+        `Scheduler de monitores encontró ${dueMonitorIds.length} monitor(es) pendientes`,
+      );
 
       if (dueMonitorIds.length === 0) {
         return;
@@ -34,13 +38,19 @@ export class MonitorSchedulerService {
       const rejectedChecks = results.filter(
         (result) => result.status === 'rejected',
       ).length;
+      const processedChecks = results.length - rejectedChecks;
 
       if (rejectedChecks > 0) {
         this.logger.error(
           `Fallaron ${rejectedChecks} checks automáticos de ${dueMonitorIds.length}`,
         );
       }
+
+      this.logger.log(
+        `Scheduler de monitores procesó ${processedChecks}/${dueMonitorIds.length} monitor(es)`,
+      );
     } finally {
+      this.logger.log('Finalizó ciclo de scheduler de monitores');
       this.isRunning = false;
     }
   }

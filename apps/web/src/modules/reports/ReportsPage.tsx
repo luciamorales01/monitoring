@@ -2587,17 +2587,20 @@ const styles: Record<string, CSSProperties> = {
     ...surfaceCard,
     padding: 22,
     minHeight: 320,
+    borderRadius: 20,
   },
   chartCardLarge: {
     ...surfaceCard,
     padding: 22,
     minHeight: 320,
+    borderRadius: 20,
   },
   comparisonCard: {
     ...surfaceCard,
     padding: 20,
     display: "grid",
     gap: 16,
+    borderRadius: 20,
   },
   comparisonGrid: {
     display: "grid",
@@ -2650,6 +2653,7 @@ const styles: Record<string, CSSProperties> = {
     padding: 22,
     display: "grid",
     gap: 20,
+    borderRadius: 20,
   },
   diagnosticItem: {
     display: "flex",
@@ -2986,6 +2990,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 14,
     alignItems: "flex-start",
     minHeight: 116,
+    borderRadius: 20,
   },
   kpiCopy: {
     display: "grid",
@@ -2999,7 +3004,7 @@ const styles: Record<string, CSSProperties> = {
   kpiIcon: {
     width: 46,
     height: 46,
-    borderRadius: 14,
+    borderRadius: 16,
     display: "grid",
     placeItems: "center",
     flexShrink: 0,
@@ -3053,6 +3058,8 @@ const styles: Record<string, CSSProperties> = {
     ...pageMain,
     display: "grid",
     gap: 20,
+    backgroundImage:
+      "linear-gradient(135deg, rgba(37, 99, 235, 0.07), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)",
   },
   metaBadge: {
     ...badgeBase,
@@ -3082,7 +3089,8 @@ const styles: Record<string, CSSProperties> = {
     width: 42,
     height: 42,
     borderRadius: 14,
-    background: uiTheme.colors.primarySoft,
+    background:
+      "linear-gradient(180deg, rgba(239, 246, 255, 0.95), rgba(219, 234, 254, 0.82))",
     color: uiTheme.colors.primary,
     display: "grid",
     placeItems: "center",
@@ -3102,7 +3110,7 @@ const styles: Record<string, CSSProperties> = {
     ...primaryButtonBase,
     minHeight: 40,
     padding: "0 14px",
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     fontWeight: 600,
     cursor: "pointer",
   },
@@ -3111,7 +3119,7 @@ const styles: Record<string, CSSProperties> = {
     minHeight: 34,
     padding: "0 12px",
     whiteSpace: "nowrap",
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     display: "inline-flex",
     alignItems: "center",
     textDecoration: "none",
@@ -3160,7 +3168,7 @@ const styles: Record<string, CSSProperties> = {
     ...secondaryButtonBase,
     minHeight: 40,
     padding: "0 14px",
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     fontWeight: 600,
     cursor: "pointer",
   },
@@ -3170,7 +3178,7 @@ const styles: Record<string, CSSProperties> = {
     padding: "0 12px",
     textDecoration: "none",
     whiteSpace: "nowrap",
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     display: "inline-flex",
     alignItems: "center",
     fontSize: 12,
@@ -3191,7 +3199,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 17,
     fontWeight: 700,
     color: uiTheme.colors.text,
-    letterSpacing: "-0.02em",
+    letterSpacing: "0em",
   },
   sectionTopRow: {
     display: "flex",
@@ -3216,7 +3224,8 @@ const styles: Record<string, CSSProperties> = {
   },
   table: {
     width: "100%",
-    borderCollapse: "collapse",
+    borderCollapse: "separate",
+    borderSpacing: 0,
   },
   tableActions: {
     display: "inline-flex",
@@ -3229,6 +3238,7 @@ const styles: Record<string, CSSProperties> = {
     ...surfaceCard,
     padding: 0,
     overflow: "hidden",
+    borderRadius: 20,
   },
   tableTop: {
     padding: "22px 24px 14px",
@@ -3259,7 +3269,7 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 600,
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
-    background: "#fbfdff",
+    background: "#f8fafc",
   },
   thActions: {
     padding: "14px 18px",
@@ -3269,7 +3279,7 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 600,
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
-    background: "#fbfdff",
+    background: "#f8fafc",
   },
   title: {
     ...pageTitle,

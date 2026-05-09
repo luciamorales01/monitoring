@@ -1139,12 +1139,16 @@ function formatRelativeDate(value?: string | null) {
 }
 
 const styles: Record<string, CSSProperties> = {
-  main: pageMain,
+  main: {
+    ...pageMain,
+    backgroundImage:
+      "linear-gradient(135deg, rgba(37, 99, 235, 0.07), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)",
+  },
   primaryButton: {
     ...primaryButtonBase,
     textDecoration: "none",
     padding: "0 16px",
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     fontWeight: 600,
     fontSize: 14,
     minHeight: 40,
@@ -1166,11 +1170,13 @@ const styles: Record<string, CSSProperties> = {
     gap: 14,
     alignItems: "center",
     minHeight: 94,
+    borderRadius: 20,
+    boxShadow: uiTheme.shadows.card,
   },
   kpiIcon: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 16,
     display: "grid",
     placeItems: "center",
     flexShrink: 0,
@@ -1195,7 +1201,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 11,
   },
 
-  card: { ...tableCardBase, borderRadius: uiTheme.radii.md },
+  card: { ...tableCardBase, borderRadius: 20 },
   filters: {
     display: "grid",
     gridTemplateColumns:
@@ -1205,13 +1211,13 @@ const styles: Record<string, CSSProperties> = {
     alignItems: "end",
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
-  search: inputBase,
+  search: { ...inputBase, borderRadius: 14 },
   filterGroup: filterGroupBase,
-  select: inputBase,
+  select: { ...inputBase, borderRadius: 14 },
   secondaryButton: {
     ...secondaryButtonBase,
     height: 40,
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     fontWeight: 600,
     padding: "0 14px",
     cursor: "pointer",
@@ -1226,7 +1232,7 @@ const styles: Record<string, CSSProperties> = {
     background: uiTheme.colors.danger,
     color: "#fff",
     height: 40,
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     fontWeight: 600,
     padding: "0 14px",
     cursor: "pointer",
@@ -1240,7 +1246,7 @@ const styles: Record<string, CSSProperties> = {
     ...controlBase,
     width: 40,
     height: 40,
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     cursor: "pointer",
     display: "grid",
     placeItems: "center",
@@ -1289,7 +1295,7 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 500,
   },
 
-  table: { width: "100%", borderCollapse: "collapse" },
+  table: { width: "100%", borderCollapse: "separate", borderSpacing: 0 },
   checkboxHeader: {
     width: 52,
     textAlign: "center",
@@ -1315,7 +1321,7 @@ const styles: Record<string, CSSProperties> = {
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
     fontWeight: 600,
-    letterSpacing: "-0.005em",
+    letterSpacing: "0em",
     verticalAlign: "middle",
   },
   thActions: {
@@ -1326,17 +1332,17 @@ const styles: Record<string, CSSProperties> = {
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
     fontWeight: 600,
-    letterSpacing: "-0.005em",
+    letterSpacing: "0em",
     verticalAlign: "middle",
   },
   tr: {
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
     cursor: "pointer",
-    background: "#fff",
+    background: "rgba(255, 255, 255, 0.88)",
     transition: "background 0.15s ease",
   },
   trHover: {
-    background: uiTheme.colors.surfaceSoft,
+    background: "#f8fafc",
   },
   trSelected: {
     background: uiTheme.colors.primarySoft,
@@ -1365,8 +1371,9 @@ const styles: Record<string, CSSProperties> = {
   webIcon: {
     width: 38,
     height: 38,
-    borderRadius: uiTheme.radii.sm,
-    background: uiTheme.colors.primarySoft,
+    borderRadius: 12,
+    background:
+      "linear-gradient(180deg, rgba(239, 246, 255, 0.95), rgba(219, 234, 254, 0.82))",
     display: "grid",
     placeItems: "center",
     color: uiTheme.colors.primary,
@@ -1437,7 +1444,7 @@ const styles: Record<string, CSSProperties> = {
     display: "grid",
     placeItems: "center",
     color: "#475569",
-    background: "#fff",
+    background: "rgba(255, 255, 255, 0.94)",
     border: `1px solid ${uiTheme.colors.border}`,
     padding: 0,
     lineHeight: 1,
@@ -1449,8 +1456,8 @@ const styles: Record<string, CSSProperties> = {
     zIndex: 30,
     width: 190,
     padding: 6,
-    borderRadius: 12,
-    background: "#fff",
+    borderRadius: 18,
+    background: "rgba(255, 255, 255, 0.98)",
     border: `1px solid ${uiTheme.colors.border}`,
     boxShadow: "0 18px 40px rgba(15, 23, 42, 0.14)",
     display: "grid",

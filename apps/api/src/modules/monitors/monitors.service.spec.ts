@@ -36,6 +36,11 @@ describe('MonitorsService', () => {
     };
   };
 
+  let notificationsService: {
+    notifyMonitorDown: jest.Mock;
+    notifyMonitorRecovered: jest.Mock;
+  };
+
   const user = {
     organizationId: 10,
     userId: 20,
@@ -68,8 +73,19 @@ describe('MonitorsService', () => {
       },
     };
 
-    service = new MonitorsService(prisma as unknown as PrismaService);
+    notificationsService = {
+      notifyMonitorDown: jest.fn(),
+      notifyMonitorRecovered: jest.fn(),
+    };
+
+    service = new MonitorsService(
+      prisma as unknown as PrismaService,
+      notificationsService as any,
+    );
     jest.spyOn(global, 'fetch');
+    jest
+      .spyOn(service as any, 'assertPublicHostTarget')
+      .mockImplementation(async (target: string) => target);
   });
 
   afterEach(() => {
@@ -107,7 +123,7 @@ describe('MonitorsService', () => {
     );
 
     expect(prisma.monitor.create).toHaveBeenCalledWith({
-      data: {
+      data: expect.objectContaining({
         name: 'API principal',
         type: 'HTTPS',
         target: 'https://example.com/health',
@@ -120,7 +136,7 @@ describe('MonitorsService', () => {
         alertThreshold: 5,
         organizationId: user.organizationId,
         createdById: user.userId,
-      },
+      }),
     });
   });
 
@@ -198,6 +214,7 @@ describe('MonitorsService', () => {
 
     (global.fetch as jest.Mock).mockResolvedValue({
       status: 200,
+      headers: new Headers(),
     });
 
     prisma.checkResult.create.mockResolvedValue({
@@ -218,6 +235,9 @@ describe('MonitorsService', () => {
       method: 'GET',
       redirect: 'manual',
       signal: expect.any(AbortSignal),
+      headers: {
+        'User-Agent': 'MonitoringTFG/1.0',
+      },
     });
 
     expect(prisma.checkResult.create).toHaveBeenCalledWith({
@@ -245,7 +265,9 @@ describe('MonitorsService', () => {
     expect(prisma.incident.findFirst).toHaveBeenCalledWith({
       where: {
         monitorId: 1,
-        status: IncidentStatus.OPEN,
+        status: {
+          in: [IncidentStatus.OPEN, 'ACKNOWLEDGED'],
+        },
       },
       orderBy: {
         startedAt: 'desc',
@@ -370,8 +392,8 @@ describe('MonitorsService', () => {
     });
 
     (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({ status: 200 })
-      .mockResolvedValueOnce({ status: 503 });
+      .mockResolvedValueOnce({ status: 200, headers: new Headers() })
+      .mockResolvedValueOnce({ status: 503, headers: new Headers() });
 
     prisma.checkResult.create
       .mockResolvedValueOnce({
@@ -455,6 +477,117 @@ describe('MonitorsService', () => {
     });
   });
 
+  it('marks monitor as UP when the target redirects to a healthy page', async () => {
+    prisma.monitor.findUnique.mockResolvedValue({
+      id: 13,
+      target: 'https://example.com',
+      timeoutSeconds: 5,
+      expectedStatusCode: 200,
+      frequencySeconds: 60,
+      locations: [],
+      organizationId: user.organizationId,
+      checkResults: [],
+    });
+
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        status: 301,
+        headers: new Headers({
+          location: 'https://www.example.com/home',
+        }),
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: new Headers(),
+      });
+
+    prisma.checkResult.create.mockResolvedValue({
+      id: 203,
+      status: MonitorStatus.UP,
+    });
+
+    prisma.monitor.update.mockResolvedValue({
+      id: 13,
+      currentStatus: MonitorStatus.UP,
+    });
+
+    prisma.incident.findFirst.mockResolvedValue(null);
+
+    await service.runCheck(13, user);
+
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://example.com/',
+      expect.objectContaining({
+        method: 'GET',
+        redirect: 'manual',
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://www.example.com/home',
+      expect.objectContaining({
+        method: 'GET',
+        redirect: 'manual',
+        signal: expect.any(AbortSignal),
+      }),
+    );
+    expect(prisma.checkResult.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        monitorId: 13,
+        status: MonitorStatus.UP,
+        statusCode: 200,
+        errorMessage: null,
+      }),
+    });
+  });
+
+  it('marks Cloudflare challenge responses as UP by default', async () => {
+    prisma.monitor.findUnique.mockResolvedValue({
+      id: 14,
+      target: 'https://example.com',
+      timeoutSeconds: 5,
+      expectedStatusCode: 200,
+      frequencySeconds: 60,
+      locations: [],
+      organizationId: user.organizationId,
+      checkResults: [],
+    });
+
+    (global.fetch as jest.Mock).mockResolvedValue({
+      status: 403,
+      headers: new Headers({
+        server: 'cloudflare',
+        'cf-mitigated': 'challenge',
+        'cf-ray': 'abc123',
+      }),
+    });
+
+    prisma.checkResult.create.mockResolvedValue({
+      id: 204,
+      status: MonitorStatus.UP,
+    });
+
+    prisma.monitor.update.mockResolvedValue({
+      id: 14,
+      currentStatus: MonitorStatus.UP,
+    });
+
+    prisma.incident.findFirst.mockResolvedValue(null);
+
+    await service.runCheck(14, user);
+
+    expect(prisma.checkResult.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        monitorId: 14,
+        status: MonitorStatus.UP,
+        statusCode: 403,
+        errorMessage: null,
+      }),
+    });
+  });
+
   it('finds only active monitors due by nextCheckAt', async () => {
     prisma.monitor.findMany.mockResolvedValue([{ id: 3 }, { id: 7 }]);
 
@@ -530,6 +663,29 @@ describe('MonitorsService', () => {
     expect(result).toEqual({
       id: 8,
       isActive: false,
+    });
+  });
+
+  it('sets nextCheckAt immediately when a paused monitor is resumed', async () => {
+    prisma.monitor.findUnique.mockResolvedValue({
+      id: 9,
+      isActive: false,
+      organizationId: user.organizationId,
+    });
+
+    prisma.monitor.update.mockResolvedValue({
+      id: 9,
+      isActive: true,
+    });
+
+    await service.toggleActive(9, user);
+
+    expect(prisma.monitor.update).toHaveBeenCalledWith({
+      where: { id: 9 },
+      data: {
+        isActive: true,
+        nextCheckAt: expect.any(Date),
+      },
     });
   });
 
@@ -728,6 +884,7 @@ describe('MonitorsService', () => {
 
     (global.fetch as jest.Mock).mockResolvedValue({
       status: 200,
+      headers: new Headers(),
     });
 
     prisma.checkResult.create.mockResolvedValue({
@@ -738,6 +895,11 @@ describe('MonitorsService', () => {
     prisma.monitor.update.mockResolvedValue({
       id: 4,
       currentStatus: MonitorStatus.UP,
+    });
+    prisma.incident.update.mockResolvedValue({
+      id: 400,
+      title: 'Monitor caído',
+      severity: 'critical',
     });
 
     prisma.incident.findFirst.mockResolvedValue({
@@ -757,6 +919,7 @@ describe('MonitorsService', () => {
         status: IncidentStatus.RESOLVED,
         resolvedAt: expect.any(Date),
         durationSeconds: expect.any(Number),
+        lastStatusChangeAt: expect.any(Date),
       },
     });
   });

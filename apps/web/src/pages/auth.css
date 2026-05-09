@@ -22,7 +22,7 @@
   padding: 70px 86px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 78% 32%, rgba(148, 163, 184, 0.16), transparent 34%),
+    linear-gradient(225deg, rgba(148, 163, 184, 0.16), transparent 34%),
     linear-gradient(145deg, #f8fafc 0%, #eef2f7 100%);
   border-right: 1px solid var(--border);
 }

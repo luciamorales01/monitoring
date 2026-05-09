@@ -247,32 +247,36 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 const activityColors = ['#e2e8f0', '#f1f5f9', '#e2e8f0'];
 
 const styles: Record<string, CSSProperties> = {
-  main: pageMain,
+  main: {
+    ...pageMain,
+    backgroundImage:
+      'linear-gradient(135deg, rgba(37, 99, 235, 0.07), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)',
+  },
 
   layout: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 18 },
   left: { display: 'grid', gap: 18 },
   side: { display: 'grid', gap: 18, alignContent: 'start' },
 
-  card: { ...surfaceCard, borderRadius: uiTheme.radii.md, padding: 20 },
-  systemCard: { ...surfaceCard, borderRadius: uiTheme.radii.md, padding: 20 },
-  sectionTitle: { margin: '0 0 18px', fontSize: 16, fontWeight: 800 },
+  card: { ...surfaceCard, borderRadius: 20, padding: 20 },
+  systemCard: { ...surfaceCard, borderRadius: 20, padding: 20 },
+  sectionTitle: { margin: '0 0 18px', fontSize: 16, fontWeight: 700 },
 
   settingsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16 },
-  tile: { border: `1px solid ${uiTheme.colors.border}`, borderRadius: uiTheme.radii.md, padding: 20, minHeight: 180, background: '#fff', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.6)' },
-  tileIcon: { width: 54, height: 54, borderRadius: 14, display: 'grid', placeItems: 'center', marginBottom: 22 },
-  tileTitle: { margin: 0, fontSize: 15, fontWeight: 800 },
+  tile: { border: `1px solid ${uiTheme.colors.border}`, borderRadius: 20, padding: 20, minHeight: 180, background: 'rgba(255, 255, 255, 0.9)', boxShadow: uiTheme.shadows.card },
+  tileIcon: { width: 54, height: 54, borderRadius: 16, display: 'grid', placeItems: 'center', marginBottom: 22 },
+  tileTitle: { margin: 0, fontSize: 15, fontWeight: 700 },
   tileText: { color: uiTheme.colors.muted, fontSize: 12, lineHeight: 1.55, minHeight: 48 },
   configureButton: { border: 0, background: 'transparent', color: uiTheme.colors.primary, padding: 0, fontWeight: 600, cursor: 'pointer', fontSize: 12 },
 
   settingRowButton: { display: 'grid', gridTemplateColumns: '40px 1fr 20px', gap: 12, alignItems: 'center', padding: '14px 0', borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, borderTop: 0, borderLeft: 0, borderRight: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer' },
   settingRowCopy: { color: uiTheme.colors.text },
-  rowIcon: { width: 34, height: 34, borderRadius: uiTheme.radii.sm, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary, display: 'grid', placeItems: 'center' },
+  rowIcon: { width: 34, height: 34, borderRadius: 12, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary, display: 'grid', placeItems: 'center' },
   chevron: { color: uiTheme.colors.muted, display: 'grid', placeItems: 'center' },
-  sideCard: { ...surfaceCard, borderRadius: uiTheme.radii.md, padding: 18 },
-  sideTitle: { margin: '0 0 16px', fontSize: 15, fontWeight: 800 },
+  sideCard: { ...surfaceCard, borderRadius: 20, padding: 18 },
+  sideTitle: { margin: '0 0 16px', fontSize: 15, fontWeight: 700 },
 
   infoRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, padding: '11px 0', fontSize: 12, color: uiTheme.colors.text },
-  fullButton: { ...secondaryButtonBase, width: '100%', marginTop: 14, borderRadius: uiTheme.radii.sm, padding: '10px 12px', fontWeight: 500, cursor: 'pointer' },
+  fullButton: { ...secondaryButtonBase, width: '100%', marginTop: 14, borderRadius: 14, padding: '10px 12px', fontWeight: 500, cursor: 'pointer' },
   quickRowButton: { display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, borderTop: 0, borderLeft: 0, borderRight: 0, background: 'transparent', width: '100%', textAlign: 'left', cursor: 'pointer', fontSize: 13 },
   quickArrow: { color: uiTheme.colors.muted, display: 'grid', placeItems: 'center' },
   activityRow: { display: 'grid', gridTemplateColumns: '30px 1fr auto', gap: 10, alignItems: 'center', padding: '10px 0', fontSize: 11 },

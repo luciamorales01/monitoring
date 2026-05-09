@@ -398,6 +398,7 @@ const styles: Record<string, CSSProperties> = {
   iconButton: {
     ...iconButtonBase,
     position: 'relative',
+    transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
   },
   iconButtonLoading: {
     background: uiTheme.colors.primary,
@@ -411,6 +412,7 @@ const styles: Record<string, CSSProperties> = {
   bell: {
     ...iconButtonBase,
     position: 'relative',
+    transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
   },
   bellBadge: {
     position: 'absolute',
@@ -438,9 +440,9 @@ const styles: Record<string, CSSProperties> = {
   },
   userButton: {
     border: `1px solid ${uiTheme.colors.border}`,
-    background: uiTheme.colors.surface,
+    background: 'rgba(255, 255, 255, 0.94)',
     color: uiTheme.colors.text,
-    borderRadius: uiTheme.radii.pill,
+    borderRadius: 16,
     minHeight: 46,
     padding: '5px 8px 5px 6px',
     display: 'inline-flex',
@@ -448,6 +450,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 10,
     cursor: 'pointer',
     boxShadow: uiTheme.shadows.card,
+    transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
   },
   userAvatar: {
     ...avatarBase,
@@ -478,8 +481,8 @@ const styles: Record<string, CSSProperties> = {
     gridTemplateColumns: '34px 1fr',
     alignItems: 'center',
     border: `1px solid ${uiTheme.colors.borderStrong}`,
-    borderRadius: uiTheme.radii.pill,
-    background: uiTheme.colors.surface,
+    borderRadius: 16,
+    background: 'rgba(255, 255, 255, 0.94)',
     overflow: 'hidden',
     boxShadow: uiTheme.shadows.card,
   },
@@ -508,6 +511,8 @@ const styles: Record<string, CSSProperties> = {
     gap: 8,
     cursor: 'pointer',
     fontSize: 14,
+    borderRadius: 14,
+    transition: 'transform 160ms ease, box-shadow 160ms ease, filter 160ms ease',
   },
   dropdown: {
     ...surfaceCard,
@@ -519,6 +524,8 @@ const styles: Record<string, CSSProperties> = {
     padding: 8,
     display: 'grid',
     gap: 4,
+    borderRadius: 18,
+    boxShadow: '0 20px 48px rgba(15, 23, 42, 0.14)',
   },
   dropdownHeader: {
     display: 'flex',
@@ -553,7 +560,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 10,
     alignItems: 'center',
     padding: '10px',
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     textDecoration: 'none',
     color: uiTheme.colors.text,
     cursor: 'pointer',
@@ -607,6 +614,8 @@ const styles: Record<string, CSSProperties> = {
     padding: 6,
     display: 'grid',
     gap: 4,
+    borderRadius: 18,
+    boxShadow: '0 20px 48px rgba(15, 23, 42, 0.14)',
   },
   userMenuItem: {
     border: 0,
@@ -614,7 +623,7 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.text,
     minHeight: 36,
     padding: '0 10px',
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -640,6 +649,7 @@ const styles: Record<string, CSSProperties> = {
     cursor: 'pointer',
     textAlign: 'left',
     color: uiTheme.colors.text,
+    boxShadow: '0 20px 48px rgba(15, 23, 42, 0.14)',
   },
   toastIconDanger: {
     width: 34,

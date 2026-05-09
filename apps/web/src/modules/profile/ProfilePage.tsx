@@ -644,7 +644,11 @@ function getRoleDescription(role: string) {
 }
 
 const styles: Record<string, CSSProperties> = {
-  main: pageMain,
+  main: {
+    ...pageMain,
+    backgroundImage:
+      'linear-gradient(135deg, rgba(37, 99, 235, 0.07), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)',
+  },
   breadcrumbLink: {
     color: uiTheme.colors.muted,
     textDecoration: 'none',
@@ -656,6 +660,7 @@ const styles: Record<string, CSSProperties> = {
   loadingCard: {
     ...surfaceCard,
     padding: 24,
+    borderRadius: 20,
   },
   heroCard: {
     ...surfaceCard,
@@ -664,6 +669,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 22,
     padding: 28,
     marginBottom: 18,
+    borderRadius: 22,
   },
   heroLeft: {
     flex: '999 1 520px',
@@ -694,7 +700,7 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.primary,
     fontSize: 56,
     fontWeight: 700,
-    letterSpacing: '-0.03em',
+    letterSpacing: '0em',
   },
   avatarEditButton: {
     ...secondaryButtonBase,
@@ -725,7 +731,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 40,
     lineHeight: 1,
     fontWeight: 700,
-    letterSpacing: '-0.03em',
+    letterSpacing: '0em',
   },
   roleBadge: {
     ...badgeBase,
@@ -829,6 +835,7 @@ const styles: Record<string, CSSProperties> = {
   formCard: {
     ...surfaceCard,
     padding: 24,
+    borderRadius: 20,
   },
   placeholderCard: {
     ...surfaceCard,
@@ -836,6 +843,7 @@ const styles: Record<string, CSSProperties> = {
     display: 'grid',
     gap: 14,
     justifyItems: 'start',
+    borderRadius: 20,
   },
   placeholderIcon: {
     width: 54,
@@ -858,7 +866,7 @@ const styles: Record<string, CSSProperties> = {
     margin: 0,
     fontSize: 26,
     fontWeight: 700,
-    letterSpacing: '-0.02em',
+    letterSpacing: '0em',
   },
   cardSubtitle: {
     margin: '6px 0 0',
@@ -890,6 +898,7 @@ const styles: Record<string, CSSProperties> = {
     ...inputBase,
     width: '100%',
     boxSizing: 'border-box',
+    borderRadius: 14,
   },
   formFooter: {
     gridColumn: '1 / -1',
@@ -909,7 +918,7 @@ const styles: Record<string, CSSProperties> = {
     ...primaryButtonBase,
     minHeight: 44,
     padding: '0 18px',
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     cursor: 'pointer',
     fontSize: 14,
     fontWeight: 600,
@@ -919,12 +928,13 @@ const styles: Record<string, CSSProperties> = {
     padding: 20,
     display: 'grid',
     gap: 14,
+    borderRadius: 20,
   },
   sideTitle: {
     margin: 0,
     fontSize: 20,
     fontWeight: 700,
-    letterSpacing: '-0.02em',
+    letterSpacing: '0em',
   },
   planHeader: {
     display: 'flex',
@@ -971,12 +981,12 @@ const styles: Record<string, CSSProperties> = {
     display: 'block',
     height: '100%',
     borderRadius: 999,
-    background: 'linear-gradient(90deg, #6d28d9 0%, #8b5cf6 100%)',
+    background: 'linear-gradient(90deg, #2563eb 0%, #60a5fa 100%)',
   },
   secondaryButton: {
     ...secondaryButtonBase,
     minHeight: 42,
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     cursor: 'pointer',
     fontWeight: 600,
     padding: '0 14px',

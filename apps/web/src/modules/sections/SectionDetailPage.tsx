@@ -705,6 +705,8 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: 22,
+    backgroundImage:
+      'linear-gradient(135deg, rgba(37, 99, 235, 0.07), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)',
   },
   feedbackInfo: {
     ...surfaceCard,
@@ -761,6 +763,7 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.1,
     fontWeight: 850,
     color: uiTheme.colors.text,
+    letterSpacing: '0em',
   },
   countBadge: {
     display: 'inline-flex',
@@ -816,6 +819,7 @@ const styles: Record<string, CSSProperties> = {
     cursor: 'pointer',
     fontWeight: 600,
     textDecoration: 'none',
+    borderRadius: 14,
   },
   secondaryButton: {
     ...secondaryButtonBase,
@@ -828,6 +832,7 @@ const styles: Record<string, CSSProperties> = {
     cursor: 'pointer',
     fontWeight: 500,
     textDecoration: 'none',
+    borderRadius: 14,
   },
   secondaryLink: {
     ...secondaryButtonBase,
@@ -838,6 +843,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     textDecoration: 'none',
     fontWeight: 500,
+    borderRadius: 14,
   },
   moreButton: {
     ...controlBase,
@@ -847,6 +853,7 @@ const styles: Record<string, CSSProperties> = {
     placeItems: 'center',
     cursor: 'pointer',
     background: uiTheme.colors.surface,
+    borderRadius: 14,
   },
   kpiGrid: {
     display: 'grid',
@@ -860,11 +867,12 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 16,
+    borderRadius: 20,
   },
   kpiIcon: {
     width: 50,
     height: 50,
-    borderRadius: 12,
+    borderRadius: 16,
     display: 'grid',
     placeItems: 'center',
     flexShrink: 0,
@@ -962,6 +970,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 10,
     color: uiTheme.colors.muted,
     paddingLeft: 14,
+    borderRadius: 14,
   },
   searchInput: {
     border: 'none',
@@ -987,6 +996,7 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.muted,
     fontSize: 13,
     fontWeight: 500,
+    borderRadius: 14,
   },
   select: {
     border: 'none',
@@ -1003,14 +1013,17 @@ const styles: Record<string, CSSProperties> = {
     placeItems: 'center',
     cursor: 'pointer',
     color: uiTheme.colors.muted,
+    borderRadius: 14,
   },
   tableCard: {
     ...surfaceCard,
     overflow: 'hidden',
+    borderRadius: 20,
   },
   table: {
     width: '100%',
-    borderCollapse: 'collapse',
+    borderCollapse: 'separate',
+    borderSpacing: 0,
   },
   th: {
     textAlign: 'left',
@@ -1018,13 +1031,13 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.muted,
     fontSize: 12,
     fontWeight: 600,
-    background: uiTheme.colors.background,
+    background: '#f8fafc',
     borderBottom: `1px solid ${uiTheme.colors.border}`,
   },
   tr: {
     cursor: 'pointer',
     borderBottom: `1px solid ${uiTheme.colors.border}`,
-    background: uiTheme.colors.surface,
+    background: 'rgba(255, 255, 255, 0.88)',
   },
   td: {
     padding: '14px 16px',

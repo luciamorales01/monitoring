@@ -21,7 +21,7 @@ export const pageMain: CSSProperties = {
   fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   WebkitFontSmoothing: 'antialiased',
   lineHeight: 1.4,
-  letterSpacing: '-0.01em',
+  letterSpacing: '0em',
 };
 
 export const topbarBase: CSSProperties = {
@@ -42,7 +42,7 @@ export const pageTitle: CSSProperties = {
   margin: 0,
   fontSize: typography.title.fontSize,
   fontWeight: 600, // 🔥 antes 800
-  letterSpacing: '-0.02em',
+  letterSpacing: '0em',
 };
 
 export const pageSubtitle: CSSProperties = {
@@ -53,7 +53,7 @@ export const pageSubtitle: CSSProperties = {
 };
 
 export const surfaceCard: CSSProperties = {
-  background: colors.surface,
+  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92))',
   border: `1px solid ${colors.border}`,
   borderRadius: radii.md,
   boxShadow: shadows.card,
@@ -66,10 +66,11 @@ export const kpiCardBase: CSSProperties = {
 
 export const controlBase: CSSProperties = {
   border: `1px solid ${colors.borderStrong}`,
-  background: colors.surface,
+  background: 'rgba(255, 255, 255, 0.94)',
   color: colors.text,
   borderRadius: radii.sm,
   fontWeight: 500, // 🔥 más ligero
+  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.7)',
 };
 
 export const inputBase: CSSProperties = {
@@ -98,7 +99,7 @@ export const iconButtonBase: CSSProperties = {
 
 export const primaryButtonBase: CSSProperties = {
   border: `1px solid ${colors.primary}`,
-  background: colors.primary,
+  background: `linear-gradient(180deg, ${colors.primaryLight}, ${colors.primary})`,
   color: colors.white,
   borderRadius: radii.sm,
   boxShadow: shadows.button,
@@ -151,7 +152,7 @@ export const tableRowBase: CSSProperties = {
 };
 
 export const tableHoverRowBase: CSSProperties = {
-  background: colors.surfaceSoft,
+  background: '#f8fafc',
 };
 
 export const tableCellBase: CSSProperties = {

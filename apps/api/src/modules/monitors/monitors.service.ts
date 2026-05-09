@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -82,6 +83,8 @@ type MonitorCheckBatchResult = {
 
 @Injectable()
 export class MonitorsService {
+  private readonly logger = new Logger(MonitorsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
@@ -181,6 +184,9 @@ export class MonitorsService {
     }
     if (dto.frequencySeconds !== undefined) {
       data.frequencySeconds = dto.frequencySeconds;
+      if (monitor.isActive) {
+        data.nextCheckAt = new Date(Date.now() + dto.frequencySeconds * 1000);
+      }
     }
     if (dto.timeoutSeconds !== undefined) {
       data.timeoutSeconds = dto.timeoutSeconds;
@@ -230,11 +236,13 @@ export class MonitorsService {
   async toggleActive(id: number, user: AuthenticatedUser) {
     const monitor = await this.findMonitorByIdOrThrow(id);
     this.ensureMonitorAccess(monitor.organizationId, user);
+    const nextIsActive = !monitor.isActive;
 
     return this.prisma.monitor.update({
       where: { id },
       data: {
-        isActive: !monitor.isActive,
+        isActive: nextIsActive,
+        ...(nextIsActive ? { nextCheckAt: new Date() } : {}),
       },
     });
   }
@@ -335,21 +343,28 @@ export class MonitorsService {
       );
 
       try {
-        const response = await fetch(parsedUrl.toString(), {
-          method: 'GET',
-          redirect: 'manual',
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'MonitoringTFG/1.0',
-          },
-        });
+        const { response, redirectChain } = await this.fetchHttpResponse(
+          parsedUrl,
+          controller.signal,
+          monitor,
+          location,
+        );
 
         const body = monitor.keyword ? await response.text() : '';
-        const statusCodeMatches =
-          response.status === monitor.expectedStatusCode;
+        const statusCodeMatches = this.doesHttpStatusMatch(
+          response.status,
+          monitor.expectedStatusCode,
+          this.isCloudflareProtectedResponse(response),
+        );
         const keywordMatches =
           !monitor.keyword ||
           body.toLowerCase().includes(monitor.keyword.toLowerCase());
+
+        if (redirectChain.length > 0) {
+          this.logger.log(
+            `HTTP monitor ${monitor.id} redirect chain (${location}): ${redirectChain.join(' | ')}`,
+          );
+        }
 
         return {
           checkedAt,
@@ -357,7 +372,10 @@ export class MonitorsService {
             ? keywordMatches
               ? null
               : `No se encontró la keyword "${monitor.keyword}"`
-            : `Código HTTP ${response.status}, esperado ${monitor.expectedStatusCode}`,
+            : this.buildHttpStatusErrorMessage(
+                response.status,
+                monitor.expectedStatusCode,
+              ),
           location,
           responseTimeMs: Math.round(performance.now() - startTime),
           status:
@@ -370,12 +388,20 @@ export class MonitorsService {
         clearTimeout(timeout);
       }
     } catch (error) {
+      const errorMessage = this.getMonitorCheckErrorMessage(
+        error,
+        monitor.timeoutSeconds,
+      );
+
+      if (this.isTimeoutError(error)) {
+        this.logger.warn(
+          `HTTP monitor ${monitor.id} timeout (${location}): ${errorMessage}`,
+        );
+      }
+
       return {
         checkedAt,
-        errorMessage: this.getMonitorCheckErrorMessage(
-          error,
-          monitor.timeoutSeconds,
-        ),
+        errorMessage,
         location,
         responseTimeMs: Math.round(performance.now() - startTime),
         status: MonitorStatus.DOWN,
@@ -646,6 +672,108 @@ export class MonitorsService {
 
   private async assertPublicHttpTarget(target: string) {
     await this.parsePublicHttpUrl(target);
+  }
+
+  private async fetchHttpResponse(
+    initialUrl: URL,
+    signal: AbortSignal,
+    monitor: Pick<MonitorEntity, 'id'>,
+    location: string,
+  ) {
+    const redirectChain: string[] = [];
+    const maxRedirects = 5;
+    let currentUrl = initialUrl;
+
+    for (let attempt = 0; attempt <= maxRedirects; attempt += 1) {
+      const response = await fetch(currentUrl.toString(), {
+        method: 'GET',
+        redirect: 'manual',
+        signal,
+        headers: {
+          'User-Agent': 'MonitoringTFG/1.0',
+        },
+      });
+
+      this.logger.log(
+        `HTTP monitor ${monitor.id} response (${location}): status=${response.status} url=${currentUrl.toString()}`,
+      );
+
+      if (!this.isRedirectStatus(response.status)) {
+        return { response, redirectChain };
+      }
+
+      const locationHeader = response.headers.get('location');
+
+      if (!locationHeader) {
+        return { response, redirectChain };
+      }
+
+      const nextUrl = await this.parsePublicHttpUrl(
+        new URL(locationHeader, currentUrl).toString(),
+      );
+
+      redirectChain.push(
+        `${response.status} ${currentUrl.toString()} -> ${nextUrl.toString()}`,
+      );
+
+      if (attempt === maxRedirects) {
+        this.logger.warn(
+          `HTTP monitor ${monitor.id} redirect limit reached (${location}): ${redirectChain.join(' | ')}`,
+        );
+        return { response, redirectChain };
+      }
+
+      currentUrl = nextUrl;
+    }
+
+    throw new Error('Redirect no resuelto');
+  }
+
+  private isRedirectStatus(statusCode: number) {
+    return [301, 302, 303, 307, 308].includes(statusCode);
+  }
+
+  private doesHttpStatusMatch(
+    statusCode: number,
+    expectedStatusCode: number,
+    isCloudflareProtected: boolean,
+  ) {
+    if (isCloudflareProtected) {
+      return true;
+    }
+
+    if (expectedStatusCode === 200) {
+      return statusCode >= 200 && statusCode < 400;
+    }
+
+    return statusCode === expectedStatusCode;
+  }
+
+  private isCloudflareProtectedResponse(response: Response) {
+    const server = response.headers.get('server')?.toLowerCase() ?? '';
+    const cfMitigated =
+      response.headers.get('cf-mitigated')?.toLowerCase() ?? '';
+    const hasCloudflareHeaders =
+      server.includes('cloudflare') || Boolean(response.headers.get('cf-ray'));
+
+    if (!hasCloudflareHeaders) {
+      return false;
+    }
+
+    return (
+      cfMitigated === 'challenge' || [403, 429, 503].includes(response.status)
+    );
+  }
+
+  private buildHttpStatusErrorMessage(
+    statusCode: number,
+    expectedStatusCode: number,
+  ) {
+    if (expectedStatusCode === 200) {
+      return `Código HTTP ${statusCode}, esperado rango 2xx/3xx`;
+    }
+
+    return `Código HTTP ${statusCode}, esperado ${expectedStatusCode}`;
   }
 
   private isBlockedHostname(hostname: string) {
@@ -1085,5 +1213,12 @@ export class MonitorsService {
     }
 
     return 'Error desconocido';
+  }
+
+  private isTimeoutError(error: unknown) {
+    return (
+      (error instanceof DOMException && error.name === 'AbortError') ||
+      (error instanceof Error && /^Timeout tras \d+ segundos$/.test(error.message))
+    );
   }
 }

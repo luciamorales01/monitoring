@@ -38,25 +38,25 @@ export const sectionIconOptions: Array<{
   {
     key: 'database',
     label: 'Datos',
-    color: '#7c3aed',
+    color: '#0f766e',
     background: uiTheme.colors.surfaceSoft,
   },
   {
     key: 'cloud',
     label: 'Infra',
-    color: '#8b5cf6',
+    color: '#0284c7',
     background: uiTheme.colors.surfaceSoft,
   },
   {
     key: 'code',
     label: 'Backend',
-    color: '#6d28d9',
+    color: '#475569',
     background: uiTheme.colors.surfaceSoft,
   },
   {
     key: 'drive',
     label: 'Sistemas',
-    color: '#5b21b6',
+    color: '#334155',
     background: uiTheme.colors.surfaceSoft,
   },
 ];

@@ -747,7 +747,12 @@ function AlertRow({
 }
 
 const styles: Record<string, CSSProperties> = {
-  main: { ...pageMain, overflow: "auto" },
+  main: {
+    ...pageMain,
+    overflow: "auto",
+    backgroundImage:
+      "linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)",
+  },
 
   kpiGrid: {
     display: "grid",
@@ -762,14 +767,18 @@ const styles: Record<string, CSSProperties> = {
     gap: 14,
     alignItems: "center",
     minHeight: 94,
+    borderRadius: 20,
+    border: `1px solid ${uiTheme.colors.border}`,
+    boxShadow: "0 14px 30px rgba(15, 23, 42, 0.045)",
   },
   kpiIcon: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: 16,
     display: "grid",
     placeItems: "center",
     flexShrink: 0,
+    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.65)",
   },
   kpiTitle: {
     margin: 0,
@@ -795,11 +804,13 @@ const styles: Record<string, CSSProperties> = {
     ...surfaceCard,
     borderRadius: uiTheme.radii.md,
     padding: 20,
+    boxShadow: "0 16px 34px rgba(15, 23, 42, 0.045)",
   },
   card: {
     ...surfaceCard,
     borderRadius: uiTheme.radii.md,
     padding: 20,
+    boxShadow: "0 16px 34px rgba(15, 23, 42, 0.045)",
   },
   cardHeader: {
     display: "flex",
@@ -824,6 +835,7 @@ const styles: Record<string, CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "38px 1fr",
     alignItems: "stretch",
+    gap: 10,
   },
   yAxis: {
     display: "flex",
@@ -838,6 +850,7 @@ const styles: Record<string, CSSProperties> = {
     ...tableCardBase,
     borderRadius: uiTheme.radii.md,
     padding: 20,
+    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.05)",
   },
   tableTop: {
     display: "flex",
@@ -857,7 +870,13 @@ const styles: Record<string, CSSProperties> = {
   },
   search: inputBase,
   filterGroup: filterGroupBase,
-  selectInput: inputBase,
+  selectInput: {
+    ...inputBase,
+    borderRadius: 14,
+    background: "rgba(255, 255, 255, 0.92)",
+    border: `1px solid ${uiTheme.colors.borderStrong}`,
+    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.7)",
+  },
   filterSelectFake: {
     ...controlBase,
     borderRadius: uiTheme.radii.sm,
@@ -867,7 +886,7 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
   },
-  table: { width: "100%", borderCollapse: "collapse" },
+  table: { width: "100%", borderCollapse: "separate", borderSpacing: 0 },
   th: {
     textAlign: "left",
     padding: "12px 10px",
@@ -878,13 +897,13 @@ const styles: Record<string, CSSProperties> = {
   },
   tr: {
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
-    background: "#fff",
+    background: "rgba(255, 255, 255, 0.86)",
   },
   trHover: {
-    background: uiTheme.colors.surfaceSoft,
+    background: "rgba(248, 250, 252, 0.95)",
   },
   td: {
-    padding: "12px 10px",
+    padding: "14px 10px",
     fontSize: 12,
     color: uiTheme.colors.text,
   },
@@ -904,12 +923,14 @@ const styles: Record<string, CSSProperties> = {
   webIcon: {
     width: 36,
     height: 36,
-    borderRadius: uiTheme.radii.sm,
-    background: uiTheme.colors.primarySoft,
+    borderRadius: 12,
+    background:
+      "linear-gradient(180deg, rgba(237, 242, 255, 0.95), rgba(224, 231, 255, 0.82))",
     display: "grid",
     placeItems: "center",
     color: uiTheme.colors.primary,
     flexShrink: 0,
+    border: "1px solid rgba(37, 99, 235, 0.12)",
   },
   url: {
     marginTop: 3,
@@ -935,7 +956,7 @@ const styles: Record<string, CSSProperties> = {
   },
   checkButton: {
     ...primaryButtonBase,
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     padding: "0 12px",
     fontWeight: 600,
     cursor: "pointer",
@@ -947,11 +968,12 @@ const styles: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
+    boxShadow: "0 12px 24px rgba(37, 99, 235, 0.18)",
   },
   checkButtonDisabled: { opacity: 0.6, cursor: "not-allowed" },
   secondaryButton: {
     ...secondaryButtonBase,
-    borderRadius: uiTheme.radii.sm,
+    borderRadius: 14,
     padding: "0 12px",
     fontWeight: 600,
     cursor: "pointer",
@@ -963,12 +985,18 @@ const styles: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
-    background: uiTheme.colors.surface,
+    background: "rgba(255, 255, 255, 0.92)",
     border: `1px solid ${uiTheme.colors.borderStrong}`,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.06)",
   },
 
-  pagination: { ...paginationBase, gap: 18, padding: "16px 20px" },
+  pagination: {
+    ...paginationBase,
+    gap: 18,
+    padding: "16px 20px 4px",
+    borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
+    marginTop: 6,
+  },
   pages: {
     display: "flex",
     gap: 10,
@@ -985,6 +1013,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: "center",
     padding: "13px 0",
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
+    borderRadius: 14,
   },
   alertRowInteractive: {
     cursor: "pointer",
@@ -1011,15 +1040,17 @@ const styles: Record<string, CSSProperties> = {
     ...surfaceCard,
     borderRadius: uiTheme.radii.md,
     padding: 20,
+    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.05)",
   },
   mapMock: {
     height: 140,
-    borderRadius: uiTheme.radii.sm,
-    background: `radial-gradient(circle at top left, ${uiTheme.colors.primarySoft} 0%, ${uiTheme.colors.surface} 58%)`,
+    borderRadius: 18,
+    background: `linear-gradient(135deg, ${uiTheme.colors.primarySoft} 0%, ${uiTheme.colors.surface} 44%), linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94))`,
     margin: "14px 0",
     position: "relative",
     overflow: "hidden",
     border: `1px solid ${uiTheme.colors.border}`,
+    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9)",
   },
   mapDot: {
     position: "absolute",
@@ -1027,7 +1058,7 @@ const styles: Record<string, CSSProperties> = {
     height: 7,
     borderRadius: 999,
     background: uiTheme.colors.primary,
-    boxShadow: "0 0 0 4px rgba(109, 40, 217, 0.12)",
+    boxShadow: "0 0 0 4px rgba(37, 99, 235, 0.12)",
   },
   regionRow: {
     display: "grid",
