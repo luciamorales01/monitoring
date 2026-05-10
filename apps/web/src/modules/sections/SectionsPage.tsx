@@ -36,7 +36,6 @@ import {
   MoreHorizontalIcon,
   PlusIcon,
   SearchIcon,
-  SettingsIcon,
   TrashIcon,
   EditIcon,
   ChevronRightIcon,
@@ -49,7 +48,12 @@ import {
   deleteSection,
   getSections,
   updateSection,
+  updateSectionMembers,
 } from '../../shared/sectionsApi';
+import {
+  getUsers,
+  type User,
+} from '../../shared/userApi';
 import {
   SectionIconGlyph,
   getSectionIconWrapStyle,
@@ -83,6 +87,7 @@ export default function SectionsPage() {
   const navigate = useNavigate();
   const { canWrite: canWriteActions } = useCurrentUserPermissions();
   const [monitors, setMonitors] = useState<Monitor[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [sections, setSections] = useState<MonitorSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +96,6 @@ export default function SectionsPage() {
     isOpen: false,
     section: null,
   });
-  const [manageOpen, setManageOpen] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
@@ -112,19 +116,22 @@ export default function SectionsPage() {
     setLoading(true);
 
     try {
-      const [nextMonitors, nextSections] = await Promise.all([
+      const [nextMonitors, nextSections, nextUsers] = await Promise.all([
         getMonitors(),
         getSections(),
+        canWriteActions ? getUsers() : Promise.resolve([]),
       ]);
 
       setMonitors(nextMonitors);
       setSections(nextSections);
+      setUsers(nextUsers);
       setError(null);
     } catch (currentError) {
       console.error('Error loading sections', currentError);
       setError('No se pudieron cargar las secciones.');
       setMonitors([]);
       setSections([]);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -132,7 +139,7 @@ export default function SectionsPage() {
 
   useEffect(() => {
     void loadMonitors();
-  }, []);
+  }, [canWriteActions]);
 
   const sectionSummaries = useMemo<SectionSummary[]>(() => {
     return sections.map((section) => {
@@ -219,7 +226,6 @@ export default function SectionsPage() {
   });
 
   const handleOpenCreate = () => {
-    setManageOpen(false);
     setEditorState({ isOpen: true, section: null });
     setActiveMenuId(null);
   };
@@ -227,7 +233,6 @@ export default function SectionsPage() {
   const handleOpenEdit = (section: MonitorSection) => {
     setEditorState({ isOpen: true, section });
     setActiveMenuId(null);
-    setManageOpen(false);
   };
 
   const handleCloseEditor = () => {
@@ -239,6 +244,7 @@ export default function SectionsPage() {
     description: string;
     icon: SectionIcon;
     monitorIds: number[];
+    memberIds: number[];
     expectedStatusCode: number;
     frequencySeconds: number;
     timeoutSeconds: number;
@@ -246,11 +252,16 @@ export default function SectionsPage() {
     isActive: boolean;
   }) => {
     try {
+      const { memberIds, ...sectionPayload } = payload;
+      let savedSection: MonitorSection;
+
       if (editorState.section) {
-        await updateSection(editorState.section.id, payload);
+        savedSection = await updateSection(editorState.section.id, sectionPayload);
       } else {
-        await createSection(payload);
+        savedSection = await createSection(sectionPayload);
       }
+
+      await updateSectionMembers(savedSection.id, memberIds);
 
       setFeedback({
         type: 'success',
@@ -327,17 +338,6 @@ export default function SectionsPage() {
                 onChange={(event) => setSearch(event.target.value)}
               />
             </label>
-
-            {canWriteActions ? (
-              <button
-                type="button"
-                style={styles.secondaryButton}
-                onClick={() => setManageOpen(true)}
-              >
-                <SettingsIcon size={16} />
-                Gestionar secciones
-              </button>
-            ) : null}
           </div>
         </div>
 
@@ -575,19 +575,11 @@ export default function SectionsPage() {
       <SectionEditorModal
         isOpen={canWriteActions && editorState.isOpen}
         monitors={monitors}
+        users={users}
         section={editorState.section}
         sections={sectionSummaries}
         onClose={handleCloseEditor}
         onSubmit={handleSaveSection}
-      />
-
-      <ManageSectionsModal
-        isOpen={canWriteActions && manageOpen}
-        sections={sectionSummaries}
-        onClose={() => setManageOpen(false)}
-        onCreate={handleOpenCreate}
-        onDelete={handleDeleteSection}
-        onEdit={handleOpenEdit}
       />
     </>
   );
@@ -596,6 +588,7 @@ export default function SectionsPage() {
 function SectionEditorModal({
   isOpen,
   monitors,
+  users,
   section,
   sections,
   onClose,
@@ -603,6 +596,7 @@ function SectionEditorModal({
 }: {
   isOpen: boolean;
   monitors: Monitor[];
+  users: User[];
   section: MonitorSection | null;
   sections: SectionSummary[];
   onClose: () => void;
@@ -611,6 +605,7 @@ function SectionEditorModal({
     description: string;
     icon: SectionIcon;
     monitorIds: number[];
+    memberIds: number[];
     expectedStatusCode: number;
     frequencySeconds: number;
     timeoutSeconds: number;
@@ -622,11 +617,14 @@ function SectionEditorModal({
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState<SectionIcon>('folder');
   const [monitorIds, setMonitorIds] = useState<number[]>([]);
+  const [memberIds, setMemberIds] = useState<number[]>([]);
   const [expectedStatusCode, setExpectedStatusCode] = useState(200);
   const [frequencySeconds, setFrequencySeconds] = useState(60);
   const [timeoutSeconds, setTimeoutSeconds] = useState(10);
   const [locations, setLocations] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [monitorSearch, setMonitorSearch] = useState('');
+  const [memberSearch, setMemberSearch] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -638,11 +636,14 @@ function SectionEditorModal({
     setDescription(section?.description ?? '');
     setIcon(section?.icon ?? 'folder');
     setMonitorIds(section?.monitorIds ?? []);
+    setMemberIds(section?.memberIds ?? []);
     setExpectedStatusCode(section?.expectedStatusCode ?? 200);
     setFrequencySeconds(section?.frequencySeconds ?? 60);
     setTimeoutSeconds(section?.timeoutSeconds ?? 10);
     setLocations(section?.locations ?? []);
     setIsActive(section?.isActive ?? true);
+    setMonitorSearch('');
+    setMemberSearch('');
     setFormError(null);
   }, [isOpen, section]);
 
@@ -650,6 +651,36 @@ function SectionEditorModal({
     () => sortMonitorsByStatusAndLastCheck(monitors),
     [monitors],
   );
+
+  const filteredMonitors = useMemo(() => {
+    const searchTerm = monitorSearch.trim().toLowerCase();
+
+    return sortedMonitors.filter((monitor) => {
+      if (searchTerm.length === 0) {
+        return true;
+      }
+
+      return (
+        monitor.name.toLowerCase().includes(searchTerm) ||
+        monitor.target.toLowerCase().includes(searchTerm)
+      );
+    });
+  }, [monitorSearch, sortedMonitors]);
+
+  const filteredUsers = useMemo(() => {
+    const searchTerm = memberSearch.trim().toLowerCase();
+
+    return users.filter((user) => {
+      if (searchTerm.length === 0) {
+        return true;
+      }
+
+      return (
+        user.name.toLowerCase().includes(searchTerm) ||
+        user.email.toLowerCase().includes(searchTerm)
+      );
+    });
+  }, [memberSearch, users]);
 
   if (!isOpen) {
     return null;
@@ -660,6 +691,14 @@ function SectionEditorModal({
       currentIds.includes(monitorId)
         ? currentIds.filter((id) => id !== monitorId)
         : [...currentIds, monitorId],
+    );
+  };
+
+  const toggleMember = (memberId: number) => {
+    setMemberIds((currentIds) =>
+      currentIds.includes(memberId)
+        ? currentIds.filter((id) => id !== memberId)
+        : [...currentIds, memberId],
     );
   };
 
@@ -696,6 +735,7 @@ function SectionEditorModal({
       description: description.trim(),
       icon,
       monitorIds,
+      memberIds,
       expectedStatusCode,
       frequencySeconds,
       timeoutSeconds,
@@ -833,23 +873,41 @@ function SectionEditorModal({
             <p style={styles.fieldHint}>
               Puedes asignar un mismo monitor a varias secciones si tiene sentido operativo.
             </p>
+            <label style={styles.inlineSearchWrap}>
+              <SearchIcon size={16} />
+              <input
+                style={styles.inlineSearchInput}
+                value={monitorSearch}
+                onChange={(event) => setMonitorSearch(event.target.value)}
+                placeholder="Buscar monitores..."
+              />
+            </label>
             <div style={styles.monitorSelector}>
               {monitors.length === 0 ? (
                 <div style={styles.selectorEmpty}>No hay monitores disponibles.</div>
+              ) : filteredMonitors.length === 0 ? (
+                <div style={styles.selectorEmpty}>No hay monitores que coincidan con la busqueda.</div>
               ) : (
-                sortedMonitors.map((monitor) => {
+                filteredMonitors.map((monitor) => {
                   const viewStatus = getMonitorViewStatus(monitor);
                   const linkedSection = sections.find(
                     (currentSection) =>
                       currentSection.id !== section?.id &&
                       currentSection.monitorIds.includes(monitor.id),
                   );
+                  const isSelected = monitorIds.includes(monitor.id);
 
                   return (
-                    <label key={monitor.id} style={styles.monitorOption}>
+                    <label
+                      key={monitor.id}
+                      style={{
+                        ...styles.monitorOption,
+                        ...(isSelected ? styles.selectorOptionSelected : {}),
+                      }}
+                    >
                       <input
                         type="checkbox"
-                        checked={monitorIds.includes(monitor.id)}
+                        checked={isSelected}
                         onChange={() => toggleMonitor(monitor.id)}
                       />
                       <div style={styles.monitorOptionCopy}>
@@ -868,6 +926,54 @@ function SectionEditorModal({
               )}
             </div>
           </div>
+
+          <div style={styles.field}>
+            <span>Miembros</span>
+            <p style={styles.fieldHint}>
+              Asigna personas responsables de revisar esta seccion.
+            </p>
+            <label style={styles.inlineSearchWrap}>
+              <SearchIcon size={16} />
+              <input
+                style={styles.inlineSearchInput}
+                value={memberSearch}
+                onChange={(event) => setMemberSearch(event.target.value)}
+                placeholder="Buscar miembros..."
+              />
+            </label>
+            <div style={styles.monitorSelector}>
+              {users.length === 0 ? (
+                <div style={styles.selectorEmpty}>No hay miembros disponibles.</div>
+              ) : filteredUsers.length === 0 ? (
+                <div style={styles.selectorEmpty}>No hay miembros que coincidan con la busqueda.</div>
+              ) : (
+                filteredUsers.map((user) => {
+                  const isSelected = memberIds.includes(user.id);
+
+                  return (
+                    <label
+                      key={user.id}
+                      style={{
+                        ...styles.monitorOption,
+                        ...(isSelected ? styles.selectorOptionSelected : {}),
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleMember(user.id)}
+                      />
+                      <div style={styles.monitorOptionCopy}>
+                        <strong>{user.name}</strong>
+                        <span>{user.email}</span>
+                      </div>
+                      <span style={styles.inlineBadgeSlate}>{user.role}</span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
 
         {formError && <div style={styles.feedbackError}>{formError}</div>}
@@ -879,100 +985,6 @@ function SectionEditorModal({
           <button type="button" style={styles.primaryButton} onClick={handleSubmit}>
             <PlusIcon size={16} />
             {section ? 'Guardar cambios' : 'Crear seccion'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ManageSectionsModal({
-  isOpen,
-  sections,
-  onClose,
-  onCreate,
-  onDelete,
-  onEdit,
-}: {
-  isOpen: boolean;
-  sections: SectionSummary[];
-  onClose: () => void;
-  onCreate: () => void;
-  onDelete: (sectionId: string) => void;
-  onEdit: (section: MonitorSection) => void;
-}) {
-  if (!isOpen) {
-    return null;
-  }
-
-  return (
-    <div style={styles.modalOverlay} onClick={onClose}>
-      <div style={styles.manageModal} onClick={(event) => event.stopPropagation()}>
-        <div style={styles.modalHeader}>
-          <div>
-            <h2 style={styles.modalTitle}>Gestionar secciones</h2>
-            <p style={styles.modalSubtitle}>
-              Edita nombres, revisa asignaciones o elimina grupos vacios.
-            </p>
-          </div>
-          <button type="button" style={styles.modalClose} onClick={onClose}>
-            <ChevronRightIcon size={16} style={{ transform: 'rotate(180deg)' }} />
-          </button>
-        </div>
-
-        <div style={styles.manageList}>
-          {sections.length === 0 ? (
-            <div style={styles.selectorEmpty}>Todavia no has creado secciones.</div>
-          ) : (
-            sections.map((section) => (
-              <div key={section.id} style={styles.manageRow}>
-                <div style={styles.manageRowMain}>
-                  <div
-                    style={getSectionIconWrapStyle(
-                      section.icon,
-                      styles.sectionIcon,
-                    )}
-                  >
-                    <SectionIconGlyph icon={section.icon} size={20} />
-                  </div>
-                  <div>
-                    <strong>{section.name}</strong>
-                    <p style={styles.manageDescription}>
-                      {section.monitorCount} monitores asignados
-                    </p>
-                  </div>
-                </div>
-
-                <div style={styles.manageActions}>
-                  <button
-                    type="button"
-                    style={styles.secondaryButton}
-                    onClick={() => onEdit(section)}
-                  >
-                    <EditIcon size={14} />
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    style={styles.dangerButton}
-                    onClick={() => onDelete(section.id)}
-                  >
-                    <TrashIcon size={14} />
-                    Eliminar
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div style={styles.modalActions}>
-          <button type="button" style={styles.secondaryButton} onClick={onClose}>
-            Cerrar
-          </button>
-          <button type="button" style={styles.primaryButton} onClick={onCreate}>
-            <PlusIcon size={16} />
-            Nueva seccion
           </button>
         </div>
       </div>
@@ -1492,6 +1504,24 @@ const styles: Record<string, CSSProperties> = {
     display: 'grid',
     gap: 8,
   },
+  inlineSearchWrap: {
+    ...inputBase,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 12,
+    borderRadius: 12,
+    color: uiTheme.colors.muted,
+  },
+  inlineSearchInput: {
+    border: 'none',
+    outline: 'none',
+    width: '100%',
+    minHeight: 40,
+    background: 'transparent',
+    color: uiTheme.colors.text,
+    fontSize: 14,
+  },
   monitorOption: {
     display: 'grid',
     gridTemplateColumns: 'auto minmax(0, 1fr) auto',
@@ -1500,6 +1530,10 @@ const styles: Record<string, CSSProperties> = {
     padding: '10px 12px',
     borderRadius: 12,
     background: uiTheme.colors.background,
+  },
+  selectorOptionSelected: {
+    background: uiTheme.colors.surfaceSoft,
+    color: uiTheme.colors.muted,
   },
   monitorOptionCopy: {
     minWidth: 0,

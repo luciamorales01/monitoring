@@ -260,7 +260,7 @@ export default function DashboardPage() {
                 width="720"
                 height="210"
                 rx="16"
-                fill="#fbfdff"
+                fill={uiTheme.colors.surface}
               />
               <line
                 x1="0"
@@ -942,13 +942,12 @@ const styles: Record<string, CSSProperties> = {
     width: 36,
     height: 36,
     borderRadius: 12,
-    background:
-      "linear-gradient(180deg, rgba(237, 242, 255, 0.95), rgba(224, 231, 255, 0.82))",
+    background: uiTheme.colors.primarySoft,
     display: "grid",
     placeItems: "center",
     color: uiTheme.colors.primary,
     flexShrink: 0,
-    border: "1px solid rgba(37, 99, 235, 0.12)",
+    border: `1px solid ${uiTheme.colors.border}`,
   },
   url: {
     marginTop: 3,

@@ -1409,13 +1409,13 @@ const styles: Record<string, CSSProperties> = {
     width: 38,
     height: 38,
     borderRadius: 12,
-    background:
-      "linear-gradient(180deg, rgba(239, 246, 255, 0.95), rgba(219, 234, 254, 0.82))",
+    background: uiTheme.colors.primarySoft,
     display: "grid",
     placeItems: "center",
     color: uiTheme.colors.primary,
     flexShrink: 0,
     lineHeight: 1,
+    border: `1px solid ${uiTheme.colors.border}`,
   },
   monitorName: {
     fontWeight: 600,
