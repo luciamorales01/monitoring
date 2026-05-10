@@ -971,7 +971,7 @@ function ResponseTimeChart({
 
   const visibleChecks = checks.slice(-50);
   const validChecks = visibleChecks.filter(
-    (check) => check.responseTimeMs !== null,
+    (check) => typeof check.responseTimeMs === "number",
   );
 
   if (validChecks.length === 0) {
@@ -1035,7 +1035,14 @@ function ResponseTimeChart({
       role="img"
       aria-label="Gráfica de tiempo de respuesta"
     >
-      <rect x="0" y="0" width={width} height={height} rx="16" fill="#fbfdff" />
+      <rect
+        x="0"
+        y="0"
+        width={width}
+        height={height}
+        rx="16"
+        fill={uiTheme.colors.surface}
+      />
 
       {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
         const y = padding.top + ratio * chartHeight;
@@ -1099,7 +1106,7 @@ function ResponseTimeChart({
         d={`M ${path}`}
         fill="none"
         stroke={uiTheme.colors.primary}
-        strokeWidth="2"
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -1109,13 +1116,21 @@ function ResponseTimeChart({
           point.check.status === "DOWN" ||
           (point.check.responseTimeMs ?? 0) >= timeoutMs;
 
-        return isIncident ? (
+        return (
           <circle
             key={point.check.id}
             cx={point.x}
             cy={point.y}
-            r="5"
-            fill={point.check.status === "DOWN" ? "#dc2626" : "#f59e0b"}
+            r={isIncident ? "5" : "3.5"}
+            fill={
+              point.check.status === "DOWN"
+                ? uiTheme.colors.danger
+                : isIncident
+                  ? uiTheme.colors.warning
+                  : uiTheme.colors.primary
+            }
+            stroke={uiTheme.colors.surface}
+            strokeWidth="2"
           >
             <title>
               {`${formatDateTime(point.check.checkedAt)} · ${
@@ -1125,7 +1140,7 @@ function ResponseTimeChart({
               )}`}
             </title>
           </circle>
-        ) : null;
+        );
       })}
 
       <text x="8" y={padding.top + 4} fontSize="11" fill={uiTheme.colors.muted}>
@@ -1328,8 +1343,7 @@ const styles: Record<string, CSSProperties> = {
 
   alertBanner: {
     border: "1px solid rgba(220, 38, 38, 0.18)",
-    background:
-      "linear-gradient(135deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.98))",
+    background: uiTheme.colors.dangerSoft,
     borderRadius: uiTheme.radii.md,
     padding: "16px 18px",
     marginBottom: 16,
@@ -1341,7 +1355,7 @@ const styles: Record<string, CSSProperties> = {
   },
 
   alertMeta: {
-    color: "#991b1b",
+    color: uiTheme.colors.danger,
     fontSize: 13,
     fontWeight: 700,
     whiteSpace: "nowrap",
@@ -1429,7 +1443,7 @@ const styles: Record<string, CSSProperties> = {
     minWidth: 150,
     padding: "12px 14px",
     borderRadius: 16,
-    background: uiTheme.colors.background,
+    background: uiTheme.colors.surfaceSoft,
     border: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
 
@@ -1564,7 +1578,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 4,
     padding: 4,
     borderRadius: 999,
-    background: uiTheme.colors.background,
+    background: uiTheme.colors.surfaceSoft,
     border: `1px solid ${uiTheme.colors.surfaceSoft}`,
   },
 
@@ -1580,7 +1594,7 @@ const styles: Record<string, CSSProperties> = {
   },
 
   segmentedButtonActive: {
-    background: "#fff",
+    background: uiTheme.colors.surface,
     color: uiTheme.colors.primary,
     boxShadow: "0 6px 16px rgba(15, 23, 42, 0.08)",
   },
@@ -1589,7 +1603,7 @@ const styles: Record<string, CSSProperties> = {
     minHeight: 36,
     borderRadius: 999,
     border: `1px solid ${uiTheme.colors.surfaceSoft}`,
-    background: "#fff",
+    background: "var(--control-bg)",
     color: uiTheme.colors.text,
     padding: "0 12px",
     fontSize: 12,
@@ -1735,17 +1749,16 @@ const styles: Record<string, CSSProperties> = {
     display: "grid",
     placeItems: "center",
     color: uiTheme.colors.slate,
-    border: "1px dashed #cbd5e1",
+    border: `1px dashed ${uiTheme.colors.borderStrong}`,
     borderRadius: 16,
-    background: uiTheme.colors.background,
+    background: uiTheme.colors.surfaceSoft,
   },
 
   statusChartWrap: {
     height: 230,
     padding: 18,
     borderRadius: 16,
-    background:
-      "linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 1))",
+    background: uiTheme.colors.surface,
     border: `1px solid ${uiTheme.colors.surfaceSoft}`,
     marginBottom: 12,
     display: "grid",
@@ -1874,7 +1887,7 @@ const styles: Record<string, CSSProperties> = {
     color: "#b91c1c",
     fontSize: 12,
     padding: "8px 10px",
-    background: "#fef2f2",
+    background: uiTheme.colors.dangerSoft,
     borderRadius: 10,
   },
 
@@ -1919,7 +1932,7 @@ const styles: Record<string, CSSProperties> = {
   locationProgressTrack: {
     height: 8,
     borderRadius: 999,
-    background: uiTheme.colors.background,
+    background: uiTheme.colors.surfaceSoft,
     overflow: "hidden",
   },
 
@@ -1941,7 +1954,7 @@ const styles: Record<string, CSSProperties> = {
   locationStat: {
     padding: "5px 9px",
     borderRadius: 999,
-    background: uiTheme.colors.background,
+    background: uiTheme.colors.surfaceSoft,
     fontWeight: 700,
   },
 

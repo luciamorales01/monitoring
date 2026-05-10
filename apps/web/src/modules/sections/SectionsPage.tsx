@@ -1098,7 +1098,7 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 500,
     color: uiTheme.colors.danger,
     borderColor: '#fecaca',
-    background: '#fff5f5',
+    background: uiTheme.colors.dangerSoft,
     borderRadius: 14,
   },
   tabs: {
@@ -1129,16 +1129,16 @@ const styles: Record<string, CSSProperties> = {
   feedbackSuccess: {
     ...surfaceCard,
     borderColor: '#bbf7d0',
-    background: '#f0fdf4',
-    color: '#166534',
+    background: uiTheme.colors.successSoft,
+    color: uiTheme.colors.success,
     padding: '14px 18px',
     fontWeight: 500,
   },
   feedbackError: {
     ...surfaceCard,
     borderColor: '#fecaca',
-    background: '#fef2f2',
-    color: '#991b1b',
+    background: uiTheme.colors.dangerSoft,
+    color: uiTheme.colors.danger,
     padding: '14px 18px',
     fontWeight: 500,
   },
@@ -1160,7 +1160,7 @@ const styles: Record<string, CSSProperties> = {
     borderBottom: `1px solid ${uiTheme.colors.border}`,
     alignItems: 'center',
     cursor: 'pointer',
-    background: 'rgba(255, 255, 255, 0.88)',
+    background: uiTheme.colors.surface,
   },
   rowMain: {
     display: 'flex',

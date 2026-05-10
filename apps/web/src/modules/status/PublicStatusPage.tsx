@@ -303,9 +303,9 @@ function formatDateTime(value?: string | null) {
 }
 
 const cardBase: CSSProperties = {
-  background: 'rgba(255,255,255,0.9)',
-  border: '1px solid rgba(148, 163, 184, 0.22)',
-  boxShadow: '0 24px 70px rgba(15, 23, 42, 0.08)',
+  background: uiTheme.colors.surface,
+  border: `1px solid ${uiTheme.colors.border}`,
+  boxShadow: uiTheme.shadows.card,
   backdropFilter: 'blur(16px)',
 };
 
@@ -313,7 +313,7 @@ const styles: Record<string, CSSProperties> = {
   main: {
     minHeight: '100vh',
     padding: '34px 22px 48px',
-    background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.1), transparent 34%), linear-gradient(135deg, #f6f8fb 0%, #eff6ff 46%, #ffffff 100%)',
+    background: `linear-gradient(135deg, rgba(37, 99, 235, 0.1), transparent 34%), ${uiTheme.colors.background}`,
     color: uiTheme.colors.text,
   },
   hero: {
@@ -349,7 +349,7 @@ const styles: Record<string, CSSProperties> = {
   panelSubtitle: { margin: '5px 0 0', color: uiTheme.colors.muted, fontSize: 13 },
   panelPill: { borderRadius: 999, padding: '8px 12px', background: '#eff6ff', color: '#2563eb', fontWeight: 900, fontSize: 12 },
   monitorList: { display: 'grid', gap: 12 },
-  monitorRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, padding: 16, borderRadius: 18, background: '#fff', border: '1px solid rgba(226,232,240,0.9)' },
+  monitorRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, padding: 16, borderRadius: 18, background: uiTheme.colors.surface, border: `1px solid ${uiTheme.colors.border}` },
   monitorMain: { display: 'flex', alignItems: 'flex-start', gap: 12, minWidth: 0 },
   monitorDot: { width: 11, height: 11, borderRadius: 999, marginTop: 5, flex: '0 0 auto' },
   target: { margin: '4px 0 0', color: uiTheme.colors.muted, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 520 },
@@ -360,16 +360,16 @@ const styles: Record<string, CSSProperties> = {
   historyBar: { gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(30, 1fr)', gap: 3 },
   historySlot: { height: 22, borderRadius: 6, display: 'block' },
   slaStack: { display: 'grid', gap: 12 },
-  metricLine: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '12px 0', borderBottom: '1px solid #eef2f7', color: uiTheme.colors.muted },
+  metricLine: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, padding: '12px 0', borderBottom: `1px solid ${uiTheme.colors.border}`, color: uiTheme.colors.muted },
   incidentStack: { display: 'grid', gap: 10 },
-  incidentCard: { display: 'grid', gap: 12, borderRadius: 18, padding: 14, background: '#fff', border: '1px solid #eef2f7' },
-  incidentCompact: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderRadius: 18, padding: 14, background: '#fff', border: '1px solid #eef2f7' },
+  incidentCard: { display: 'grid', gap: 12, borderRadius: 18, padding: 14, background: uiTheme.colors.surface, border: `1px solid ${uiTheme.colors.border}` },
+  incidentCompact: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderRadius: 18, padding: 14, background: uiTheme.colors.surface, border: `1px solid ${uiTheme.colors.border}` },
   incidentMeta: { margin: '5px 0 0', color: uiTheme.colors.muted, fontSize: 12 },
   incidentBadges: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   severityBadge: { display: 'inline-flex', borderRadius: 999, padding: '6px 9px', fontWeight: 900, fontSize: 11 },
-  stateBadge: { display: 'inline-flex', borderRadius: 999, padding: '6px 9px', fontWeight: 900, fontSize: 11, background: '#f1f5f9', color: '#475569' },
+  stateBadge: { display: 'inline-flex', borderRadius: 999, padding: '6px 9px', fontWeight: 900, fontSize: 11, background: uiTheme.colors.surfaceSoft, color: uiTheme.colors.muted },
   timeline: { display: 'grid', gap: 10 },
-  empty: { margin: 0, color: uiTheme.colors.muted, background: '#f8fafc', borderRadius: 16, padding: 14 },
+  empty: { margin: 0, color: uiTheme.colors.muted, background: uiTheme.colors.surfaceSoft, borderRadius: 16, padding: 14 },
   loadingCard: { ...cardBase, maxWidth: 720, margin: '90px auto', borderRadius: 24, padding: 30, color: uiTheme.colors.muted },
   error: { maxWidth: 720, margin: '90px auto', color: '#991b1b', background: '#fee2e2', padding: 18, borderRadius: 18 },
 };

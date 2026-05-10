@@ -2794,7 +2794,7 @@ const styles: Record<string, CSSProperties> = {
     padding: 18,
     borderColor: uiTheme.colors.dangerSoft,
     color: uiTheme.colors.danger,
-    background: "#fffafa",
+    background: uiTheme.colors.dangerSoft,
   },
   executiveBadge: {
     ...badgeBase,
@@ -3154,7 +3154,7 @@ const styles: Record<string, CSSProperties> = {
   regionBar: {
     height: 8,
     borderRadius: 999,
-    background: "#dbeafe",
+    background: uiTheme.colors.primarySoft,
     overflow: "hidden",
   },
   regionFill: {
@@ -3258,7 +3258,7 @@ const styles: Record<string, CSSProperties> = {
     minWidth: 190,
     padding: 8,
     borderRadius: 16,
-    background: "rgba(255, 255, 255, 0.98)",
+    background: uiTheme.colors.surface,
     border: `1px solid ${uiTheme.colors.border}`,
     boxShadow: "0 18px 38px rgba(15, 23, 42, 0.14)",
     display: "grid",
@@ -3328,7 +3328,7 @@ const styles: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    background: "rgba(255, 255, 255, 0.92)",
+    background: "var(--control-bg)",
     border: `1px solid ${uiTheme.colors.borderStrong}`,
     boxShadow: "0 8px 18px rgba(15, 23, 42, 0.06)",
     color: uiTheme.colors.text,
@@ -3374,7 +3374,7 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 600,
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
-    background: "#f8fafc",
+    background: uiTheme.colors.surfaceSoft,
   },
   thActions: {
     padding: "14px 18px",
@@ -3384,7 +3384,7 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 600,
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
-    background: "#f8fafc",
+    background: uiTheme.colors.surfaceSoft,
   },
   typeBadge: {
     ...badgeBase,

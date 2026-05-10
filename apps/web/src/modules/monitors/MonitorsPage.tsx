@@ -1375,11 +1375,11 @@ const styles: Record<string, CSSProperties> = {
   tr: {
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
     cursor: "pointer",
-    background: "rgba(255, 255, 255, 0.88)",
+    background: uiTheme.colors.surface,
     transition: "background 0.15s ease",
   },
   trHover: {
-    background: "#f8fafc",
+    background: uiTheme.colors.surfaceSoft,
   },
   trSelected: {
     background: uiTheme.colors.primarySoft,
@@ -1480,8 +1480,8 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 10,
     display: "grid",
     placeItems: "center",
-    color: "#475569",
-    background: "rgba(255, 255, 255, 0.94)",
+    color: uiTheme.colors.muted,
+    background: "var(--control-bg)",
     border: `1px solid ${uiTheme.colors.border}`,
     padding: 0,
     lineHeight: 1,
@@ -1494,7 +1494,7 @@ const styles: Record<string, CSSProperties> = {
     width: 190,
     padding: 6,
     borderRadius: 18,
-    background: "rgba(255, 255, 255, 0.98)",
+    background: uiTheme.colors.surface,
     border: `1px solid ${uiTheme.colors.border}`,
     boxShadow: "0 18px 40px rgba(15, 23, 42, 0.14)",
     display: "grid",

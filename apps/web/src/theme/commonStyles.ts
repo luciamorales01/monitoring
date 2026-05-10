@@ -43,6 +43,7 @@ export const pageTitle: CSSProperties = {
   fontSize: typography.title.fontSize,
   fontWeight: 600, // 🔥 antes 800
   letterSpacing: '0em',
+  color: colors.text,
 };
 
 export const pageSubtitle: CSSProperties = {
@@ -53,7 +54,7 @@ export const pageSubtitle: CSSProperties = {
 };
 
 export const surfaceCard: CSSProperties = {
-  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92))',
+  background: 'var(--surface-card)',
   border: `1px solid ${colors.border}`,
   borderRadius: radii.md,
   boxShadow: shadows.card,
@@ -66,11 +67,11 @@ export const kpiCardBase: CSSProperties = {
 
 export const controlBase: CSSProperties = {
   border: `1px solid ${colors.borderStrong}`,
-  background: 'rgba(255, 255, 255, 0.94)',
+  background: 'var(--control-bg)',
   color: colors.text,
   borderRadius: radii.sm,
   fontWeight: 500, // 🔥 más ligero
-  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.7)',
+  boxShadow: 'var(--control-shadow)',
 };
 
 export const inputBase: CSSProperties = {
@@ -152,7 +153,7 @@ export const tableRowBase: CSSProperties = {
 };
 
 export const tableHoverRowBase: CSSProperties = {
-  background: '#f8fafc',
+  background: colors.surfaceSoft,
 };
 
 export const tableCellBase: CSSProperties = {

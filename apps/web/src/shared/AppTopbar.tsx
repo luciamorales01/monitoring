@@ -416,7 +416,7 @@ const styles: Record<string, CSSProperties> = {
   },
   userButton: {
     border: `1px solid ${uiTheme.colors.border}`,
-    background: 'rgba(255, 255, 255, 0.94)',
+    background: 'var(--control-bg)',
     color: uiTheme.colors.text,
     borderRadius: 16,
     minHeight: 46,
@@ -458,7 +458,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     border: `1px solid ${uiTheme.colors.borderStrong}`,
     borderRadius: 16,
-    background: 'rgba(255, 255, 255, 0.94)',
+    background: 'var(--control-bg)',
     overflow: 'hidden',
     boxShadow: uiTheme.shadows.card,
   },

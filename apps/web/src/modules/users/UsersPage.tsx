@@ -464,7 +464,7 @@ const styles: Record<string, CSSProperties> = {
   table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0 },
   th: { textAlign: 'left', padding: '13px 16px', color: uiTheme.colors.muted, fontSize: 12, borderBottom: `1px solid ${uiTheme.colors.border}`, fontWeight: 600 },
   thActions: { textAlign: 'right', padding: '13px 16px', color: uiTheme.colors.muted, fontSize: 12, borderBottom: `1px solid ${uiTheme.colors.border}`, fontWeight: 600 },
-  tr: { borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, background: 'rgba(255, 255, 255, 0.88)' },
+  tr: { borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, background: uiTheme.colors.surface },
   td: { padding: '13px 16px', fontSize: 12, color: uiTheme.colors.text, verticalAlign: 'middle' },
   tdActions: { padding: '13px 16px', textAlign: 'right', verticalAlign: 'middle' },
   userCell: { display: 'flex', alignItems: 'center', gap: 12 },

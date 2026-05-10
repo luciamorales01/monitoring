@@ -1157,13 +1157,13 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.muted,
     fontSize: 12,
     fontWeight: 600,
-    background: '#f8fafc',
+    background: uiTheme.colors.surfaceSoft,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
   },
   tr: {
     cursor: 'pointer',
     borderBottom: `1px solid ${uiTheme.colors.border}`,
-    background: 'rgba(255, 255, 255, 0.88)',
+    background: uiTheme.colors.surface,
   },
   td: {
     padding: '14px 16px',

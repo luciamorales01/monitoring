@@ -236,7 +236,7 @@ const styles: Record<string, CSSProperties> = {
   tableWrap: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 14 },
   th: { textAlign: 'left', padding: '14px 16px', color: uiTheme.colors.muted, fontSize: 12, borderBottom: `1px solid ${uiTheme.colors.border}`, fontWeight: 700 },
-  row: { borderBottom: `1px solid ${uiTheme.colors.border}`, background: 'rgba(255, 255, 255, 0.88)' },
+  row: { borderBottom: `1px solid ${uiTheme.colors.border}`, background: uiTheme.colors.surface },
   unreadRow: { background: uiTheme.colors.primarySoft },
   td: { padding: '14px 16px', color: uiTheme.colors.text, whiteSpace: 'nowrap' },
   tdMuted: { padding: '14px 16px', color: uiTheme.colors.muted, maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },

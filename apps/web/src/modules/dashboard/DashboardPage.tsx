@@ -799,7 +799,7 @@ const styles: Record<string, CSSProperties> = {
     display: "grid",
     placeItems: "center",
     flexShrink: 0,
-    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.65)",
+    boxShadow: "var(--control-shadow)",
   },
   kpiTitle: {
     margin: 0,
@@ -894,9 +894,9 @@ const styles: Record<string, CSSProperties> = {
   selectInput: {
     ...inputBase,
     borderRadius: 14,
-    background: "rgba(255, 255, 255, 0.92)",
+    background: "var(--control-bg)",
     border: `1px solid ${uiTheme.colors.borderStrong}`,
-    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.7)",
+    boxShadow: "var(--control-shadow)",
   },
   filterSelectFake: {
     ...controlBase,
@@ -918,10 +918,10 @@ const styles: Record<string, CSSProperties> = {
   },
   tr: {
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
-    background: "rgba(255, 255, 255, 0.86)",
+    background: uiTheme.colors.surface,
   },
   trHover: {
-    background: "rgba(248, 250, 252, 0.95)",
+    background: uiTheme.colors.surfaceSoft,
   },
   td: {
     padding: "14px 10px",
@@ -985,7 +985,7 @@ const styles: Record<string, CSSProperties> = {
     display: "inline-flex",
     alignItems: "center",
     color: uiTheme.colors.text,
-    background: "rgba(255, 255, 255, 0.92)",
+    background: "var(--control-bg)",
     border: `1px solid ${uiTheme.colors.borderStrong}`,
     boxShadow: "0 8px 18px rgba(15, 23, 42, 0.06)",
   },
@@ -1001,7 +1001,7 @@ const styles: Record<string, CSSProperties> = {
     minWidth: 190,
     padding: 8,
     borderRadius: 16,
-    background: "rgba(255, 255, 255, 0.98)",
+    background: uiTheme.colors.surface,
     border: `1px solid ${uiTheme.colors.border}`,
     boxShadow: "0 18px 38px rgba(15, 23, 42, 0.14)",
     display: "grid",
@@ -1084,12 +1084,12 @@ const styles: Record<string, CSSProperties> = {
   mapMock: {
     height: 140,
     borderRadius: 18,
-    background: `linear-gradient(135deg, ${uiTheme.colors.primarySoft} 0%, ${uiTheme.colors.surface} 44%), linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94))`,
+    background: `linear-gradient(135deg, ${uiTheme.colors.primarySoft} 0%, ${uiTheme.colors.surface} 44%), ${uiTheme.colors.surface}`,
     margin: "14px 0",
     position: "relative",
     overflow: "hidden",
     border: `1px solid ${uiTheme.colors.border}`,
-    boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.9)",
+    boxShadow: "var(--control-shadow)",
   },
   mapDot: {
     position: "absolute",

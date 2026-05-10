@@ -21,9 +21,7 @@
   min-height: 100vh;
   padding: 70px 86px;
   overflow: hidden;
-  background:
-    linear-gradient(225deg, rgba(148, 163, 184, 0.16), transparent 34%),
-    linear-gradient(145deg, #f8fafc 0%, #eef2f7 100%);
+  background: var(--auth-brand-bg);
   border-right: 1px solid var(--border);
 }
 
@@ -144,7 +142,7 @@
   height: 40px;
   margin-top: 6px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #e2e8f0, #f8fafc);
+  background: var(--auth-server-bg);
   box-shadow: 0 10px 20px rgba(148, 163, 184, 0.12);
 }
 
@@ -153,7 +151,7 @@
   width: 200px;
   height: 120px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--auth-mini-bg);
   border: 1px solid var(--border);
   position: relative;
   box-shadow: 0 12px 24px rgba(148, 163, 184, 0.12);
@@ -165,7 +163,8 @@
   right: 10px;
   padding: 6px 12px;
   font-size: 12px;
-  background: white;
+  background: var(--auth-status-bg);
+  color: var(--text-main);
   border-radius: 8px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
 }
@@ -188,7 +187,7 @@
   height: 50px;
   border-radius: 50%;
   border: 10px solid var(--primary-light);
-  border-left-color: #e2e8f0;
+  border-left-color: var(--auth-ring);
 }
 
 /* Lado derecho */
@@ -244,13 +243,15 @@
   height: 52px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: white;
+  background: var(--control-bg);
 }
 
 .input-wrap input {
   border: none;
   outline: none;
   width: 100%;
+  background: transparent;
+  color: var(--text-main);
 }
 
 .input-wrap:focus-within {

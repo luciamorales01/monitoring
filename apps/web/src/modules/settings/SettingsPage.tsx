@@ -5,6 +5,7 @@ import {
   surfaceCard,
   uiTheme,
 } from '../../theme/commonStyles';
+import { useThemePreference, type ThemePreference } from '../../theme/themePreferences';
 import AppTopbar from '../../shared/AppTopbar';
 import { useCurrentUserPermissions } from '../../shared/permissions';
 import {
@@ -55,8 +56,15 @@ const recentActivity = [
   ['Laura Méndez', 'Cambió umbrales de disponibilidad', 'Ayer, 16:42'],
 ];
 
+const themeOptions: Array<{ id: ThemePreference; title: string; text: string }> = [
+  { id: 'light', title: 'Claro', text: 'Interfaz luminosa para entornos con mucha luz.' },
+  { id: 'dark', title: 'Oscuro', text: 'Menos brillo y mejor foco en sesiones largas.' },
+  { id: 'system', title: 'Según el dispositivo', text: 'Respeta el modo configurado en el sistema.' },
+];
+
 export default function SettingsPage() {
   const { canWrite: canWriteActions } = useCurrentUserPermissions();
+  const { preference, resolvedTheme, setPreference } = useThemePreference();
 
   const handlePlaceholderAction = (actionId: string) => {
     console.log(`settings-action:${actionId}`);
@@ -107,6 +115,35 @@ export default function SettingsPage() {
         </div>
 
         <aside style={styles.side}>
+          <SideCard title="Preferencias de usuario">
+            <p style={styles.themeHint}>
+              Modo actual: {resolvedTheme === 'dark' ? 'oscuro' : 'claro'}.
+            </p>
+
+            <div role="radiogroup" aria-label="Modo de color" style={styles.themeOptions}>
+              {themeOptions.map((option) => {
+                const isSelected = preference === option.id;
+
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    style={{
+                      ...styles.themeOption,
+                      ...(isSelected ? styles.themeOptionActive : {}),
+                    }}
+                    onClick={() => setPreference(option.id)}
+                  >
+                    <strong>{option.title}</strong>
+                    <span>{option.text}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </SideCard>
+
           <SideCard title="Información del sistema">
             <InfoRow label="Versión de la aplicación" value="1.2.3" />
             <InfoRow label="Entorno" value="Producción" />
@@ -244,7 +281,11 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-const activityColors = ['#e2e8f0', '#f1f5f9', '#e2e8f0'];
+const activityColors = [
+  uiTheme.colors.surfaceSoft,
+  uiTheme.colors.iconSoft,
+  uiTheme.colors.surfaceSoft,
+];
 
 const styles: Record<string, CSSProperties> = {
   main: {
@@ -262,7 +303,7 @@ const styles: Record<string, CSSProperties> = {
   sectionTitle: { margin: '0 0 18px', fontSize: 16, fontWeight: 700 },
 
   settingsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 16 },
-  tile: { border: `1px solid ${uiTheme.colors.border}`, borderRadius: 20, padding: 20, minHeight: 180, background: 'rgba(255, 255, 255, 0.9)', boxShadow: uiTheme.shadows.card },
+  tile: { border: `1px solid ${uiTheme.colors.border}`, borderRadius: 20, padding: 20, minHeight: 180, background: uiTheme.colors.surface, boxShadow: uiTheme.shadows.card },
   tileIcon: { width: 54, height: 54, borderRadius: 16, display: 'grid', placeItems: 'center', marginBottom: 22 },
   tileTitle: { margin: 0, fontSize: 15, fontWeight: 700 },
   tileText: { color: uiTheme.colors.muted, fontSize: 12, lineHeight: 1.55, minHeight: 48 },
@@ -274,6 +315,10 @@ const styles: Record<string, CSSProperties> = {
   chevron: { color: uiTheme.colors.muted, display: 'grid', placeItems: 'center' },
   sideCard: { ...surfaceCard, borderRadius: 20, padding: 18 },
   sideTitle: { margin: '0 0 16px', fontSize: 15, fontWeight: 700 },
+  themeHint: { margin: '0 0 12px', color: uiTheme.colors.muted, fontSize: 12, lineHeight: 1.55 },
+  themeOptions: { display: 'grid', gap: 10 },
+  themeOption: { display: 'grid', gap: 5, width: '100%', border: `1px solid ${uiTheme.colors.border}`, borderRadius: 14, background: uiTheme.colors.surface, color: uiTheme.colors.text, padding: 12, textAlign: 'left', cursor: 'pointer' },
+  themeOptionActive: { borderColor: uiTheme.colors.primary, background: uiTheme.colors.primarySoft, boxShadow: `0 0 0 1px ${uiTheme.colors.primary}` },
 
   infoRow: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, padding: '11px 0', fontSize: 12, color: uiTheme.colors.text },
   fullButton: { ...secondaryButtonBase, width: '100%', marginTop: 14, borderRadius: 14, padding: '10px 12px', fontWeight: 500, cursor: 'pointer' },

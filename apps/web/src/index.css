@@ -6,10 +6,32 @@
   --primary-light: #60a5fa;
   --primary-soft: #eff6ff;
   --bg-main: #f6f8fb;
+  --sidebar: #ffffff;
+  --surface: #ffffff;
+  --surface-card: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.92));
+  --surface-soft: #f1f5f9;
+  --icon-soft: #f8fafc;
   --text-main: #0f172a;
   --text-muted: #64748b;
   --border: #e2e8f0;
-  --surface: #ffffff;
+  --border-strong: #cbd5e1;
+  --success: #10b981;
+  --success-soft: #ecfdf5;
+  --danger: #ef4444;
+  --danger-soft: #fef2f2;
+  --warning: #f59e0b;
+  --warning-soft: #fff7ed;
+  --slate: #94a3b8;
+  --white: #ffffff;
+  --control-bg: rgba(255, 255, 255, 0.94);
+  --control-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --auth-brand-bg:
+    linear-gradient(225deg, rgba(148, 163, 184, 0.16), transparent 34%),
+    linear-gradient(145deg, #f8fafc 0%, #eef2f7 100%);
+  --auth-server-bg: linear-gradient(135deg, #e2e8f0, #f8fafc);
+  --auth-mini-bg: rgba(255, 255, 255, 0.9);
+  --auth-status-bg: #ffffff;
+  --auth-ring: #e2e8f0;
   --text: var(--text-muted);
   --text-h: var(--text-main);
   --bg: var(--bg-main);
@@ -20,6 +42,7 @@
   --social-bg: #f8fafc;
   --shadow:
     0 1px 2px rgba(15, 23, 42, 0.03), 0 16px 34px rgba(15, 23, 42, 0.055);
+  --button-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
 
   --sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --heading: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -34,6 +57,47 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+html[data-theme='dark'] {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light: #60a5fa;
+  --primary-soft: rgba(37, 99, 235, 0.18);
+  --bg-main: #07111f;
+  --sidebar: #0b1524;
+  --surface: #101b2d;
+  --surface-card: linear-gradient(180deg, rgba(18, 29, 47, 0.98), rgba(11, 21, 36, 0.94));
+  --surface-soft: rgba(148, 163, 184, 0.12);
+  --icon-soft: rgba(148, 163, 184, 0.1);
+  --text-main: #e5edf7;
+  --text-muted: #9aa9bd;
+  --border: rgba(148, 163, 184, 0.18);
+  --border-strong: rgba(148, 163, 184, 0.3);
+  --success: #34d399;
+  --success-soft: rgba(16, 185, 129, 0.14);
+  --danger: #f87171;
+  --danger-soft: rgba(239, 68, 68, 0.16);
+  --warning: #fbbf24;
+  --warning-soft: rgba(245, 158, 11, 0.16);
+  --slate: #94a3b8;
+  --white: #ffffff;
+  --control-bg: rgba(15, 23, 42, 0.82);
+  --control-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --auth-brand-bg:
+    linear-gradient(225deg, rgba(96, 165, 250, 0.16), transparent 34%),
+    linear-gradient(145deg, #0b1524 0%, #101b2d 100%);
+  --auth-server-bg: linear-gradient(135deg, #16243a, #22314a);
+  --auth-mini-bg: rgba(16, 27, 45, 0.92);
+  --auth-status-bg: #101b2d;
+  --auth-ring: rgba(148, 163, 184, 0.18);
+  --code-bg: rgba(148, 163, 184, 0.12);
+  --accent-bg: var(--primary-soft);
+  --accent-border: rgba(96, 165, 250, 0.36);
+  --social-bg: rgba(148, 163, 184, 0.12);
+  --shadow:
+    0 1px 2px rgba(0, 0, 0, 0.28), 0 18px 44px rgba(0, 0, 0, 0.34);
+  --button-shadow: 0 14px 30px rgba(37, 99, 235, 0.28);
 }
 
 html, body, #root {
