@@ -799,7 +799,6 @@ const styles: Record<string, CSSProperties> = {
     display: "grid",
     placeItems: "center",
     flexShrink: 0,
-    boxShadow: "var(--control-shadow)",
   },
   kpiTitle: {
     margin: 0,
