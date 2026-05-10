@@ -105,12 +105,11 @@ describe('IncidentsService', () => {
 
     const result = await service.findOne(3, user);
 
-    expect(prisma.incident.findUnique).toHaveBeenCalledWith({
-      where: { id: 3 },
-      include: {
-        monitor: true,
-      },
-    });
+    expect(prisma.incident.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 3 },
+      }),
+    );
     expect(result).toEqual({
       id: 3,
       monitor: {

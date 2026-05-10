@@ -5,6 +5,7 @@ import {
   type PublicIncident,
   type PublicStatusResponse,
 } from '../../shared/statusApi';
+import { sortMonitorsByStatusAndLastCheck } from '../../shared/monitorFilters';
 import { uiTheme } from '../../theme/commonStyles';
 
 type MonitorStatus = PublicStatusResponse['monitors'][number]['currentStatus'];
@@ -43,7 +44,10 @@ export default function PublicStatusPage() {
   }, [slug]);
 
   const hasIncidents = Boolean(data?.recentIncidents.length);
-  const topMonitors = useMemo(() => data?.monitors.slice(0, 12) ?? [], [data]);
+  const topMonitors = useMemo(
+    () => sortMonitorsByStatusAndLastCheck(data?.monitors ?? []).slice(0, 12),
+    [data],
+  );
 
   if (isLoading) {
     return (

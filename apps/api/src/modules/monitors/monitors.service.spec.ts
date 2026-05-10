@@ -179,15 +179,17 @@ describe('MonitorsService', () => {
       user,
     );
 
-    expect(prisma.monitor.update).toHaveBeenCalledWith({
-      where: { id: 7 },
-      data: {
-        name: 'API editada',
-        alertEmail: false,
-        alertPush: true,
-        locations: ['madrid', 'frankfurt'],
-      },
-    });
+    expect(prisma.monitor.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 7 },
+        data: {
+          name: 'API editada',
+          alertEmail: false,
+          alertPush: true,
+          locations: ['madrid', 'frankfurt'],
+        },
+      }),
+    );
   });
 
   it('deletes a monitor inside the same organization', async () => {

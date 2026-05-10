@@ -16,6 +16,7 @@ export type Monitor = {
   lastCheckedAt?: string | null;
   nextCheckAt?: string;
   isActive: boolean;
+  usesSectionSchedule?: boolean;
   locations: string[];
   alertEmail: boolean;
   alertPush: boolean;
@@ -25,6 +26,17 @@ export type Monitor = {
   sslWarningDays?: number | null;
   dnsRecordType?: string | null;
   dnsExpectedValue?: string | null;
+  sections?: {
+    section: {
+      id: number;
+      name: string;
+      expectedStatusCode: number;
+      frequencySeconds: number;
+      timeoutSeconds: number;
+      locations: string[];
+      isActive: boolean;
+    };
+  }[];
 };
 
 export type MonitorCheck = {
@@ -139,6 +151,12 @@ export const updateMonitor = async (id: number, data: UpdateMonitorInput) => {
   return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
+  });
+};
+
+export const useSectionSchedule = async (id: number) => {
+  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}/use-section-schedule`, {
+    method: 'PATCH',
   });
 };
 

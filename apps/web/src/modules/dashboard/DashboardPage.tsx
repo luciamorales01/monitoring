@@ -9,7 +9,6 @@ import {
   pageArrowBase,
   pageMain,
   paginationBase,
-  primaryButtonBase,
   selectFakeBase,
   secondaryButtonBase,
   surfaceCard,
@@ -44,6 +43,7 @@ import {
   ClockIcon,
   GlobeIcon,
   MonitorIcon,
+  MoreHorizontalIcon,
   PauseIcon,
   PlusIcon,
 } from "../../shared/uiIcons";
@@ -65,6 +65,7 @@ export default function DashboardPage() {
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
   const [toast, setToast] = useState<{
     text: string;
     type: "ok" | "error";
@@ -445,60 +446,89 @@ export default function DashboardPage() {
 
                         {canWriteActions ? (
                           <td style={styles.td}>
-                            <div style={styles.actionGroup}>
+                            <div style={styles.actionMenuWrap}>
                               <button
                                 type="button"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  void handleRunCheck(monitor.id);
+                                  setOpenActionMenuId((currentId) =>
+                                    currentId === monitor.id ? null : monitor.id,
+                                  );
                                 }}
-                                disabled={checkingId === monitor.id}
+                                aria-label={`Abrir acciones de ${monitor.name}`}
+                                aria-expanded={openActionMenuId === monitor.id}
                                 style={{
-                                  ...styles.checkButton,
-                                  ...(checkingId === monitor.id
-                                    ? styles.checkButtonDisabled
+                                  ...styles.iconActionButton,
+                                  ...(openActionMenuId === monitor.id
+                                    ? styles.iconActionButtonActive
                                     : {}),
                                 }}
                               >
-                                {checkingId !== monitor.id && (
-                                  <ActivityIcon size={14} />
-                                )}
-                                {checkingId === monitor.id ? (
-                                  <LoadingState variant="button" label="Comprobando monitor" />
-                                ) : (
-                                  "Comprobar ahora"
-                                )}
+                                <MoreHorizontalIcon size={16} />
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  void handleToggleActive(monitor.id);
-                                }}
-                                disabled={togglingId === monitor.id}
-                                style={{
-                                  ...styles.secondaryButton,
-                                  ...(togglingId === monitor.id
-                                    ? styles.checkButtonDisabled
-                                    : {}),
-                                }}
-                              >
-                                {togglingId !== monitor.id && (
-                                  monitor.isActive ? (
-                                    <PauseIcon size={14} />
-                                  ) : (
-                                    <CheckCircleIcon size={14} />
-                                  )
-                                )}
-                                {togglingId === monitor.id ? (
-                                  <LoadingState variant="button" label="Actualizando monitor" />
-                                ) : monitor.isActive ? (
-                                  "Pausar"
-                                ) : (
-                                  "Reanudar"
-                                )}
-                              </button>
+                              {openActionMenuId === monitor.id ? (
+                                <div
+                                  style={styles.actionMenu}
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    style={styles.actionMenuItem}
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      navigate(`/monitors/${monitor.id}`);
+                                    }}
+                                  >
+                                    <GlobeIcon size={14} />
+                                    Ver detalle
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={checkingId === monitor.id}
+                                    style={{
+                                      ...styles.actionMenuItem,
+                                      ...(checkingId === monitor.id
+                                        ? styles.actionMenuItemDisabled
+                                        : {}),
+                                    }}
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      void handleRunCheck(monitor.id);
+                                    }}
+                                  >
+                                    <ActivityIcon size={14} />
+                                    {checkingId === monitor.id
+                                      ? "Comprobando..."
+                                      : "Comprobar ahora"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={togglingId === monitor.id}
+                                    style={{
+                                      ...styles.actionMenuItem,
+                                      ...(togglingId === monitor.id
+                                        ? styles.actionMenuItemDisabled
+                                        : {}),
+                                    }}
+                                    onClick={() => {
+                                      setOpenActionMenuId(null);
+                                      void handleToggleActive(monitor.id);
+                                    }}
+                                  >
+                                    {monitor.isActive ? (
+                                      <PauseIcon size={14} />
+                                    ) : (
+                                      <CheckCircleIcon size={14} />
+                                    )}
+                                    {togglingId === monitor.id
+                                      ? "Actualizando..."
+                                      : monitor.isActive
+                                        ? "Pausar"
+                                        : "Reanudar"}
+                                  </button>
+                                </div>
+                              ) : null}
                             </div>
                           </td>
                         ) : null}
@@ -898,13 +928,10 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 12,
     color: uiTheme.colors.text,
   },
-  actionGroup: {
+  actionMenuWrap: {
     display: "flex",
-    alignItems: "center",
-    gap: 10,
     justifyContent: "flex-end",
-    flexWrap: "nowrap",
-    whiteSpace: "nowrap",
+    position: "relative",
   },
   webCell: {
     display: "flex",
@@ -945,41 +972,62 @@ const styles: Record<string, CSSProperties> = {
     background: "currentColor",
     display: "inline-block",
   },
-  checkButton: {
-    ...primaryButtonBase,
-    borderRadius: 14,
-    padding: "0 12px",
-    fontWeight: 600,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    fontSize: 12,
-    height: 40,
-    minWidth: 150,
-    justifyContent: "center",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    boxShadow: "0 12px 24px rgba(37, 99, 235, 0.18)",
-  },
-  checkButtonDisabled: { opacity: 0.6, cursor: "not-allowed" },
-  secondaryButton: {
+  iconActionButton: {
     ...secondaryButtonBase,
     borderRadius: 14,
-    padding: "0 12px",
+    padding: 0,
     fontWeight: 600,
     cursor: "pointer",
-    whiteSpace: "nowrap",
     fontSize: 12,
     height: 40,
-    minWidth: 104,
+    width: 40,
     justifyContent: "center",
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
+    color: uiTheme.colors.text,
     background: "rgba(255, 255, 255, 0.92)",
     border: `1px solid ${uiTheme.colors.borderStrong}`,
     boxShadow: "0 8px 18px rgba(15, 23, 42, 0.06)",
   },
+  iconActionButtonActive: {
+    background: uiTheme.colors.primarySoft,
+    color: uiTheme.colors.primary,
+    border: `1px solid ${uiTheme.colors.primary}25`,
+  },
+  actionMenu: {
+    position: "absolute",
+    top: "calc(100% + 8px)",
+    right: 0,
+    minWidth: 190,
+    padding: 8,
+    borderRadius: 16,
+    background: "rgba(255, 255, 255, 0.98)",
+    border: `1px solid ${uiTheme.colors.border}`,
+    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.14)",
+    display: "grid",
+    gap: 4,
+    zIndex: 20,
+    backdropFilter: "blur(12px)",
+  },
+  actionMenuItem: {
+    ...secondaryButtonBase,
+    borderRadius: 14,
+    padding: "0 12px",
+    justifyContent: "flex-start",
+    fontWeight: 500,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    fontSize: 12,
+    height: 38,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    background: "transparent",
+    border: "none",
+    boxShadow: "none",
+    color: uiTheme.colors.text,
+  },
+  actionMenuItemDisabled: { opacity: 0.6, cursor: "not-allowed" },
 
   pagination: {
     ...paginationBase,

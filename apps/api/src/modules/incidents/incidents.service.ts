@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { IncidentSeverity, IncidentStatus } from '@prisma/client';
+import { IncidentSeverity, IncidentStatus, Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MonitoringEventName } from '../events/events.types';
@@ -8,6 +8,7 @@ import { UpdateIncidentDto } from './update-incident.dto';
 type AuthenticatedUser = {
   organizationId: number;
   userId: number;
+  role?: string;
 };
 
 @Injectable()
@@ -19,7 +20,7 @@ export class IncidentsService {
 
   findAll(user: AuthenticatedUser) {
     return this.prisma.incident.findMany({
-      where: { monitor: { organizationId: user.organizationId } },
+      where: this.buildIncidentWhere(user),
       include: { monitor: true },
       orderBy: { startedAt: 'desc' },
     });
@@ -29,7 +30,7 @@ export class IncidentsService {
     return this.prisma.incident.findMany({
       where: {
         status: { in: [IncidentStatus.OPEN, IncidentStatus.ACKNOWLEDGED] },
-        monitor: { organizationId: user.organizationId },
+        ...this.buildIncidentWhere(user),
       },
       include: { monitor: true },
       orderBy: [{ severity: 'desc' }, { startedAt: 'desc' }],
@@ -39,11 +40,19 @@ export class IncidentsService {
   async findOne(id: number, user: AuthenticatedUser) {
     const incident = await this.prisma.incident.findUnique({
       where: { id },
-      include: { monitor: true },
+      include: {
+        monitor: {
+          include: {
+            sections: {
+              include: { section: { include: { members: true } } },
+            },
+          },
+        },
+      },
     });
 
     if (!incident) throw new NotFoundException('Incidencia no encontrada');
-    if (incident.monitor.organizationId !== user.organizationId) {
+    if (!this.canAccessMonitor(incident.monitor, user)) {
       throw new ForbiddenException('No tienes acceso a esta incidencia');
     }
 
@@ -172,5 +181,31 @@ export class IncidentsService {
         resolvedAt: (incident.resolvedAt ?? new Date()).toISOString(),
       },
     });
+  }
+
+  private buildIncidentWhere(user: AuthenticatedUser): Prisma.IncidentWhereInput {
+    return {
+      monitor: {
+        organizationId: user.organizationId,
+        ...(this.canManageAll(user)
+          ? {}
+          : { sections: { some: { section: { members: { some: { userId: user.userId } } } } } }),
+      },
+    };
+  }
+
+  private canAccessMonitor(
+    monitor: { organizationId: number; sections?: { section: { members: { userId: number }[] } }[] },
+    user: AuthenticatedUser,
+  ) {
+    if (monitor.organizationId !== user.organizationId) return false;
+    if (this.canManageAll(user)) return true;
+    return monitor.sections?.some(({ section }) =>
+      section.members.some((member) => member.userId === user.userId),
+    ) ?? false;
+  }
+
+  private canManageAll(user: AuthenticatedUser) {
+    return !user.role || user.role === UserRole.OWNER || user.role === UserRole.ADMIN;
   }
 }

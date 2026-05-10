@@ -26,21 +26,24 @@ import {
 } from "../../theme/commonStyles";
 import AppTopbar from "../../shared/AppTopbar";
 import LoadingState from "../../shared/LoadingState";
-import type { Monitor, MonitorSortOption, UpdateMonitorInput } from "../../shared/monitorApi";
+import type { Monitor, UpdateMonitorInput } from "../../shared/monitorApi";
 import {
   useDeleteMonitorsMutation,
-  usePaginatedMonitorsQuery,
+  useAllMonitorsQuery,
   useRunMonitorCheckMutation,
   useToggleMonitorActiveMutation,
   useUpdateMonitorMutation,
 } from "../../shared/monitorQueries";
 import {
+  filterMonitors,
   getMonitorLocationOptions,
   getMonitorViewStatus,
+  sortMonitorsByStatusAndLastCheck,
   type MonitorStatusFilter,
   type MonitorTypeFilter,
   type MonitorViewStatus,
 } from "../../shared/monitorFilters";
+import { useLocalPagination } from "../../shared/useLocalPagination";
 import { useUrlFilterState } from "../../shared/useUrlFilterState";
 import { useDebouncedValue } from "../../shared/useDebouncedValue";
 import { useCurrentUserPermissions } from "../../shared/permissions";
@@ -95,7 +98,6 @@ export default function MonitorsPage() {
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const lastSelectedMonitorIdRef = useRef<number | null>(null);
 
-  const [page, setPage] = useState(1);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
   const [openMenuMonitorId, setOpenMenuMonitorId] = useState<number | null>(null);
@@ -114,45 +116,18 @@ export default function MonitorsPage() {
   const debouncedSearch = useDebouncedValue(filters.search, 300);
   const handleSetFilter = (key: keyof typeof monitorFilterDefaults, value: string) => {
     clearSelection();
-    setPage(1);
     setFilter(key, value);
   };
   const handleResetFilters = () => {
     clearSelection();
-    setPage(1);
     resetFilters();
   };
-  const handleSetPage = (nextPage: number) => {
-    clearSelection();
-    setPage(nextPage);
-  };
-  const listQuery = useMemo(
-    () => ({
-      limit: MONITORS_PAGE_SIZE,
-      location: filters.location,
-      page,
-      search: debouncedSearch,
-      sort: filters.sort as MonitorSortOption,
-      status: filters.status as MonitorStatusFilter,
-      type: filters.type as MonitorTypeFilter,
-    }),
-    [
-      debouncedSearch,
-      filters.location,
-      filters.sort,
-      filters.status,
-      filters.type,
-      page,
-    ],
-  );
-  const monitorsQuery = usePaginatedMonitorsQuery(listQuery);
+  const monitorsQuery = useAllMonitorsQuery({ adaptiveRefetchInterval: true });
   const runCheckMutation = useRunMonitorCheckMutation();
   const toggleActiveMutation = useToggleMonitorActiveMutation();
   const updateMonitorMutation = useUpdateMonitorMutation();
   const deleteMonitorsMutation = useDeleteMonitorsMutation();
-  const monitors = monitorsQuery.data?.items ?? EMPTY_MONITORS;
-  const totalMonitors = monitorsQuery.data?.total ?? 0;
-  const totalPages = monitorsQuery.data?.totalPages ?? 1;
+  const monitors = monitorsQuery.data ?? EMPTY_MONITORS;
   const loading = monitorsQuery.isPending;
   const error = monitorsQuery.isError
     ? "No se pudieron cargar las webs monitorizadas."
@@ -167,7 +142,7 @@ export default function MonitorsPage() {
   }, []);
 
   const stats = useMemo(() => {
-    const total = totalMonitors;
+    const total = monitors.length;
     const online = monitors.filter(
       (monitor) => getMonitorViewStatus(monitor) === "UP",
     ).length;
@@ -195,19 +170,50 @@ export default function MonitorsPage() {
       paused,
       response: averageResponseTime,
     };
-  }, [monitors, totalMonitors]);
+  }, [monitors]);
 
   const locationOptions = useMemo(
     () => getMonitorLocationOptions(monitors),
     [monitors],
   );
 
-  const pageItems = monitors;
-  const rangeStart =
-    totalMonitors === 0 ? 0 : (page - 1) * MONITORS_PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * MONITORS_PAGE_SIZE, totalMonitors);
-  const hasPreviousPage = page > 1;
-  const hasNextPage = page < totalPages;
+  const filteredMonitors = useMemo(
+    () =>
+      filterMonitors(monitors, {
+        location: filters.location,
+        search: debouncedSearch,
+        status: filters.status as MonitorStatusFilter,
+        type: filters.type as MonitorTypeFilter,
+      }),
+    [
+      debouncedSearch,
+      filters.location,
+      filters.status,
+      filters.type,
+      monitors,
+    ],
+  );
+
+  const orderedMonitors = useMemo(
+    () => sortMonitorsByStatusAndLastCheck(filteredMonitors),
+    [filteredMonitors],
+  );
+
+  const {
+    page,
+    setPage,
+    pageItems,
+    totalPages,
+    rangeStart,
+    rangeEnd,
+    hasPreviousPage,
+    hasNextPage,
+  } = useLocalPagination(orderedMonitors, {
+    pageSize: MONITORS_PAGE_SIZE,
+    resetKey: `${debouncedSearch}|${filters.location}|${filters.sort}|${filters.status}|${filters.type}|${orderedMonitors.length}`,
+  });
+
+  const totalMonitors = orderedMonitors.length;
 
   const currentPageIds = useMemo(
     () => pageItems.map((monitor) => monitor.id),
@@ -215,8 +221,8 @@ export default function MonitorsPage() {
   );
 
   const visibleMonitorIds = useMemo(
-    () => monitors.map((monitor) => monitor.id),
-    [monitors],
+    () => pageItems.map((monitor) => monitor.id),
+    [pageItems],
   );
 
   const selectedMonitors = useMemo(
@@ -338,6 +344,11 @@ export default function MonitorsPage() {
     setSelectedMonitorIds([]);
     lastSelectedMonitorIdRef.current = null;
   }
+
+  const handleSetPage = (nextPage: number) => {
+    clearSelection();
+    setPage(nextPage);
+  };
 
   const handleRunCheck = async (id: number) => {
     try {

@@ -15,7 +15,7 @@ import {
 } from 'node:dns/promises';
 import { isIP, Socket } from 'node:net';
 import { connect as tlsConnect, type PeerCertificate } from 'node:tls';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MonitoringEventName } from '../events/events.types';
@@ -44,6 +44,7 @@ type MonitorStatusValue = (typeof MonitorStatus)[keyof typeof MonitorStatus];
 type AuthenticatedUser = {
   organizationId: number;
   userId: number;
+  role?: string;
 };
 
 type MonitorEntity = {
@@ -65,6 +66,18 @@ type MonitorEntity = {
   sslWarningDays?: number | null;
   dnsRecordType?: string | null;
   dnsExpectedValue?: string | null;
+  usesSectionSchedule?: boolean | null;
+  sections?: {
+    section: {
+      id: number;
+      expectedStatusCode: number;
+      frequencySeconds: number;
+      timeoutSeconds: number;
+      locations: string[];
+      isActive: boolean;
+      members?: { userId: number }[];
+    };
+  }[];
 };
 
 type CheckResultEntity = {
@@ -99,6 +112,30 @@ type PersistedCheckResult = MonitorCheckBatchResult & {
   incidentSync: IncidentSyncResult;
   previousStatus: MonitorStatusValue | null;
 };
+
+const monitorListSelect = {
+  id: true,
+  name: true,
+  type: true,
+  target: true,
+  expectedStatusCode: true,
+  frequencySeconds: true,
+  timeoutSeconds: true,
+  currentStatus: true,
+  lastResponseTime: true,
+  lastCheckedAt: true,
+  nextCheckAt: true,
+  isActive: true,
+  locations: true,
+  alertEmail: true,
+  alertPush: true,
+  alertThreshold: true,
+  tcpPort: true,
+  keyword: true,
+  sslWarningDays: true,
+  dnsRecordType: true,
+  dnsExpectedValue: true,
+} satisfies Prisma.MonitorSelect;
 
 @Injectable()
 export class MonitorsService {
@@ -146,6 +183,7 @@ export class MonitorsService {
 
     const items = await this.prisma.monitor.findMany({
       where,
+      select: monitorListSelect,
       orderBy: this.buildMonitorListOrderBy(query.sort),
       skip: (page - 1) * limit,
       take: limit,
@@ -168,6 +206,7 @@ export class MonitorsService {
           orderBy: { checkedAt: 'desc' },
           take: 20,
         },
+        sections: { include: { section: { include: { members: true } } }, orderBy: { assignedAt: 'asc' } },
       },
     });
 
@@ -175,16 +214,14 @@ export class MonitorsService {
       throw new NotFoundException('Monitor no encontrado');
     }
 
-    if (monitor.organizationId !== user.organizationId) {
-      throw new ForbiddenException('No tienes acceso a este monitor');
-    }
+    this.ensureMonitorAccess(monitor, user);
 
     return monitor;
   }
 
   async runCheck(id: number, user: AuthenticatedUser) {
     const monitor = await this.findMonitorByIdOrThrow(id);
-    this.ensureMonitorAccess(monitor.organizationId, user);
+    this.ensureMonitorAccess(monitor, user);
 
     const outcomes = await this.executeMonitorChecks(monitor);
 
@@ -193,9 +230,10 @@ export class MonitorsService {
 
   async update(id: number, dto: UpdateMonitorDto, user: AuthenticatedUser) {
     const monitor = await this.findMonitorByIdOrThrow(id);
-    this.ensureMonitorAccess(monitor.organizationId, user);
+    this.ensureMonitorAccess(monitor, user);
 
     const data: Record<string, unknown> = {};
+    const scheduleFieldsChanged = this.hasMonitorScheduleChange(dto);
 
     if (
       dto.target !== undefined ||
@@ -260,15 +298,55 @@ export class MonitorsService {
           ? dto.dnsExpectedValue.trim()
           : null;
     }
+
+    if (scheduleFieldsChanged && this.monitorHasSection(monitor)) {
+      data.usesSectionSchedule = this.matchesPrimarySectionSchedule({
+        ...monitor,
+        expectedStatusCode:
+          dto.expectedStatusCode ?? monitor.expectedStatusCode,
+        frequencySeconds: dto.frequencySeconds ?? monitor.frequencySeconds,
+        timeoutSeconds: dto.timeoutSeconds ?? monitor.timeoutSeconds,
+        locations:
+          dto.locations !== undefined
+            ? this.sanitizeConfiguredLocations(dto.locations)
+            : (monitor.locations ?? []),
+      });
+    }
+
     return this.prisma.monitor.update({
       where: { id },
       data,
+      include: { sections: { include: { section: { include: { members: true } } }, orderBy: { assignedAt: 'asc' } } },
+    });
+  }
+
+  async useSectionSchedule(id: number, user: AuthenticatedUser) {
+    const monitor = await this.findMonitorByIdOrThrow(id);
+    this.ensureMonitorAccess(monitor, user);
+    const section = monitor.sections?.[0]?.section;
+
+    if (!section) {
+      throw new BadRequestException('El monitor no pertenece a ninguna sección');
+    }
+
+    return this.prisma.monitor.update({
+      where: { id },
+      data: {
+        expectedStatusCode: section.expectedStatusCode,
+        frequencySeconds: section.frequencySeconds,
+        timeoutSeconds: section.timeoutSeconds,
+        locations: section.locations,
+        isActive: section.isActive,
+        usesSectionSchedule: true,
+        nextCheckAt: section.isActive ? new Date() : undefined,
+      },
+      include: { sections: { include: { section: { include: { members: true } } }, orderBy: { assignedAt: 'asc' } } },
     });
   }
 
   async toggleActive(id: number, user: AuthenticatedUser) {
     const monitor = await this.findMonitorByIdOrThrow(id);
-    this.ensureMonitorAccess(monitor.organizationId, user);
+    this.ensureMonitorAccess(monitor, user);
     const nextIsActive = !monitor.isActive;
 
     return this.prisma.monitor.update({
@@ -313,7 +391,7 @@ export class MonitorsService {
 
   async remove(id: number, user: AuthenticatedUser) {
     const monitor = await this.findMonitorByIdOrThrow(id);
-    this.ensureMonitorAccess(monitor.organizationId, user);
+    this.ensureMonitorAccess(monitor, user);
 
     return this.prisma.monitor.delete({
       where: { id },
@@ -326,7 +404,7 @@ export class MonitorsService {
     order: 'asc' | 'desc' = 'desc',
   ) {
     const monitor = await this.findMonitorByIdOrThrow(id);
-    this.ensureMonitorAccess(monitor.organizationId, user);
+    this.ensureMonitorAccess(monitor, user);
 
     return this.prisma.checkResult.findMany({
       where: {
@@ -346,6 +424,7 @@ export class MonitorsService {
     const search = query.search?.trim();
     const where: Prisma.MonitorWhereInput = {
       organizationId: user.organizationId,
+      ...this.buildSectionMembershipMonitorFilter(user),
     };
 
     if (search) {
@@ -1361,6 +1440,12 @@ export class MonitorsService {
   private findMonitorById(id: number): Promise<MonitorEntity | null> {
     return this.prisma.monitor.findUnique({
       where: { id },
+      include: {
+        sections: {
+          include: { section: { include: { members: true } } },
+          orderBy: { assignedAt: 'asc' },
+        },
+      },
     }) as Promise<MonitorEntity | null>;
   }
 
@@ -1374,10 +1459,59 @@ export class MonitorsService {
     return monitor;
   }
 
-  private ensureMonitorAccess(organizationId: number, user: AuthenticatedUser) {
-    if (organizationId !== user.organizationId) {
+  private ensureMonitorAccess(monitor: MonitorEntity, user: AuthenticatedUser) {
+    if (monitor.organizationId !== user.organizationId) {
       throw new ForbiddenException('No tienes acceso a este monitor');
     }
+    if (this.canManageAllMonitors(user)) return;
+    if (monitor.sections?.some(({ section }) => section.members?.some((member) => member.userId === user.userId))) return;
+    throw new ForbiddenException('No tienes acceso a este monitor');
+  }
+
+  private canManageAllMonitors(user: AuthenticatedUser) {
+    return !user.role || user.role === UserRole.OWNER || user.role === UserRole.ADMIN;
+  }
+
+  private buildSectionMembershipMonitorFilter(
+    user: AuthenticatedUser,
+  ): Prisma.MonitorWhereInput {
+    if (this.canManageAllMonitors(user)) return {};
+    return {
+      sections: { some: { section: { members: { some: { userId: user.userId } } } } },
+    };
+  }
+
+  private monitorHasSection(monitor: MonitorEntity) {
+    return (monitor.sections?.length ?? 0) > 0;
+  }
+
+  private hasMonitorScheduleChange(dto: UpdateMonitorDto) {
+    return (
+      dto.expectedStatusCode !== undefined ||
+      dto.frequencySeconds !== undefined ||
+      dto.timeoutSeconds !== undefined ||
+      dto.locations !== undefined
+    );
+  }
+
+  private matchesPrimarySectionSchedule(monitor: MonitorEntity) {
+    const section = monitor.sections?.[0]?.section;
+    if (!section) return false;
+    return (
+      monitor.expectedStatusCode === section.expectedStatusCode &&
+      monitor.frequencySeconds === section.frequencySeconds &&
+      monitor.timeoutSeconds === section.timeoutSeconds &&
+      this.haveSameLocations(monitor.locations ?? [], section.locations)
+    );
+  }
+
+  private haveSameLocations(left: string[], right: string[]) {
+    const normalizedLeft = this.sanitizeConfiguredLocations(left).sort();
+    const normalizedRight = this.sanitizeConfiguredLocations(right).sort();
+    return (
+      normalizedLeft.length === normalizedRight.length &&
+      normalizedLeft.every((location, index) => location === normalizedRight[index])
+    );
   }
 
   private getMonitorCheckErrorMessage(

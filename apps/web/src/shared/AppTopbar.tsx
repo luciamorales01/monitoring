@@ -7,9 +7,7 @@ import {
   markNotificationsAsRead,
   type NotificationEvent,
 } from './notificationApi';
-import { BellIcon, PlusIcon, RefreshIcon, SearchIcon, SettingsIcon, UsersIcon } from './uiIcons';
-import { useAsyncAction } from './useAsyncAction';
-import LoadingState from './LoadingState';
+import { BellIcon, PlusIcon, SearchIcon, SettingsIcon, UsersIcon } from './uiIcons';
 import {
   avatarBase,
   iconButtonBase,
@@ -59,11 +57,11 @@ export default function AppTopbar({
   breadcrumb,
   cta,
   eyebrow,
-  onRefresh,
+  onRefresh: _onRefresh,
   onSearchChange,
   searchPlaceholder = 'Buscar',
   searchValue = '',
-  showRefreshButton = true,
+  showRefreshButton: _showRefreshButton = true,
   showSearch = false,
   subtitle,
   title,
@@ -76,7 +74,6 @@ export default function AppTopbar({
   const [toast, setToast] = useState<NotificationEvent | null>(null);
   const knownNotificationIds = useRef<Set<number>>(new Set());
   const initializedNotifications = useRef(false);
-  const { isRunning: isRefreshing, run: runRefresh } = useAsyncAction(onRefresh);
 
   const loadNotifications = async (showToast = false) => {
     const data = await getNotifications({ limit: 8 });
@@ -202,21 +199,6 @@ export default function AppTopbar({
       </div>
 
       <div style={styles.topActions}>
-        {showRefreshButton ? (
-          <button
-            type="button"
-            style={{
-              ...styles.iconButton,
-              ...(isRefreshing ? styles.iconButtonLoading : {}),
-            }}
-            onClick={() => void runRefresh()}
-            disabled={isRefreshing}
-            title="Refrescar"
-          >
-            {isRefreshing ? <LoadingState variant="button" label="Refrescando" /> : <RefreshIcon size={16} />}
-          </button>
-        ) : null}
-
         {showSearch ? (
           <label style={styles.searchField}>
             <span style={styles.searchIcon}>
@@ -399,12 +381,6 @@ const styles: Record<string, CSSProperties> = {
     ...iconButtonBase,
     position: 'relative',
     transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
-  },
-  iconButtonLoading: {
-    background: uiTheme.colors.primary,
-    color: '#fff',
-    borderColor: uiTheme.colors.primary,
-    cursor: 'wait',
   },
   menuRoot: {
     position: 'relative',

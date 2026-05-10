@@ -70,8 +70,9 @@ export class NotificationsService {
     tx?: NotificationPrisma,
   ) {
     const prisma = tx ?? this.prisma;
-    const recipients = await this.getOrganizationRecipients(
+    const recipients = await this.getSectionRecipients(
       payload.organizationId,
+      payload.monitorId,
       prisma,
     );
 
@@ -137,15 +138,27 @@ export class NotificationsService {
     }
   }
 
-  private async getOrganizationRecipients(
+  private async getSectionRecipients(
     organizationId: number,
+    monitorId: number,
     prisma: NotificationPrisma,
   ) {
     const users = await prisma.user.findMany({
       where: {
         organizationId,
         status: 'ACTIVE',
-        role: { in: ['OWNER', 'ADMIN'] },
+        OR: [
+          { role: { in: ['OWNER', 'ADMIN'] } },
+          {
+            sectionMemberships: {
+              some: {
+                section: {
+                  monitors: { some: { monitorId } },
+                },
+              },
+            },
+          },
+        ],
       },
       select: { email: true, name: true },
       orderBy: { id: 'asc' },

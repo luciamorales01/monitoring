@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { UsersService } from './users.service';
 
@@ -14,6 +15,7 @@ describe('UsersService', () => {
 
   const user = {
     organizationId: 10,
+    role: 'OWNER',
     userId: 20,
   };
 
@@ -32,6 +34,10 @@ describe('UsersService', () => {
         {
           provide: PrismaService,
           useValue: prisma,
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn() },
         },
       ],
     }).compile();
@@ -119,6 +125,7 @@ describe('UsersService', () => {
       name: 'Ana Actualizada',
       email: 'ana.updated@example.com',
       role: 'ADMIN',
+      status: 'ACTIVE',
       passwordHash: 'secret',
       organizationId: 10,
       createdAt: new Date('2026-04-20T10:00:00.000Z'),

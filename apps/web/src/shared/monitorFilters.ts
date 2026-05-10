@@ -13,12 +13,119 @@ export type MonitorListFilters = {
   type: MonitorTypeFilter;
 };
 
-const monitorStatusPriority: Record<MonitorViewStatus, number> = {
-  DOWN: 0,
-  PAUSED: 1,
-  UNKNOWN: 2,
-  UP: 3,
+type MonitorSortStatus =
+  | MonitorViewStatus
+  | 'ERROR'
+  | 'INCIDENT'
+  | 'PENDING'
+  | string;
+
+type MonitorSortableFields = {
+  id?: number | string | null;
+  name?: string | null;
+  currentStatus?: MonitorSortStatus | null;
+  status?: MonitorSortStatus | null;
+  isActive?: boolean | null;
+  lastCheckAt?: string | null;
+  lastCheckedAt?: string | null;
+  checkedAt?: string | null;
+  updatedAt?: string | null;
 };
+
+type MonitorSortAccessors<TItem> = {
+  getId?: (item: TItem) => number | string | null | undefined;
+  getLastCheckAt?: (item: TItem) => string | null | undefined;
+  getName?: (item: TItem) => string | null | undefined;
+  getStatus?: (item: TItem) => MonitorSortStatus | null | undefined;
+  isPaused?: (item: TItem) => boolean;
+};
+
+const monitorStatusPriority: Record<MonitorViewStatus | 'ERROR' | 'INCIDENT' | 'PENDING', number> = {
+  DOWN: 0,
+  ERROR: 0,
+  INCIDENT: 0,
+  UP: 1,
+  PENDING: 2,
+  UNKNOWN: 2,
+  PAUSED: 3,
+};
+
+function getSortableFields<TItem>(item: TItem): MonitorSortableFields {
+  if (typeof item !== 'object' || item === null) {
+    return {};
+  }
+
+  return item as MonitorSortableFields;
+}
+
+function normalizeMonitorStatus(status: MonitorSortStatus | null | undefined): MonitorViewStatus | 'ERROR' | 'INCIDENT' | 'PENDING' {
+  const normalizedStatus = String(status ?? 'UNKNOWN').toUpperCase();
+
+  if (
+    normalizedStatus === 'DOWN' ||
+    normalizedStatus === 'ERROR' ||
+    normalizedStatus === 'INCIDENT' ||
+    normalizedStatus === 'UP' ||
+    normalizedStatus === 'PENDING' ||
+    normalizedStatus === 'UNKNOWN' ||
+    normalizedStatus === 'PAUSED'
+  ) {
+    return normalizedStatus;
+  }
+
+  return 'UNKNOWN';
+}
+
+function getMonitorSortStatus<TItem>(
+  item: TItem,
+  accessors: MonitorSortAccessors<TItem>,
+) {
+  const fields = getSortableFields(item);
+
+  if (accessors.isPaused?.(item) ?? fields.isActive === false) {
+    return 'PAUSED';
+  }
+
+  return normalizeMonitorStatus(
+    accessors.getStatus?.(item) ?? fields.currentStatus ?? fields.status,
+  );
+}
+
+function getMonitorSortTimestamp<TItem>(
+  item: TItem,
+  accessors: MonitorSortAccessors<TItem>,
+) {
+  const fields = getSortableFields(item);
+  const dateValue =
+    accessors.getLastCheckAt?.(item) ??
+    fields.lastCheckAt ??
+    fields.lastCheckedAt ??
+    fields.checkedAt ??
+    fields.updatedAt;
+
+  if (!dateValue) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const timestamp = new Date(dateValue).getTime();
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
+function getMonitorSortName<TItem>(
+  item: TItem,
+  accessors: MonitorSortAccessors<TItem>,
+) {
+  const fields = getSortableFields(item);
+  return accessors.getName?.(item) ?? fields.name ?? '';
+}
+
+function getMonitorSortId<TItem>(
+  item: TItem,
+  accessors: MonitorSortAccessors<TItem>,
+) {
+  const fields = getSortableFields(item);
+  return String(accessors.getId?.(item) ?? fields.id ?? '');
+}
 
 export function getMonitorViewStatus(monitor: Monitor): MonitorViewStatus {
   if (!monitor.isActive) {
@@ -67,31 +174,42 @@ export function sortMonitors(
   monitors: Monitor[],
   sortBy: MonitorSortOption = 'status',
 ) {
-  return [...monitors].sort((firstMonitor, secondMonitor) => {
-    if (sortBy === 'name') {
-      return firstMonitor.name.localeCompare(secondMonitor.name);
-    }
+  if (sortBy === 'name' || sortBy === 'latest-check') {
+    return sortMonitorsByStatusAndLastCheck(monitors);
+  }
 
-    if (sortBy === 'latest-check') {
-      const firstCheckedAt = firstMonitor.lastCheckedAt
-        ? new Date(firstMonitor.lastCheckedAt).getTime()
-        : 0;
-      const secondCheckedAt = secondMonitor.lastCheckedAt
-        ? new Date(secondMonitor.lastCheckedAt).getTime()
-        : 0;
+  return sortMonitorsByStatusAndLastCheck(monitors);
+}
 
-      if (firstCheckedAt !== secondCheckedAt) {
-        return secondCheckedAt - firstCheckedAt;
-      }
-    }
-
-    const firstPriority = monitorStatusPriority[getMonitorViewStatus(firstMonitor)];
-    const secondPriority = monitorStatusPriority[getMonitorViewStatus(secondMonitor)];
+export function sortMonitorsByStatusAndLastCheck<TItem>(
+  items: TItem[],
+  accessors: MonitorSortAccessors<TItem> = {},
+) {
+  return [...items].sort((firstItem, secondItem) => {
+    const firstPriority = monitorStatusPriority[getMonitorSortStatus(firstItem, accessors)];
+    const secondPriority = monitorStatusPriority[getMonitorSortStatus(secondItem, accessors)];
 
     if (firstPriority !== secondPriority) {
       return firstPriority - secondPriority;
     }
 
-    return firstMonitor.name.localeCompare(secondMonitor.name);
+    const firstTimestamp = getMonitorSortTimestamp(firstItem, accessors);
+    const secondTimestamp = getMonitorSortTimestamp(secondItem, accessors);
+
+    if (firstTimestamp !== secondTimestamp) {
+      return secondTimestamp - firstTimestamp;
+    }
+
+    const nameComparison = getMonitorSortName(firstItem, accessors).localeCompare(
+      getMonitorSortName(secondItem, accessors),
+    );
+
+    if (nameComparison !== 0) {
+      return nameComparison;
+    }
+
+    return getMonitorSortId(firstItem, accessors).localeCompare(
+      getMonitorSortId(secondItem, accessors),
+    );
   });
 }

@@ -25,10 +25,10 @@ import {
 } from '../../shared/monitorApi';
 import {
   getMonitorViewStatus,
+  sortMonitorsByStatusAndLastCheck,
   type MonitorViewStatus,
 } from '../../shared/monitorFilters';
 import { useLocalPagination } from '../../shared/useLocalPagination';
-import { useUrlFilterState } from '../../shared/useUrlFilterState';
 import { useCurrentUserPermissions } from '../../shared/permissions';
 import {
   FolderIcon,
@@ -55,15 +55,6 @@ import {
   getSectionIconWrapStyle,
   sectionIconOptions,
 } from './sectionVisuals';
-
-const sectionFilterDefaults = {
-  search: '',
-  view: 'ALL',
-};
-
-const sectionAllowedValues = {
-  view: ['ALL', 'WITH_MONITORS', 'WITHOUT_MONITORS'],
-} as const;
 
 type SectionSummary = MonitorSection & {
   monitors: Monitor[];
@@ -102,10 +93,7 @@ export default function SectionsPage() {
   });
   const [manageOpen, setManageOpen] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const { filters, setFilter } = useUrlFilterState(
-    sectionFilterDefaults,
-    sectionAllowedValues,
-  );
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -148,8 +136,8 @@ export default function SectionsPage() {
 
   const sectionSummaries = useMemo<SectionSummary[]>(() => {
     return sections.map((section) => {
-      const assignedMonitors = monitors.filter((monitor) =>
-        section.monitorIds.includes(monitor.id),
+      const assignedMonitors = sortMonitorsByStatusAndLastCheck(
+        monitors.filter((monitor) => section.monitorIds.includes(monitor.id)),
       );
       const viewStatuses = assignedMonitors.map((monitor) =>
         getMonitorViewStatus(monitor),
@@ -198,27 +186,23 @@ export default function SectionsPage() {
 
   const unassignedMonitors = useMemo(
     () =>
-      monitors.filter((monitor) => !assignedMonitorIds.has(monitor.id)),
+      sortMonitorsByStatusAndLastCheck(
+        monitors.filter((monitor) => !assignedMonitorIds.has(monitor.id)),
+      ),
     [assignedMonitorIds, monitors],
   );
 
   const visibleSections = useMemo(() => {
-    const searchTerm = filters.search.trim().toLowerCase();
+    const searchTerm = search.trim().toLowerCase();
 
     return sectionSummaries.filter((section) => {
-      const matchesSearch =
+      return (
         searchTerm.length === 0 ||
         section.name.toLowerCase().includes(searchTerm) ||
-        section.description.toLowerCase().includes(searchTerm);
-
-      const matchesView =
-        filters.view === 'ALL' ||
-        (filters.view === 'WITH_MONITORS' && section.monitorCount > 0) ||
-        (filters.view === 'WITHOUT_MONITORS' && section.monitorCount === 0);
-
-      return matchesSearch && matchesView;
+        section.description.toLowerCase().includes(searchTerm)
+      );
     });
-  }, [filters.search, filters.view, sectionSummaries]);
+  }, [search, sectionSummaries]);
 
   const {
     page,
@@ -231,20 +215,8 @@ export default function SectionsPage() {
     hasPreviousPage,
   } = useLocalPagination(visibleSections, {
     pageSize: 6,
-    resetKey: `${filters.search}|${filters.view}|${visibleSections.length}`,
+    resetKey: `${search}|${visibleSections.length}`,
   });
-
-  const totals = useMemo(
-    () => ({
-      all: sectionSummaries.length,
-      withMonitors: sectionSummaries.filter((section) => section.monitorCount > 0)
-        .length,
-      withoutMonitors: sectionSummaries.filter(
-        (section) => section.monitorCount === 0,
-      ).length,
-    }),
-    [sectionSummaries],
-  );
 
   const handleOpenCreate = () => {
     setManageOpen(false);
@@ -267,6 +239,11 @@ export default function SectionsPage() {
     description: string;
     icon: SectionIcon;
     monitorIds: number[];
+    expectedStatusCode: number;
+    frequencySeconds: number;
+    timeoutSeconds: number;
+    locations: string[];
+    isActive: boolean;
   }) => {
     try {
       if (editorState.section) {
@@ -346,8 +323,8 @@ export default function SectionsPage() {
               <input
                 style={styles.searchInput}
                 placeholder="Buscar secciones..."
-                value={filters.search}
-                onChange={(event) => setFilter('search', event.target.value)}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
               />
             </label>
 
@@ -362,40 +339,6 @@ export default function SectionsPage() {
               </button>
             ) : null}
           </div>
-        </div>
-
-        <div style={styles.tabs}>
-          <button
-            type="button"
-            style={
-              filters.view === 'ALL' ? styles.tabActiveButton : styles.tabButton
-            }
-            onClick={() => setFilter('view', 'ALL')}
-          >
-            Todas ({totals.all})
-          </button>
-          <button
-            type="button"
-            style={
-              filters.view === 'WITH_MONITORS'
-                ? styles.tabActiveButton
-                : styles.tabButton
-            }
-            onClick={() => setFilter('view', 'WITH_MONITORS')}
-          >
-            Con monitores ({totals.withMonitors})
-          </button>
-          <button
-            type="button"
-            style={
-              filters.view === 'WITHOUT_MONITORS'
-                ? styles.tabActiveButton
-                : styles.tabButton
-            }
-            onClick={() => setFilter('view', 'WITHOUT_MONITORS')}
-          >
-            Sin monitores ({totals.withoutMonitors})
-          </button>
         </div>
 
         {feedback && (
@@ -668,12 +611,22 @@ function SectionEditorModal({
     description: string;
     icon: SectionIcon;
     monitorIds: number[];
+    expectedStatusCode: number;
+    frequencySeconds: number;
+    timeoutSeconds: number;
+    locations: string[];
+    isActive: boolean;
   }) => void;
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState<SectionIcon>('folder');
   const [monitorIds, setMonitorIds] = useState<number[]>([]);
+  const [expectedStatusCode, setExpectedStatusCode] = useState(200);
+  const [frequencySeconds, setFrequencySeconds] = useState(60);
+  const [timeoutSeconds, setTimeoutSeconds] = useState(10);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [isActive, setIsActive] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -685,8 +638,18 @@ function SectionEditorModal({
     setDescription(section?.description ?? '');
     setIcon(section?.icon ?? 'folder');
     setMonitorIds(section?.monitorIds ?? []);
+    setExpectedStatusCode(section?.expectedStatusCode ?? 200);
+    setFrequencySeconds(section?.frequencySeconds ?? 60);
+    setTimeoutSeconds(section?.timeoutSeconds ?? 10);
+    setLocations(section?.locations ?? []);
+    setIsActive(section?.isActive ?? true);
     setFormError(null);
   }, [isOpen, section]);
+
+  const sortedMonitors = useMemo(
+    () => sortMonitorsByStatusAndLastCheck(monitors),
+    [monitors],
+  );
 
   if (!isOpen) {
     return null;
@@ -700,11 +663,31 @@ function SectionEditorModal({
     );
   };
 
+  const toggleLocation = (location: string) => {
+    setLocations((currentLocations) =>
+      currentLocations.includes(location)
+        ? currentLocations.filter((item) => item !== location)
+        : [...currentLocations, location],
+    );
+  };
+
   const handleSubmit = () => {
     const normalizedName = name.trim();
 
     if (!normalizedName) {
       setFormError('El nombre es obligatorio.');
+      return;
+    }
+    if (!Number.isInteger(frequencySeconds) || frequencySeconds < 30) {
+      setFormError('La frecuencia minima es 30 segundos.');
+      return;
+    }
+    if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 1) {
+      setFormError('El timeout minimo es 1 segundo.');
+      return;
+    }
+    if (!Number.isInteger(expectedStatusCode) || expectedStatusCode < 100 || expectedStatusCode > 599) {
+      setFormError('El codigo esperado debe estar entre 100 y 599.');
       return;
     }
 
@@ -713,6 +696,11 @@ function SectionEditorModal({
       description: description.trim(),
       icon,
       monitorIds,
+      expectedStatusCode,
+      frequencySeconds,
+      timeoutSeconds,
+      locations,
+      isActive,
     });
   };
 
@@ -783,6 +771,64 @@ function SectionEditorModal({
           </div>
 
           <div style={styles.field}>
+            <span>Programacion por defecto</span>
+            <div style={styles.scheduleGrid}>
+              <label style={styles.field}>
+                <span>Frecuencia (s)</span>
+                <input
+                  type="number"
+                  min={30}
+                  style={styles.fieldInput}
+                  value={frequencySeconds}
+                  onChange={(event) => setFrequencySeconds(Number(event.target.value))}
+                />
+              </label>
+              <label style={styles.field}>
+                <span>Timeout (s)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  style={styles.fieldInput}
+                  value={timeoutSeconds}
+                  onChange={(event) => setTimeoutSeconds(Number(event.target.value))}
+                />
+              </label>
+              <label style={styles.field}>
+                <span>Codigo HTTP esperado</span>
+                <input
+                  type="number"
+                  min={100}
+                  max={599}
+                  style={styles.fieldInput}
+                  value={expectedStatusCode}
+                  onChange={(event) => setExpectedStatusCode(Number(event.target.value))}
+                />
+              </label>
+              <label style={styles.switchCard}>
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(event) => setIsActive(event.target.checked)}
+                />
+                Seccion activa
+              </label>
+            </div>
+            <div style={styles.locationPicker}>
+              {['Madrid', 'Frankfurt', 'Virginia'].map((location) => (
+                <label key={location} style={styles.locationOption}>
+                  <input
+                    type="checkbox"
+                    checked={locations.includes(location)}
+                    onChange={() => toggleLocation(location)}
+                  />
+                  {location}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div style={styles.field}>
             <span>Monitores asignados</span>
             <p style={styles.fieldHint}>
               Puedes asignar un mismo monitor a varias secciones si tiene sentido operativo.
@@ -791,7 +837,7 @@ function SectionEditorModal({
               {monitors.length === 0 ? (
                 <div style={styles.selectorEmpty}>No hay monitores disponibles.</div>
               ) : (
-                monitors.map((monitor) => {
+                sortedMonitors.map((monitor) => {
                   const viewStatus = getMonitorViewStatus(monitor);
                   const linkedSection = sections.find(
                     (currentSection) =>
@@ -1370,6 +1416,33 @@ const styles: Record<string, CSSProperties> = {
     ...inputBase,
     height: 44,
     borderRadius: 14,
+  },
+  scheduleGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+    gap: 12,
+  },
+  switchCard: {
+    ...surfaceCard,
+    minHeight: 44,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '0 12px',
+    fontSize: 13,
+  },
+  locationPicker: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  locationOption: {
+    ...surfaceCard,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '10px 12px',
+    fontSize: 13,
   },
   textarea: {
     ...controlBase,

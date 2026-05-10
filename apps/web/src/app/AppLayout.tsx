@@ -10,12 +10,14 @@ import {
 import { surfaceCard, uiTheme } from "../theme/commonStyles";
 import {
   AlertTriangleIcon,
+  BellIcon,
   BrandMark,
   FolderIcon,
   HomeIcon,
   MonitorIcon,
   ReportIcon,
   SettingsIcon,
+  UserGroupIcon,
   UsersIcon,
 } from "../shared/uiIcons";
 
@@ -34,13 +36,13 @@ const navItems = [
     to: "/incidents",
   },
   {
-    icon: <AlertTriangleIcon size={16} />,
+    icon: <BellIcon size={16} />,
     label: "Notificaciones",
     to: "/notifications",
   },
   { icon: <SettingsIcon size={16} />, label: "Configuración", to: "/settings" },
   { icon: <UsersIcon size={16} />, label: "Mi perfil", to: "/profile" },
-  { icon: <UsersIcon size={16} />, label: "Usuarios", to: "/users" },
+  { icon: <UserGroupIcon size={16} />, label: "Usuarios", to: "/users" },
 ];
 
 export default function AppLayout() {

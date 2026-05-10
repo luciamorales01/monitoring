@@ -11,17 +11,29 @@ import {
   surfaceCard,
   uiTheme,
 } from '../../theme/commonStyles';
-import type { Monitor } from '../../shared/monitorApi';
+import {
+  updateMonitor,
+  useSectionSchedule,
+  type Monitor,
+  type UpdateMonitorInput,
+} from '../../shared/monitorApi';
 import {
   getMonitorViewStatus,
+  sortMonitorsByStatusAndLastCheck,
   type MonitorViewStatus,
 } from '../../shared/monitorFilters';
 import { useLocalPagination } from '../../shared/useLocalPagination';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
 import { useCurrentUserPermissions } from '../../shared/permissions';
-import type { MonitorSection } from '../../shared/sectionsStore';
-import { getSection, runSectionChecks } from '../../shared/sectionsApi';
+import {
+  getSection,
+  runSectionChecks,
+  updateSectionMembers,
+  type ApiSection,
+} from '../../shared/sectionsApi';
+import { getUsers, type User } from '../../shared/userApi';
+import MonitorEditModal from '../monitors/MonitorEditModal';
 import {
   CheckCircleIcon,
   ChevronRightIcon,
@@ -55,13 +67,13 @@ const typeOptions = [
 
 type StatusFilter = (typeof statusOptions)[number]['value'];
 type TypeFilter = (typeof typeOptions)[number]['value'];
-type ActiveTab = 'monitors' | 'summary' | 'alerts' | 'incidents' | 'settings';
+type ActiveTab = 'monitors' | 'members';
 
 export default function SectionDetailPage() {
   const { sectionId } = useParams();
   const navigate = useNavigate();
   const { canWrite: canWriteActions } = useCurrentUserPermissions();
-  const [section, setSection] = useState<MonitorSection | null>(null);
+  const [section, setSection] = useState<ApiSection | null>(null);
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +83,12 @@ export default function SectionDetailPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('monitors');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [memberIds, setMemberIds] = useState<number[]>([]);
+  const [isSavingMembers, setIsSavingMembers] = useState(false);
+  const [editingMonitor, setEditingMonitor] = useState<Monitor | null>(null);
+  const [isSavingMonitor, setIsSavingMonitor] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const loadData = async () => {
     if (!sectionId) {
@@ -82,10 +100,15 @@ export default function SectionDetailPage() {
     setLoading(true);
 
     try {
-      const nextSection = await getSection(sectionId);
+      const [nextSection, nextUsers] = await Promise.all([
+        getSection(sectionId),
+        canWriteActions ? getUsers() : Promise.resolve([]),
+      ]);
 
       setSection(nextSection);
       setMonitors(nextSection.monitors ?? []);
+      setUsers(nextUsers);
+      setMemberIds(nextSection.memberIds ?? []);
       setError(null);
     } catch (currentError) {
       console.error('Error loading section detail', currentError);
@@ -99,7 +122,7 @@ export default function SectionDetailPage() {
 
   useEffect(() => {
     void loadData();
-  }, [sectionId]);
+  }, [canWriteActions, sectionId]);
 
 
   const handleRunSectionChecks = async () => {
@@ -127,6 +150,65 @@ export default function SectionDetailPage() {
       setFeedback(currentError instanceof Error ? currentError.message : 'No se pudo comprobar la seccion.');
     } finally {
       setIsChecking(false);
+    }
+  };
+
+  const handleToggleMember = (userId: number) => {
+    setMemberIds((currentIds) =>
+      currentIds.includes(userId)
+        ? currentIds.filter((id) => id !== userId)
+        : [...currentIds, userId],
+    );
+  };
+
+  const handleSaveMembers = async () => {
+    if (!sectionId) return;
+    setIsSavingMembers(true);
+    setFeedback(null);
+
+    try {
+      const updatedSection = await updateSectionMembers(sectionId, memberIds);
+      setSection(updatedSection);
+      setMemberIds(updatedSection.memberIds ?? []);
+      setFeedback('Miembros actualizados correctamente.');
+    } catch (currentError) {
+      console.error('Error saving section members', currentError);
+      setFeedback(currentError instanceof Error ? currentError.message : 'No se pudieron actualizar los miembros.');
+    } finally {
+      setIsSavingMembers(false);
+    }
+  };
+
+  const handleSaveMonitor = async (data: UpdateMonitorInput) => {
+    if (!editingMonitor) return;
+    setIsSavingMonitor(true);
+    setEditError(null);
+
+    try {
+      await updateMonitor(editingMonitor.id, data);
+      setEditingMonitor(null);
+      await loadData();
+    } catch (currentError) {
+      setEditError(currentError instanceof Error ? currentError.message : 'No se pudo guardar el monitor.');
+    } finally {
+      setIsSavingMonitor(false);
+    }
+  };
+
+  const handleUseSectionSchedule = async () => {
+    if (!editingMonitor) return;
+    setIsSavingMonitor(true);
+    setEditError(null);
+
+    try {
+      await useSectionSchedule(editingMonitor.id);
+      setEditingMonitor(null);
+      setFeedback('Monitor sincronizado con la configuracion de la seccion.');
+      await loadData();
+    } catch (currentError) {
+      setEditError(currentError instanceof Error ? currentError.message : 'No se pudo aplicar la configuracion de la seccion.');
+    } finally {
+      setIsSavingMonitor(false);
     }
   };
 
@@ -177,7 +259,7 @@ export default function SectionDetailPage() {
   const filteredMonitors = useMemo(() => {
     const searchTerm = search.trim().toLowerCase();
 
-    return sectionMonitors.filter((monitor) => {
+    const nextMonitors = sectionMonitors.filter((monitor) => {
       const viewStatus = getMonitorViewStatus(monitor);
       const matchesSearch =
         searchTerm.length === 0 ||
@@ -189,7 +271,14 @@ export default function SectionDetailPage() {
 
       return matchesSearch && matchesStatus && matchesType;
     });
+
+    return sortMonitorsByStatusAndLastCheck(nextMonitors);
   }, [search, sectionMonitors, statusFilter, typeFilter]);
+
+  const sectionUsers = useMemo(
+    () => (canWriteActions ? users : section?.members ?? []),
+    [canWriteActions, section?.members, users],
+  );
 
   const {
     page,
@@ -344,10 +433,7 @@ export default function SectionDetailPage() {
       <nav style={styles.tabs}>
         {[
           { key: 'monitors', label: 'Monitores' },
-          { key: 'summary', label: 'Resumen' },
-          { key: 'alerts', label: 'Alertas' },
-          { key: 'incidents', label: 'Incidencias' },
-          ...(canWriteActions ? [{ key: 'settings', label: 'Configuracion' }] : []),
+          { key: 'members', label: 'Miembros' },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -430,6 +516,7 @@ export default function SectionDetailPage() {
                     <th style={styles.th}>Estado</th>
                     <th style={styles.th}>Uptime estimado</th>
                     <th style={styles.th}>Ultima comprobacion</th>
+                    <th style={styles.th}>Programacion</th>
                     {canWriteActions ? <th style={styles.th}>Acciones</th> : null}
                   </tr>
                 </thead>
@@ -475,13 +562,24 @@ export default function SectionDetailPage() {
                         <td style={styles.td}>
                           {formatRelativeDate(monitor.lastCheckedAt)}
                         </td>
+                        <td style={styles.td}>
+                          {monitor.usesSectionSchedule === false ? (
+                            <span style={styles.customBadge}>Personalizada</span>
+                          ) : (
+                            <span style={styles.scheduleText}>Seccion</span>
+                          )}
+                        </td>
                         {canWriteActions ? (
                           <td
                             style={styles.td}
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <button type="button" style={styles.moreButton}>
-                              <MoreHorizontalIcon size={18} />
+                            <button
+                              type="button"
+                              style={styles.secondaryButton}
+                              onClick={() => setEditingMonitor(monitor)}
+                            >
+                              Editar
                             </button>
                           </td>
                         ) : null}
@@ -542,10 +640,54 @@ export default function SectionDetailPage() {
           </div>
         </section>
       ) : (
-        <section style={styles.placeholderPanel}>
-          <strong>{getTabTitle(activeTab)}</strong>
+        <section style={styles.tableCard}>
+          {sectionUsers.length === 0 ? (
+            <div style={styles.emptyTable}>
+              <strong>No hay usuarios disponibles.</strong>
+            </div>
+          ) : (
+            <div style={styles.memberList}>
+              {sectionUsers.map((user) => (
+                <label key={user.id} style={styles.memberRow}>
+                  <input
+                    type="checkbox"
+                    checked={memberIds.includes(user.id)}
+                    disabled={!canWriteActions || isSavingMembers}
+                    onChange={() => handleToggleMember(user.id)}
+                  />
+                  <span style={styles.memberCopy}>
+                    <strong>{user.name}</strong>
+                    <span>{user.email}</span>
+                  </span>
+                  <span style={styles.typeBadge}>{user.role}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {canWriteActions ? (
+            <div style={styles.memberActions}>
+              <button
+                type="button"
+                style={styles.primaryButton}
+                onClick={handleSaveMembers}
+                disabled={isSavingMembers}
+              >
+                {isSavingMembers ? 'Guardando...' : 'Guardar miembros'}
+              </button>
+            </div>
+          ) : null}
         </section>
       )}
+      <MonitorEditModal
+        error={editError}
+        isOpen={Boolean(editingMonitor)}
+        isSubmitting={isSavingMonitor}
+        monitor={editingMonitor}
+        onClose={() => setEditingMonitor(null)}
+        onSubmit={handleSaveMonitor}
+        sectionSchedule={section}
+        onUseSectionSchedule={handleUseSectionSchedule}
+      />
     </main>
   );
 }
@@ -649,22 +791,6 @@ function getMonitorUptime(status: MonitorViewStatus) {
   }
 
   return 'Pendiente';
-}
-
-function getTabTitle(tab: ActiveTab) {
-  if (tab === 'summary') {
-    return 'Resumen';
-  }
-
-  if (tab === 'alerts') {
-    return 'Alertas';
-  }
-
-  if (tab === 'incidents') {
-    return 'Incidencias';
-  }
-
-  return 'Configuracion';
 }
 
 function formatRelativeDate(value?: string | null) {
@@ -1072,6 +1198,19 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 600,
     fontSize: 12,
   },
+  customBadge: {
+    display: 'inline-flex',
+    padding: '5px 8px',
+    borderRadius: 7,
+    color: uiTheme.colors.warning,
+    background: uiTheme.colors.warningSoft,
+    fontWeight: 600,
+    fontSize: 12,
+  },
+  scheduleText: {
+    color: uiTheme.colors.muted,
+    fontWeight: 600,
+  },
   statusText: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -1160,11 +1299,25 @@ const styles: Record<string, CSSProperties> = {
     placeItems: 'center',
     color: uiTheme.colors.muted,
   },
-  placeholderPanel: {
-    ...surfaceCard,
-    minHeight: 240,
+  memberList: {
     display: 'grid',
-    placeItems: 'center',
-    color: uiTheme.colors.muted,
+    gap: 0,
+  },
+  memberRow: {
+    display: 'grid',
+    gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+    alignItems: 'center',
+    gap: 14,
+    padding: '14px 16px',
+    borderBottom: `1px solid ${uiTheme.colors.border}`,
+  },
+  memberCopy: {
+    display: 'grid',
+    gap: 4,
+  },
+  memberActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    padding: 16,
   },
 };

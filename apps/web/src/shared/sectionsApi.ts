@@ -1,9 +1,11 @@
 import { apiClient } from './apiClient';
 import type { Monitor } from './monitorApi';
 import type { MonitorSection, SectionIcon } from './sectionsStore';
+import type { User } from './userApi';
 
 export type ApiSection = MonitorSection & {
   monitors?: Monitor[];
+  members?: Pick<User, 'id' | 'name' | 'email' | 'role' | 'status'>[];
 };
 
 export type SectionPayload = {
@@ -11,6 +13,11 @@ export type SectionPayload = {
   description?: string;
   icon?: SectionIcon;
   monitorIds?: number[];
+  expectedStatusCode?: number;
+  frequencySeconds?: number;
+  timeoutSeconds?: number;
+  locations?: string[];
+  isActive?: boolean;
 };
 
 export function getSections() {
@@ -32,6 +39,13 @@ export function updateSection(id: string | number, payload: SectionPayload) {
   return apiClient<ApiSection>(`/sections/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
+  });
+}
+
+export function updateSectionMembers(id: string | number, userIds: number[]) {
+  return apiClient<ApiSection>(`/sections/${id}/members`, {
+    method: 'PATCH',
+    body: JSON.stringify({ userIds }),
   });
 }
 

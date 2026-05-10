@@ -1,4 +1,16 @@
-import { IsArray, IsIn, IsInt, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export const sectionIcons = ['folder', 'globe', 'monitor', 'database', 'cloud', 'code', 'drive'] as const;
 
@@ -21,4 +33,33 @@ export class CreateSectionDto {
   @IsArray()
   @IsInt({ each: true })
   monitorIds?: number[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(100)
+  @Max(599)
+  expectedStatusCode?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(30)
+  @Max(86_400)
+  frequencySeconds?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  timeoutSeconds?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  locations?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

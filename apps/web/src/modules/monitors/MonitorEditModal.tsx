@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { Monitor, MonitorType, UpdateMonitorInput } from '../../shared/monitorApi';
+import type { MonitorSection } from '../../shared/sectionsStore';
 import {
   controlBase,
   inputBase,
@@ -45,6 +46,15 @@ type MonitorEditModalProps = {
   monitor: Monitor | null;
   onClose: () => void;
   onSubmit: (data: UpdateMonitorInput) => Promise<void>;
+  onUseSectionSchedule?: () => Promise<void>;
+  sectionSchedule?: Pick<
+    MonitorSection,
+    | 'expectedStatusCode'
+    | 'frequencySeconds'
+    | 'timeoutSeconds'
+    | 'locations'
+    | 'isActive'
+  > | null;
 };
 
 const emptyForm: UpdateMonitorInput = {
@@ -65,7 +75,16 @@ const emptyForm: UpdateMonitorInput = {
   dnsExpectedValue: '',
 };
 
-export default function MonitorEditModal({ error, isOpen, isSubmitting, monitor, onClose, onSubmit }: MonitorEditModalProps) {
+export default function MonitorEditModal({
+  error,
+  isOpen,
+  isSubmitting,
+  monitor,
+  onClose,
+  onSubmit,
+  onUseSectionSchedule,
+  sectionSchedule,
+}: MonitorEditModalProps) {
   const [form, setForm] = useState<UpdateMonitorInput>(emptyForm);
   const [localError, setLocalError] = useState('');
 
@@ -93,6 +112,8 @@ export default function MonitorEditModal({ error, isOpen, isSubmitting, monitor,
   }, [isOpen, monitor]);
 
   const locationOptions = useMemo(() => Array.from(new Set([...baseLocationOptions, ...(monitor?.locations ?? [])])), [monitor]);
+  const showSectionScheduleButton =
+    Boolean(onUseSectionSchedule && sectionSchedule && monitor?.usesSectionSchedule === false);
 
   if (!isOpen || !monitor) return null;
 
@@ -192,7 +213,19 @@ export default function MonitorEditModal({ error, isOpen, isSubmitting, monitor,
           {(localError || error) && <div style={styles.errorBanner}>{localError || error}</div>}
 
           <section style={styles.section}>
-            <h3 style={styles.sectionTitle}>Configuración principal</h3>
+            <div style={styles.sectionHeader}>
+              <h3 style={styles.sectionTitle}>Configuración principal</h3>
+              {showSectionScheduleButton ? (
+                <button
+                  type="button"
+                  style={styles.secondaryButton}
+                  onClick={() => void onUseSectionSchedule?.()}
+                  disabled={isSubmitting}
+                >
+                  Usar configuración de la sección
+                </button>
+              ) : null}
+            </div>
             <div style={styles.grid}>
               <Field label="Nombre"><input style={styles.input} value={form.name} onChange={setTextField('name')} /></Field>
               <Field label="Destino"><input style={styles.input} value={form.target} onChange={setTextField('target')} placeholder={targetHelpers[form.type]} /></Field>
@@ -284,6 +317,7 @@ const styles: Record<string, CSSProperties> = {
   input: inputBase,
   helper: { margin: 0, color: uiTheme.colors.muted, fontSize: 12 },
   section: { display: 'grid', gap: 14 },
+  sectionHeader: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' },
   sectionTitle: { margin: 0, fontSize: 16 },
   locationGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 },
   locationCard: { ...surfaceCard, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' },

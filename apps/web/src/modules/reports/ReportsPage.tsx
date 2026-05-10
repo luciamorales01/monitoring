@@ -9,21 +9,20 @@ import {
   type MonitorCheck,
   type MonitorType,
 } from "../../shared/monitorApi";
+import { sortMonitorsByStatusAndLastCheck } from "../../shared/monitorFilters";
 import { readSections, sanitizeSections, type MonitorSection } from "../../shared/sectionsStore";
 import {
   badgeBase,
   filterGroupBase,
   inputBase,
   pageMain,
-  pageSubtitle,
-  pageTitle,
   primaryButtonBase,
   secondaryButtonBase,
   surfaceCard,
   toneStyles,
-  topActionsBase,
   uiTheme,
 } from "../../theme/commonStyles";
+import AppTopbar from "../../shared/AppTopbar";
 import {
   ActivityIcon,
   AlertTriangleIcon,
@@ -33,7 +32,7 @@ import {
   FilterIcon,
   GlobeIcon,
   MonitorIcon,
-  RefreshIcon,
+  MoreHorizontalIcon,
 } from "../../shared/uiIcons";
 
 type RangeFilter = "24h" | "7d" | "30d";
@@ -65,6 +64,7 @@ type ReportRow = {
   lastDowntimeAt: string | null;
   lastDowntimeLabel: string;
   healthScore: number;
+  latestCheckAt: string | null;
   slaMet: boolean;
   incidentIds: number[];
   locations: string[];
@@ -148,6 +148,7 @@ export default function ReportsPage() {
   const [selectedType, setSelectedType] = useState<"all" | MonitorType>("all");
   const [slaFilter, setSlaFilter] = useState<SlaFilter>("all");
   const [search, setSearch] = useState("");
+  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -235,7 +236,7 @@ export default function ReportsPage() {
   const filteredRows = useMemo(() => {
     const searchTerm = normalizeSearchTerm(search);
 
-    return reportRows.filter((row) => {
+    const nextRows = reportRows.filter((row) => {
       const matchesStatus = status === "all" || row.status === status;
       const matchesMonitor =
         selectedMonitor === "all" || String(row.monitor.id) === selectedMonitor;
@@ -263,6 +264,14 @@ export default function ReportsPage() {
         matchesSla &&
         (!searchTerm || haystack.includes(searchTerm))
       );
+    });
+
+    return sortMonitorsByStatusAndLastCheck(nextRows, {
+      getId: (row) => row.monitor.id,
+      getLastCheckAt: (row) => row.latestCheckAt,
+      getName: (row) => getMonitorName(row.monitor),
+      getStatus: (row) => row.status,
+      isPaused: (row) => row.status === "PAUSED",
     });
   }, [reportRows, search, selectedMonitor, selectedSection, selectedType, slaFilter, status]);
 
@@ -780,57 +789,43 @@ export default function ReportsPage() {
         `}
       </style>
 
-      <header style={styles.header}>
-        <div style={styles.headerShell}>
-          <div style={styles.headerCopy}>
-            <span style={styles.eyebrowBadge}>Centro operativo · Informes premium</span>
-            <h1 style={styles.title}>Informes</h1>
-            <p style={styles.subtitle}>
-              Visión ejecutiva de disponibilidad, incidencias, SLA y rendimiento
-              para tus monitores.
-            </p>
+      <AppTopbar
+        title="Informes"
+        subtitle="Visión ejecutiva de disponibilidad, incidencias, SLA y rendimiento para tus monitores."
+        onRefresh={handleRefresh}
+        cta={{ label: "Exportar CSV", onClick: exportGeneralCsv }}
+      />
 
-            <div style={styles.headerMetaRow}>
-              <span style={styles.metaBadge}>{period.label}</span>
-              <span style={styles.metaText}>
-                Última sincronización {formatRelativeTime(lastLoadedAt)}
-              </span>
-              <span style={styles.metaText}>
-                SLA objetivo {SLA_TARGET.toFixed(1)}%
-              </span>
-            </div>
+      <section style={styles.overviewCard}>
+        <div style={styles.overviewCopy}>
+          <div style={styles.overviewMetaRow}>
+            <span style={styles.inlineMetaBadge}>{period.label}</span>
+            <span style={styles.inlineMetaText}>
+              Última sincronización {formatRelativeTime(lastLoadedAt)}
+            </span>
+            <span style={styles.inlineMetaText}>
+              SLA objetivo {SLA_TARGET.toFixed(1)}%
+            </span>
           </div>
-
-          <div style={styles.headerAside}>
-            <HealthScoreRing score={totals.avgHealthScore} />
-            <div style={styles.headerAsideCopy}>
-              <strong style={styles.headerAsideTitle}>Health Score global</strong>
-              <span style={styles.headerAsideText}>
-                {describeHealthScore(totals.avgHealthScore)}
-              </span>
-            </div>
-          </div>
+          <p style={styles.overviewDescription}>
+            Centro operativo con lectura ejecutiva del rendimiento y la
+            disponibilidad de toda la plataforma.
+          </p>
         </div>
 
-        <div style={styles.actionsRow}>
-          <button
-            type="button"
-            style={styles.iconButton}
-            onClick={() => void handleRefresh()}
-            title="Refrescar"
-          >
-            <RefreshIcon size={15} />
-          </button>
-
+        <div style={styles.overviewAside}>
+          <HealthScoreRing score={totals.avgHealthScore} compact />
+          <div style={styles.overviewAsideCopy}>
+            <strong style={styles.overviewAsideTitle}>Health Score global</strong>
+            <span style={styles.overviewAsideText}>
+              {describeHealthScore(totals.avgHealthScore)}
+            </span>
+          </div>
           <button type="button" style={styles.secondaryButton} onClick={() => void exportPdf()}>
             Exportar PDF
           </button>
-
-          <button type="button" style={styles.primaryButton} onClick={exportGeneralCsv}>
-            Exportar CSV
-          </button>
         </div>
-      </header>
+      </section>
 
       <section style={styles.filtersCard}>
         <div style={styles.filtersTitle}>
@@ -892,7 +887,7 @@ export default function ReportsPage() {
               onChange={(event) => setSelectedMonitor(event.target.value)}
             >
               <option value="all">Todos los monitores</option>
-              {monitors.map((monitor) => (
+              {sortMonitorsByStatusAndLastCheck(monitors).map((monitor) => (
                 <option key={monitor.id} value={monitor.id}>
                   {monitor.name}
                 </option>
@@ -1305,26 +1300,61 @@ export default function ReportsPage() {
 
                     <td style={styles.tdActions}>
                       <div style={styles.tableActions}>
-                        <Link to={`/monitors/${row.monitor.id}`} className="reports-action" style={styles.secondaryLink}>
-                          Ver detalle
-                        </Link>
-
                         <button
                           type="button"
-                          className="reports-action"
-                          style={styles.ghostButton}
-                          onClick={() => exportMonitorCsv(row)}
+                          style={{
+                            ...styles.iconActionButton,
+                            ...(openActionMenuId === row.monitor.id
+                              ? styles.iconActionButtonActive
+                              : {}),
+                          }}
+                          aria-label={`Abrir acciones de ${getMonitorName(row.monitor)}`}
+                          aria-expanded={openActionMenuId === row.monitor.id}
+                          onClick={() =>
+                            setOpenActionMenuId((currentId) =>
+                              currentId === row.monitor.id ? null : row.monitor.id,
+                            )
+                          }
                         >
-                          CSV monitor
+                          <MoreHorizontalIcon size={16} />
                         </button>
 
-                        <Link
-                          to={`/incidents?monitor=${encodeURIComponent(getMonitorName(row.monitor))}`}
-                          className="reports-action"
-                          style={styles.primaryLink}
-                        >
-                          Ver incidencias
-                        </Link>
+                        {openActionMenuId === row.monitor.id ? (
+                          <div style={styles.actionMenu}>
+                            <Link
+                              to={`/monitors/${row.monitor.id}`}
+                              className="reports-action"
+                              style={styles.actionMenuLink}
+                              onClick={() => setOpenActionMenuId(null)}
+                            >
+                              <GlobeIcon size={14} />
+                              Ver detalle
+                            </Link>
+
+                            <button
+                              type="button"
+                              className="reports-action"
+                              style={styles.actionMenuItem}
+                              onClick={() => {
+                                setOpenActionMenuId(null);
+                                exportMonitorCsv(row);
+                              }}
+                            >
+                              <ActivityIcon size={14} />
+                              CSV monitor
+                            </button>
+
+                            <Link
+                              to={`/incidents?monitor=${encodeURIComponent(getMonitorName(row.monitor))}`}
+                              className="reports-action"
+                              style={styles.actionMenuLinkPrimary}
+                              onClick={() => setOpenActionMenuId(null)}
+                            >
+                              <AlertTriangleIcon size={14} />
+                              Ver incidencias
+                            </Link>
+                          </div>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -1340,7 +1370,9 @@ export default function ReportsPage() {
 
 async function loadReportPayload(): Promise<ReportPayload> {
   const monitorData = await getMonitors();
-  const monitors = Array.isArray(monitorData) ? monitorData : [];
+  const monitors = sortMonitorsByStatusAndLastCheck(
+    Array.isArray(monitorData) ? monitorData : [],
+  );
   const incidents = await getIncidents().catch(() => [] as Incident[]);
   const checksByMonitor: Record<number, MonitorCheck[]> = {};
 
@@ -1425,6 +1457,7 @@ function buildReportRow({
     previousSummary.latestDownAt ??
     null;
   const status = getMonitorReportStatus(monitor);
+  const latestCheckAt = getLatestMonitorCheckAt(checks) ?? monitor.lastCheckedAt ?? null;
   const locations = monitor.locations.length > 0 ? monitor.locations : ["default"];
   const topLocation =
     currentSummary.topLocation ??
@@ -1459,6 +1492,7 @@ function buildReportRow({
     incidents: currentIncidents.length,
     lastDowntimeAt,
     lastDowntimeLabel: lastDowntimeAt ? formatRelativeTime(lastDowntimeAt) : "Sin caídas recientes",
+    latestCheckAt,
     locations,
     monitor,
     previousAvgResponse: safeInteger(previousAvgResponse),
@@ -1537,6 +1571,22 @@ function summarizeChecks(checks: MonitorCheck[]) {
     upChecks,
     uptime: safePercentageFromCounts(upChecks, checks.length),
   };
+}
+
+function getLatestMonitorCheckAt(checks: MonitorCheck[]) {
+  let latestTimestamp = Number.NEGATIVE_INFINITY;
+  let latestCheckAt: string | null = null;
+
+  for (const check of checks) {
+    const timestamp = new Date(check.checkedAt).getTime();
+
+    if (Number.isFinite(timestamp) && timestamp > latestTimestamp) {
+      latestTimestamp = timestamp;
+      latestCheckAt = check.checkedAt;
+    }
+  }
+
+  return latestCheckAt;
 }
 
 function buildAvailabilitySeries(
@@ -2565,12 +2615,6 @@ function clamp(value: number, min: number, max: number) {
 }
 
 const styles: Record<string, CSSProperties> = {
-  actionsRow: {
-    ...topActionsBase,
-    justifyContent: "flex-end",
-    width: "100%",
-    flexWrap: "wrap",
-  },
   badgeDot: {
     width: 7,
     height: 7,
@@ -2773,13 +2817,6 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.text,
     lineHeight: 1.65,
   },
-  eyebrowBadge: {
-    ...badgeBase,
-    color: uiTheme.colors.white,
-    background: "rgba(255,255,255,0.12)",
-    width: "fit-content",
-    backdropFilter: "blur(10px)",
-  },
   factLabel: {
     color: uiTheme.colors.muted,
     fontSize: 12,
@@ -2847,47 +2884,6 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 600,
     cursor: "pointer",
   },
-  header: {
-    display: "grid",
-    gap: 16,
-  },
-  headerAside: {
-    display: "flex",
-    gap: 16,
-    alignItems: "center",
-  },
-  headerAsideCopy: {
-    display: "grid",
-    gap: 6,
-  },
-  headerAsideText: {
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 13,
-  },
-  headerAsideTitle: {
-    color: uiTheme.colors.white,
-    fontSize: 15,
-  },
-  headerCopy: {
-    display: "grid",
-    gap: 10,
-  },
-  headerMetaRow: {
-    display: "flex",
-    gap: 10,
-    flexWrap: "wrap",
-    alignItems: "center",
-  },
-  headerShell: {
-    background: "linear-gradient(135deg, #0f172a 0%, #1d4ed8 58%, #2563eb 100%)",
-    borderRadius: 24,
-    padding: 24,
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 20,
-    flexWrap: "wrap",
-    boxShadow: "0 28px 60px rgba(15, 23, 42, 0.16)",
-  },
   healthRing: {
     display: "grid",
     placeItems: "center",
@@ -2914,16 +2910,6 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 24,
     lineHeight: 1,
     color: uiTheme.colors.text,
-  },
-  iconButton: {
-    ...secondaryButtonBase,
-    width: 40,
-    height: 40,
-    padding: 0,
-    borderRadius: uiTheme.radii.sm,
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
   },
   inlineMeta: {
     display: "flex",
@@ -3061,15 +3047,6 @@ const styles: Record<string, CSSProperties> = {
     backgroundImage:
       "linear-gradient(135deg, rgba(37, 99, 235, 0.07), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)",
   },
-  metaBadge: {
-    ...badgeBase,
-    background: "rgba(255,255,255,0.14)",
-    color: uiTheme.colors.white,
-  },
-  metaText: {
-    color: "rgba(255,255,255,0.74)",
-    fontSize: 13,
-  },
   metricCell: {
     display: "grid",
     gap: 6,
@@ -3105,6 +3082,54 @@ const styles: Record<string, CSSProperties> = {
     display: "grid",
     gap: 6,
     minWidth: 0,
+  },
+  overviewAside: {
+    display: "flex",
+    gap: 16,
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+  },
+  overviewAsideCopy: {
+    display: "grid",
+    gap: 6,
+    minWidth: 0,
+  },
+  overviewAsideText: {
+    color: uiTheme.colors.muted,
+    fontSize: 13,
+  },
+  overviewAsideTitle: {
+    color: uiTheme.colors.text,
+    fontSize: 15,
+  },
+  overviewCard: {
+    ...surfaceCard,
+    padding: 22,
+    borderRadius: 20,
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 20,
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  overviewCopy: {
+    display: "grid",
+    gap: 10,
+    minWidth: 0,
+    flex: "1 1 420px",
+  },
+  overviewDescription: {
+    margin: 0,
+    color: uiTheme.colors.muted,
+    fontSize: 14,
+    lineHeight: 1.6,
+  },
+  overviewMetaRow: {
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    alignItems: "center",
   },
   primaryButton: {
     ...primaryButtonBase,
@@ -3216,23 +3241,103 @@ const styles: Record<string, CSSProperties> = {
     ...badgeBase,
     ...toneStyles.slate,
   },
-  subtitle: {
-    ...pageSubtitle,
-    marginTop: 0,
-    color: "rgba(255,255,255,0.82)",
-    maxWidth: 680,
-  },
   table: {
     width: "100%",
     borderCollapse: "separate",
     borderSpacing: 0,
   },
   tableActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    position: "relative",
+  },
+  actionMenu: {
+    position: "absolute",
+    top: "calc(100% + 8px)",
+    right: 0,
+    minWidth: 190,
+    padding: 8,
+    borderRadius: 16,
+    background: "rgba(255, 255, 255, 0.98)",
+    border: `1px solid ${uiTheme.colors.border}`,
+    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.14)",
+    display: "grid",
+    gap: 4,
+    zIndex: 20,
+    backdropFilter: "blur(12px)",
+  },
+  actionMenuItem: {
+    ...secondaryButtonBase,
+    minHeight: 38,
+    padding: "0 12px",
+    borderRadius: 14,
     display: "inline-flex",
     alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 8,
-    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "flex-start",
+    textDecoration: "none",
+    whiteSpace: "nowrap",
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    fontSize: 12,
+    fontWeight: 500,
+    color: uiTheme.colors.text,
+    cursor: "pointer",
+  },
+  actionMenuLink: {
+    ...secondaryButtonBase,
+    minHeight: 38,
+    padding: "0 12px",
+    borderRadius: 14,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    justifyContent: "flex-start",
+    textDecoration: "none",
+    whiteSpace: "nowrap",
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    fontSize: 12,
+    fontWeight: 500,
+    color: uiTheme.colors.text,
+  },
+  actionMenuLinkPrimary: {
+    ...primaryButtonBase,
+    minHeight: 38,
+    padding: "0 12px",
+    borderRadius: 14,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    justifyContent: "flex-start",
+    textDecoration: "none",
+    whiteSpace: "nowrap",
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  iconActionButton: {
+    ...secondaryButtonBase,
+    width: 38,
+    minWidth: 38,
+    height: 38,
+    minHeight: 38,
+    padding: 0,
+    borderRadius: 14,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "rgba(255, 255, 255, 0.92)",
+    border: `1px solid ${uiTheme.colors.borderStrong}`,
+    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.06)",
+    color: uiTheme.colors.text,
+    cursor: "pointer",
+  },
+  iconActionButtonActive: {
+    background: uiTheme.colors.primarySoft,
+    color: uiTheme.colors.primary,
+    border: `1px solid ${uiTheme.colors.primary}25`,
   },
   tableCard: {
     ...surfaceCard,
@@ -3280,10 +3385,6 @@ const styles: Record<string, CSSProperties> = {
     borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
     background: "#f8fafc",
-  },
-  title: {
-    ...pageTitle,
-    color: uiTheme.colors.white,
   },
   typeBadge: {
     ...badgeBase,

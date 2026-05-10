@@ -11,7 +11,6 @@ import {
   pageMain,
   pageSubtitle,
   pageTitle,
-  primaryButtonBase,
   secondaryButtonBase,
   surfaceCard,
   toneStyles,
@@ -113,7 +112,6 @@ export default function NotificationsPage() {
           <button type="button" onClick={() => void markAllAsRead()} style={styles.secondaryButton}>
             Marcar todas como leídas
           </button>
-          <button type="button" onClick={() => void load()} style={styles.refreshButton}>Actualizar</button>
         </div>
       </header>
 
@@ -226,7 +224,6 @@ const styles: Record<string, CSSProperties> = {
   },
   header: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' },
   headerActions: { display: 'flex', gap: 10, alignItems: 'center' },
-  refreshButton: { ...primaryButtonBase, height: 40, padding: '0 16px', cursor: 'pointer', borderRadius: 14 },
   secondaryButton: { ...secondaryButtonBase, height: 40, padding: '0 16px', cursor: 'pointer', borderRadius: 14 },
   kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14 },
   kpiCard: { ...surfaceCard, padding: 18, display: 'grid', gap: 8, borderRadius: 20 },

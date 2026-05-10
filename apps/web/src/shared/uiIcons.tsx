@@ -108,6 +108,17 @@ export function UsersIcon(props: IconProps) {
   );
 }
 
+export function UserGroupIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="9" cy="9" r="2.5" />
+      <circle cx="16.5" cy="10" r="2" />
+      <path d="M5.5 18a3.8 3.8 0 0 1 7 0" />
+      <path d="M14 18a3.1 3.1 0 0 1 5 0" />
+    </IconBase>
+  );
+}
+
 export function ArrowUpRightIcon(props: IconProps) {
   return (
     <IconBase {...props}>

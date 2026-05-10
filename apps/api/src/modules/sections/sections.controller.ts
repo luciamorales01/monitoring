@@ -16,6 +16,15 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateSectionDto } from './create-section.dto';
 import { SectionsService } from './sections.service';
 import { UpdateSectionDto } from './update-section.dto';
+import { UpdateSectionMembersDto } from './update-section-members.dto';
+
+type AuthenticatedRequest = {
+  user: {
+    organizationId: number;
+    userId: number;
+    role?: string;
+  };
+};
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('sections')
@@ -23,18 +32,18 @@ export class SectionsController {
   constructor(private readonly sectionsService: SectionsService) {}
 
   @Get()
-  findAll(@Req() req: any) {
+  findAll(@Req() req: AuthenticatedRequest) {
     return this.sectionsService.findAll(req.user);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.sectionsService.findOne(id, req.user);
   }
 
   @Post()
   @Roles('OWNER', 'ADMIN')
-  create(@Body() dto: CreateSectionDto, @Req() req: any) {
+  create(@Body() dto: CreateSectionDto, @Req() req: AuthenticatedRequest) {
     return this.sectionsService.create(dto, req.user);
   }
 
@@ -43,20 +52,30 @@ export class SectionsController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateSectionDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.sectionsService.update(id, dto, req.user);
   }
 
   @Delete(':id')
   @Roles('OWNER', 'ADMIN')
-  remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  remove(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.sectionsService.remove(id, req.user);
   }
 
   @Post(':id/run-checks')
   @Roles('OWNER', 'ADMIN')
-  runSectionChecks(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  runSectionChecks(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.sectionsService.runSectionChecks(id, req.user);
+  }
+
+  @Patch(':id/members')
+  @Roles('OWNER', 'ADMIN')
+  updateMembers(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateSectionMembersDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.sectionsService.updateMembers(id, dto, req.user);
   }
 }

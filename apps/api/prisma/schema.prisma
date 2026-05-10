@@ -38,6 +38,7 @@ model User {
   refreshTokens RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   invitedUsers UserInvitation[] @relation("InvitationAcceptedUser")
+  sectionMemberships SectionMember[]
 
   status UserStatus @default(ACTIVE)
   lastLoginAt DateTime?
@@ -89,6 +90,7 @@ model Monitor {
   lastCheckedAt      DateTime?
   nextCheckAt        DateTime      @default(now())
   isActive           Boolean       @default(true)
+  usesSectionSchedule Boolean      @default(true)
 
   organizationId     Int
   createdById        Int
@@ -269,14 +271,32 @@ model Section {
   name           String
   description    String           @default("")
   icon           String           @default("folder")
+  expectedStatusCode Int           @default(200)
+  frequencySeconds   Int           @default(60)
+  timeoutSeconds     Int           @default(10)
+  locations      String[]         @default([])
+  isActive       Boolean          @default(true)
   organizationId Int
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   monitors       SectionMonitor[]
+  members        SectionMember[]
 
   @@index([organizationId])
+}
+
+model SectionMember {
+  sectionId Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  section Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sectionId, userId])
+  @@index([userId])
 }
 
 model SectionMonitor {

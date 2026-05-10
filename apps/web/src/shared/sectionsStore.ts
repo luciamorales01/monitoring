@@ -12,7 +12,13 @@ export type MonitorSection = {
   name: string;
   description: string;
   icon: SectionIcon;
+  expectedStatusCode: number;
+  frequencySeconds: number;
+  timeoutSeconds: number;
+  locations: string[];
+  isActive: boolean;
   monitorIds: number[];
+  memberIds: number[];
   createdAt: string;
   updatedAt: string;
 };
@@ -59,6 +65,23 @@ function normalizeSection(value: unknown): MonitorSection | null {
     name: candidate.name.trim(),
     description: candidate.description.trim(),
     icon: candidate.icon,
+    expectedStatusCode:
+      typeof candidate.expectedStatusCode === 'number'
+        ? candidate.expectedStatusCode
+        : 200,
+    frequencySeconds:
+      typeof candidate.frequencySeconds === 'number'
+        ? candidate.frequencySeconds
+        : 60,
+    timeoutSeconds:
+      typeof candidate.timeoutSeconds === 'number'
+        ? candidate.timeoutSeconds
+        : 10,
+    locations: Array.isArray(candidate.locations)
+      ? candidate.locations.filter((location): location is string => typeof location === 'string')
+      : [],
+    isActive:
+      typeof candidate.isActive === 'boolean' ? candidate.isActive : true,
     monitorIds: Array.from(
       new Set(
         candidate.monitorIds.filter((monitorId): monitorId is number =>
@@ -66,6 +89,11 @@ function normalizeSection(value: unknown): MonitorSection | null {
         ),
       ),
     ),
+    memberIds: Array.isArray(candidate.memberIds)
+      ? candidate.memberIds.filter((userId): userId is number =>
+          Number.isInteger(userId),
+        )
+      : [],
     createdAt: candidate.createdAt,
     updatedAt: candidate.updatedAt,
   };
