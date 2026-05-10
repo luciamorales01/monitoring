@@ -16,7 +16,10 @@ class AuthApi {
       body: {'email': email, 'password': password},
     );
     final session = AuthSession.fromJson(_asMap(data));
-    await _tokenStorage.saveToken(session.accessToken);
+    await _tokenStorage.saveSession(
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+    );
     return session;
   }
 
@@ -36,7 +39,10 @@ class AuthApi {
       },
     );
     final session = AuthSession.fromJson(_asMap(data));
-    await _tokenStorage.saveToken(session.accessToken);
+    await _tokenStorage.saveSession(
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+    );
     return session;
   }
 
@@ -45,22 +51,43 @@ class AuthApi {
     return UserProfile.fromJson(_asMap(data));
   }
 
-  Future<void> logout() {
-    return _tokenStorage.clearToken();
+  Future<void> logout() async {
+    final refreshToken = await _tokenStorage.readRefreshToken();
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        await _client.post(
+          '/auth/logout',
+          body: {'refreshToken': refreshToken},
+          skipAuth: true,
+          skipRefresh: true,
+        );
+      } on ApiException {
+        // Local logout must succeed even if token revocation is already invalid.
+      }
+    }
+
+    await _tokenStorage.clearSession();
   }
 }
 
 class AuthSession {
-  const AuthSession({required this.accessToken, required this.user});
+  const AuthSession({
+    required this.accessToken,
+    required this.refreshToken,
+    required this.user,
+  });
 
   final String accessToken;
+  final String refreshToken;
   final UserProfile user;
 
   factory AuthSession.fromJson(Map<String, dynamic> json) {
     final token = json['accessToken'] ?? json['access_token'] ?? json['token'];
+    final refreshToken = json['refreshToken'] ?? json['refresh_token'];
 
     return AuthSession(
       accessToken: token as String,
+      refreshToken: refreshToken as String,
       user: UserProfile.fromJson(_asMap(json['user'])),
     );
   }
