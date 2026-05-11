@@ -1,10 +1,10 @@
-import type { Monitor, MonitorType } from './monitorApi';
-import { matchesSearchTerm, normalizeSearchTerm } from './filterUtils';
+import type { Monitor, MonitorType } from "./monitorApi";
+import { matchesSearchTerm, normalizeSearchTerm } from "./filterUtils";
 
-export type MonitorViewStatus = 'UP' | 'DOWN' | 'PAUSED' | 'UNKNOWN';
-export type MonitorStatusFilter = 'ALL' | MonitorViewStatus;
-export type MonitorTypeFilter = 'ALL' | MonitorType;
-export type MonitorSortOption = 'status' | 'name' | 'latest-check';
+export type MonitorViewStatus = "UP" | "DOWN" | "PAUSED" | "UNKNOWN";
+export type MonitorStatusFilter = "ALL" | MonitorViewStatus;
+export type MonitorTypeFilter = "ALL" | MonitorType;
+export type MonitorSortOption = "status" | "name" | "latest-check";
 
 export type MonitorListFilters = {
   search: string;
@@ -14,9 +14,9 @@ export type MonitorListFilters = {
 
 type MonitorSortStatus =
   | MonitorViewStatus
-  | 'ERROR'
-  | 'INCIDENT'
-  | 'PENDING'
+  | "ERROR"
+  | "INCIDENT"
+  | "PENDING"
   | string;
 
 type MonitorSortableFields = {
@@ -39,7 +39,10 @@ type MonitorSortAccessors<TItem> = {
   isPaused?: (item: TItem) => boolean;
 };
 
-const monitorStatusPriority: Record<MonitorViewStatus | 'ERROR' | 'INCIDENT' | 'PENDING', number> = {
+const monitorStatusPriority: Record<
+  MonitorViewStatus | "ERROR" | "INCIDENT" | "PENDING",
+  number
+> = {
   DOWN: 0,
   ERROR: 0,
   INCIDENT: 0,
@@ -50,29 +53,31 @@ const monitorStatusPriority: Record<MonitorViewStatus | 'ERROR' | 'INCIDENT' | '
 };
 
 function getSortableFields<TItem>(item: TItem): MonitorSortableFields {
-  if (typeof item !== 'object' || item === null) {
+  if (typeof item !== "object" || item === null) {
     return {};
   }
 
   return item as MonitorSortableFields;
 }
 
-function normalizeMonitorStatus(status: MonitorSortStatus | null | undefined): MonitorViewStatus | 'ERROR' | 'INCIDENT' | 'PENDING' {
-  const normalizedStatus = String(status ?? 'UNKNOWN').toUpperCase();
+function normalizeMonitorStatus(
+  status: MonitorSortStatus | null | undefined,
+): MonitorViewStatus | "ERROR" | "INCIDENT" | "PENDING" {
+  const normalizedStatus = String(status ?? "UNKNOWN").toUpperCase();
 
   if (
-    normalizedStatus === 'DOWN' ||
-    normalizedStatus === 'ERROR' ||
-    normalizedStatus === 'INCIDENT' ||
-    normalizedStatus === 'UP' ||
-    normalizedStatus === 'PENDING' ||
-    normalizedStatus === 'UNKNOWN' ||
-    normalizedStatus === 'PAUSED'
+    normalizedStatus === "DOWN" ||
+    normalizedStatus === "ERROR" ||
+    normalizedStatus === "INCIDENT" ||
+    normalizedStatus === "UP" ||
+    normalizedStatus === "PENDING" ||
+    normalizedStatus === "UNKNOWN" ||
+    normalizedStatus === "PAUSED"
   ) {
     return normalizedStatus;
   }
 
-  return 'UNKNOWN';
+  return "UNKNOWN";
 }
 
 function getMonitorSortStatus<TItem>(
@@ -82,7 +87,7 @@ function getMonitorSortStatus<TItem>(
   const fields = getSortableFields(item);
 
   if (accessors.isPaused?.(item) ?? fields.isActive === false) {
-    return 'PAUSED';
+    return "PAUSED";
   }
 
   return normalizeMonitorStatus(
@@ -115,7 +120,7 @@ function getMonitorSortName<TItem>(
   accessors: MonitorSortAccessors<TItem>,
 ) {
   const fields = getSortableFields(item);
-  return accessors.getName?.(item) ?? fields.name ?? '';
+  return accessors.getName?.(item) ?? fields.name ?? "";
 }
 
 function getMonitorSortId<TItem>(
@@ -123,15 +128,15 @@ function getMonitorSortId<TItem>(
   accessors: MonitorSortAccessors<TItem>,
 ) {
   const fields = getSortableFields(item);
-  return String(accessors.getId?.(item) ?? fields.id ?? '');
+  return String(accessors.getId?.(item) ?? fields.id ?? "");
 }
 
 export function getMonitorViewStatus(monitor: Monitor): MonitorViewStatus {
   if (!monitor.isActive) {
-    return 'PAUSED';
+    return "PAUSED";
   }
 
-  return monitor.currentStatus ?? 'UNKNOWN';
+  return monitor.currentStatus ?? "UNKNOWN";
 }
 
 export function filterMonitors(
@@ -144,8 +149,8 @@ export function filterMonitors(
     const viewStatus = getMonitorViewStatus(monitor);
 
     const matchesStatus =
-      filters.status === 'ALL' || viewStatus === filters.status;
-    const matchesType = filters.type === 'ALL' || monitor.type === filters.type;
+      filters.status === "ALL" || viewStatus === filters.status;
+    const matchesType = filters.type === "ALL" || monitor.type === filters.type;
 
     return (
       matchesSearchTerm(searchTerm, monitor.name, monitor.target) &&
@@ -155,15 +160,45 @@ export function filterMonitors(
   });
 }
 
-export function sortMonitors(
-  monitors: Monitor[],
-  sortBy: MonitorSortOption = 'status',
+export function sortMonitors<TItem>(
+  items: TItem[],
+  sortBy: MonitorSortOption = "status",
+  accessors: MonitorSortAccessors<TItem> = {},
 ) {
-  if (sortBy === 'name' || sortBy === 'latest-check') {
-    return sortMonitorsByStatusAndLastCheck(monitors);
-  }
+  return [...items].sort((firstItem, secondItem) => {
+    if (sortBy === "name") {
+      const nameComparison = getMonitorSortName(
+        firstItem,
+        accessors,
+      ).localeCompare(getMonitorSortName(secondItem, accessors));
 
-  return sortMonitorsByStatusAndLastCheck(monitors);
+      if (nameComparison !== 0) return nameComparison;
+
+      return getMonitorSortId(firstItem, accessors).localeCompare(
+        getMonitorSortId(secondItem, accessors),
+      );
+    }
+
+    if (sortBy === "latest-check") {
+      const firstTimestamp = getMonitorSortTimestamp(firstItem, accessors);
+      const secondTimestamp = getMonitorSortTimestamp(secondItem, accessors);
+
+      if (firstTimestamp !== secondTimestamp) {
+        return secondTimestamp - firstTimestamp;
+      }
+
+      return getMonitorSortName(firstItem, accessors).localeCompare(
+        getMonitorSortName(secondItem, accessors),
+      );
+    }
+
+    return sortMonitorsByStatusAndLastCheck(
+      [firstItem, secondItem],
+      accessors,
+    )[0] === firstItem
+      ? -1
+      : 1;
+  });
 }
 
 export function sortMonitorsByStatusAndLastCheck<TItem>(
@@ -171,8 +206,10 @@ export function sortMonitorsByStatusAndLastCheck<TItem>(
   accessors: MonitorSortAccessors<TItem> = {},
 ) {
   return [...items].sort((firstItem, secondItem) => {
-    const firstPriority = monitorStatusPriority[getMonitorSortStatus(firstItem, accessors)];
-    const secondPriority = monitorStatusPriority[getMonitorSortStatus(secondItem, accessors)];
+    const firstPriority =
+      monitorStatusPriority[getMonitorSortStatus(firstItem, accessors)];
+    const secondPriority =
+      monitorStatusPriority[getMonitorSortStatus(secondItem, accessors)];
 
     if (firstPriority !== secondPriority) {
       return firstPriority - secondPriority;
@@ -185,9 +222,10 @@ export function sortMonitorsByStatusAndLastCheck<TItem>(
       return secondTimestamp - firstTimestamp;
     }
 
-    const nameComparison = getMonitorSortName(firstItem, accessors).localeCompare(
-      getMonitorSortName(secondItem, accessors),
-    );
+    const nameComparison = getMonitorSortName(
+      firstItem,
+      accessors,
+    ).localeCompare(getMonitorSortName(secondItem, accessors));
 
     if (nameComparison !== 0) {
       return nameComparison;

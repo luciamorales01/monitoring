@@ -37,10 +37,11 @@ import {
 import {
   filterMonitors,
   getMonitorViewStatus,
-  sortMonitorsByStatusAndLastCheck,
+  sortMonitors,
   type MonitorStatusFilter,
   type MonitorTypeFilter,
   type MonitorViewStatus,
+  type MonitorSortOption,
 } from "../../shared/monitorFilters";
 import { useLocalPagination } from "../../shared/useLocalPagination";
 import { useUrlFilterState } from "../../shared/useUrlFilterState";
@@ -92,13 +93,16 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export default function MonitorsPage() {
   const navigate = useNavigate();
-  const { canManageUsers, canWrite: canWriteActions } = useCurrentUserPermissions();
+  const { canManageUsers, canWrite: canWriteActions } =
+    useCurrentUserPermissions();
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const lastSelectedMonitorIdRef = useRef<number | null>(null);
 
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
-  const [openMenuMonitorId, setOpenMenuMonitorId] = useState<number | null>(null);
+  const [openMenuMonitorId, setOpenMenuMonitorId] = useState<number | null>(
+    null,
+  );
   const [selectedMonitorIds, setSelectedMonitorIds] = useState<number[]>([]);
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -112,7 +116,10 @@ export default function MonitorsPage() {
   const { filters, hasActiveFilters, resetFilters, setFilter } =
     useUrlFilterState(monitorFilterDefaults, monitorAllowedValues);
   const debouncedSearch = useDebouncedValue(filters.search, 300);
-  const handleSetFilter = (key: keyof typeof monitorFilterDefaults, value: string) => {
+  const handleSetFilter = (
+    key: keyof typeof monitorFilterDefaults,
+    value: string,
+  ) => {
     clearSelection();
     setFilter(key, value);
   };
@@ -177,17 +184,12 @@ export default function MonitorsPage() {
         status: filters.status as MonitorStatusFilter,
         type: filters.type as MonitorTypeFilter,
       }),
-    [
-      debouncedSearch,
-      filters.status,
-      filters.type,
-      monitors,
-    ],
+    [debouncedSearch, filters.status, filters.type, monitors],
   );
 
   const orderedMonitors = useMemo(
-    () => sortMonitorsByStatusAndLastCheck(filteredMonitors),
-    [filteredMonitors],
+    () => sortMonitors(filteredMonitors, filters.sort as MonitorSortOption),
+    [filteredMonitors, filters.sort],
   );
 
   const {
@@ -396,7 +398,9 @@ export default function MonitorsPage() {
       setEditingMonitor(null);
       setSuccess("Monitor actualizado correctamente.");
     } catch (currentError: unknown) {
-      setEditError(getErrorMessage(currentError, "No se pudo guardar el monitor."));
+      setEditError(
+        getErrorMessage(currentError, "No se pudo guardar el monitor."),
+      );
     } finally {
       setIsSavingEdit(false);
     }
@@ -502,7 +506,9 @@ export default function MonitorsPage() {
               style={styles.search}
               placeholder="Buscar por nombre o URL..."
               value={filters.search}
-              onChange={(event) => handleSetFilter("search", event.target.value)}
+              onChange={(event) =>
+                handleSetFilter("search", event.target.value)
+              }
             />
 
             <label style={styles.filterGroup}>
@@ -510,7 +516,9 @@ export default function MonitorsPage() {
               <select
                 style={styles.select}
                 value={filters.status}
-                onChange={(event) => handleSetFilter("status", event.target.value)}
+                onChange={(event) =>
+                  handleSetFilter("status", event.target.value)
+                }
               >
                 <option value="ALL">Todos</option>
                 <option value="UP">Operativas</option>
@@ -525,7 +533,9 @@ export default function MonitorsPage() {
               <select
                 style={styles.select}
                 value={filters.type}
-                onChange={(event) => handleSetFilter("type", event.target.value)}
+                onChange={(event) =>
+                  handleSetFilter("type", event.target.value)
+                }
               >
                 <option value="ALL">Todos</option>
                 <option value="HTTP">HTTP</option>
@@ -541,7 +551,9 @@ export default function MonitorsPage() {
               <select
                 style={styles.select}
                 value={filters.sort}
-                onChange={(event) => handleSetFilter("sort", event.target.value)}
+                onChange={(event) =>
+                  handleSetFilter("sort", event.target.value)
+                }
               >
                 <option value="status">Estado</option>
                 <option value="name">Nombre</option>
@@ -617,7 +629,11 @@ export default function MonitorsPage() {
           )}
 
           {loading ? (
-            <LoadingState variant="table" label="Cargando webs monitorizadas" rows={7} />
+            <LoadingState
+              variant="table"
+              label="Cargando webs monitorizadas"
+              rows={7}
+            />
           ) : error ? (
             <p style={styles.empty}>{error}</p>
           ) : monitors.length === 0 ? (
@@ -626,6 +642,16 @@ export default function MonitorsPage() {
             </p>
           ) : (
             <table style={styles.table}>
+              <colgroup>
+                {canWriteActions ? <col style={{ width: 52 }} /> : null}
+                <col style={{ width: "30%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "17%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: 80 }} />
+              </colgroup>
               <thead>
                 <tr>
                   {canWriteActions ? (
@@ -645,7 +671,9 @@ export default function MonitorsPage() {
                   <th style={styles.th}>Tiempo de respuesta</th>
                   <th style={styles.th}>Alertas</th>
                   <th style={styles.th}>Última comprobación</th>
-                  {canWriteActions ? <th style={styles.thActions}>Acciones</th> : null}
+                  {canWriteActions ? (
+                    <th style={styles.thActions}>Acciones</th>
+                  ) : null}
                 </tr>
               </thead>
 
@@ -756,72 +784,79 @@ export default function MonitorsPage() {
                               <MoreHorizontalIcon size={16} />
                             </button>
 
-                          {openMenuMonitorId === monitor.id && (
-                            <div style={styles.actionMenu}>
-                              <button
-                                type="button"
-                                style={styles.actionMenuItem}
-                                onClick={() => {
-                                  setOpenMenuMonitorId(null);
-                                  void handleRunCheck(monitor.id);
-                                }}
-                                disabled={checkingId === monitor.id}
-                              >
-                                {checkingId !== monitor.id && <ActivityIcon size={15} />}
-                                {checkingId === monitor.id ? (
-                                  <LoadingState variant="button" label="Comprobando monitor" />
-                                ) : (
-                                  "Comprobar ahora"
-                                )}
-                              </button>
-
-                              <button
-                                type="button"
-                                style={styles.actionMenuItem}
-                                onClick={() => handleOpenEdit(monitor)}
-                              >
-                                <EditIcon size={15} />
-                                Editar monitor
-                              </button>
-
-                              <button
-                                type="button"
-                                style={styles.actionMenuItem}
-                                onClick={() => {
-                                  setOpenMenuMonitorId(null);
-                                  navigate(`/monitors/${monitor.id}`);
-                                }}
-                              >
-                                <MonitorIcon size={15} />
-                                Ver detalle
-                              </button>
-
-                              <button
-                                type="button"
-                                style={styles.actionMenuItem}
-                                onClick={() => {
-                                  setOpenMenuMonitorId(null);
-                                  void handleToggleActive(monitor.id);
-                                }}
-                                disabled={togglingId === monitor.id}
-                              >
-                                {togglingId !== monitor.id && (
-                                  monitor.isActive ? (
-                                    <PauseIcon size={15} />
+                            {openMenuMonitorId === monitor.id && (
+                              <div style={styles.actionMenu}>
+                                <button
+                                  type="button"
+                                  style={styles.actionMenuItem}
+                                  onClick={() => {
+                                    setOpenMenuMonitorId(null);
+                                    void handleRunCheck(monitor.id);
+                                  }}
+                                  disabled={checkingId === monitor.id}
+                                >
+                                  {checkingId !== monitor.id && (
+                                    <ActivityIcon size={15} />
+                                  )}
+                                  {checkingId === monitor.id ? (
+                                    <LoadingState
+                                      variant="button"
+                                      label="Comprobando monitor"
+                                    />
                                   ) : (
-                                    <PlayIcon size={15} />
-                                  )
-                                )}
-                                {togglingId === monitor.id ? (
-                                  <LoadingState variant="button" label="Actualizando monitor" />
-                                ) : monitor.isActive ? (
-                                  "Pausar monitor"
-                                ) : (
-                                  "Reanudar monitor"
-                                )}
-                              </button>
-                            </div>
-                          )}
+                                    "Comprobar ahora"
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  style={styles.actionMenuItem}
+                                  onClick={() => handleOpenEdit(monitor)}
+                                >
+                                  <EditIcon size={15} />
+                                  Editar monitor
+                                </button>
+
+                                <button
+                                  type="button"
+                                  style={styles.actionMenuItem}
+                                  onClick={() => {
+                                    setOpenMenuMonitorId(null);
+                                    navigate(`/monitors/${monitor.id}`);
+                                  }}
+                                >
+                                  <MonitorIcon size={15} />
+                                  Ver detalle
+                                </button>
+
+                                <button
+                                  type="button"
+                                  style={styles.actionMenuItem}
+                                  onClick={() => {
+                                    setOpenMenuMonitorId(null);
+                                    void handleToggleActive(monitor.id);
+                                  }}
+                                  disabled={togglingId === monitor.id}
+                                >
+                                  {togglingId !== monitor.id &&
+                                    (monitor.isActive ? (
+                                      <PauseIcon size={15} />
+                                    ) : (
+                                      <PlayIcon size={15} />
+                                    ))}
+                                  {togglingId === monitor.id ? (
+                                    <LoadingState
+                                      variant="button"
+                                      label="Actualizando monitor"
+                                    />
+                                  ) : monitor.isActive ? (
+                                    "Pausar monitor"
+                                  ) : (
+                                    "Reanudar monitor"
+                                  )}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </td>
                       ) : null}
@@ -834,8 +869,7 @@ export default function MonitorsPage() {
 
           <div style={styles.pagination}>
             <span style={styles.paginationText}>
-              Mostrando {rangeStart} a {rangeEnd} de {totalMonitors}{" "}
-              webs
+              Mostrando {rangeStart} a {rangeEnd} de {totalMonitors} webs
             </span>
 
             <div style={styles.pages}>
@@ -1307,7 +1341,13 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 500,
   },
 
-  table: { width: "100%", borderCollapse: "separate", borderSpacing: 0 },
+  table: {
+    width: "100%",
+    minWidth: 1120,
+    tableLayout: "fixed",
+    borderCollapse: "separate",
+    borderSpacing: 0,
+  },
   checkboxHeader: {
     width: 52,
     textAlign: "center",
@@ -1335,6 +1375,9 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 600,
     letterSpacing: "0em",
     verticalAlign: "middle",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   thActions: {
     textAlign: "right",
@@ -1365,6 +1408,9 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 400,
     color: uiTheme.colors.text,
     verticalAlign: "middle",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   tdActions: {
     padding: "15px 18px",
@@ -1374,6 +1420,8 @@ const styles: Record<string, CSSProperties> = {
     verticalAlign: "middle",
     textAlign: "right",
     position: "relative",
+    overflow: "visible",
+    whiteSpace: "nowrap",
   },
   webCell: {
     display: "flex",

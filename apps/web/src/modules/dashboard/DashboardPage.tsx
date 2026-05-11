@@ -378,6 +378,14 @@ export default function DashboardPage() {
           ) : (
             <>
               <table style={styles.table}>
+                <colgroup>
+                  <col style={{ width: "32%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "10%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th style={styles.th}>Web</th>
@@ -385,7 +393,9 @@ export default function DashboardPage() {
                     <th style={styles.th}>Uptime</th>
                     <th style={styles.th}>Tipo</th>
                     <th style={styles.th}>Última comprobación</th>
-                    {canWriteActions ? <th style={styles.th}>Acciones</th> : null}
+                    {canWriteActions ? (
+                      <th style={styles.th}>Acciones</th>
+                    ) : null}
                   </tr>
                 </thead>
 
@@ -443,7 +453,9 @@ export default function DashboardPage() {
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   setOpenActionMenuId((currentId) =>
-                                    currentId === monitor.id ? null : monitor.id,
+                                    currentId === monitor.id
+                                      ? null
+                                      : monitor.id,
                                   );
                                 }}
                                 aria-label={`Abrir acciones de ${monitor.name}`}
@@ -867,7 +879,13 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
   },
-  table: { width: "100%", borderCollapse: "separate", borderSpacing: 0 },
+  table: {
+    width: "100%",
+    minWidth: 980,
+    tableLayout: "fixed",
+    borderCollapse: "separate",
+    borderSpacing: 0,
+  },
   th: {
     textAlign: "left",
     padding: "12px 10px",
@@ -875,6 +893,9 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 12,
     borderBottom: `1px solid ${uiTheme.colors.border}`,
     fontWeight: 600,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   tr: {
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
@@ -887,6 +908,9 @@ const styles: Record<string, CSSProperties> = {
     padding: "14px 10px",
     fontSize: 12,
     color: uiTheme.colors.text,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   },
   actionMenuWrap: {
     display: "flex",
