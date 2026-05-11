@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { buildAccessibleNotificationWhere, type AuthenticatedUser } from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
 
 const notificationInclude = {
@@ -20,7 +21,7 @@ const notificationInclude = {
   },
 };
 
-type AuthRequest = { user: { organizationId: number } };
+type AuthRequest = { user: AuthenticatedUser };
 
 @UseGuards(JwtAuthGuard)
 @Controller('notifications')
@@ -38,9 +39,7 @@ export class NotificationsController {
     return this.prisma.notificationEvent.findMany({
       where: {
         ...(unreadOnly === 'true' ? { readAt: null } : {}),
-        monitor: {
-          organizationId: req.user.organizationId,
-        },
+        ...buildAccessibleNotificationWhere(req.user),
       },
       include: notificationInclude,
       orderBy: { createdAt: 'desc' },
@@ -53,9 +52,7 @@ export class NotificationsController {
     const count = await this.prisma.notificationEvent.count({
       where: {
         readAt: null,
-        monitor: {
-          organizationId: req.user.organizationId,
-        },
+        ...buildAccessibleNotificationWhere(req.user),
       },
     });
 
@@ -78,9 +75,7 @@ export class NotificationsController {
     const result = await this.prisma.notificationEvent.updateMany({
       where: {
         id: { in: ids },
-        monitor: {
-          organizationId: req.user.organizationId,
-        },
+        ...buildAccessibleNotificationWhere(req.user),
       },
       data: { readAt: new Date() },
     });
@@ -93,9 +88,7 @@ export class NotificationsController {
     const result = await this.prisma.notificationEvent.updateMany({
       where: {
         readAt: null,
-        monitor: {
-          organizationId: req.user.organizationId,
-        },
+        ...buildAccessibleNotificationWhere(req.user),
       },
       data: { readAt: new Date() },
     });

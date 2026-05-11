@@ -1,12 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { IncidentStatus, MonitorStatus } from '@prisma/client';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { IncidentStatus, MonitorStatus, Prisma } from '@prisma/client';
 import ExcelJS from 'exceljs';
+import { buildAccessibleMonitorWhere, canAccessAllOrganizationMonitors, type AuthenticatedUser } from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
-
-type AuthenticatedUser = {
-  organizationId: number;
-  userId: number;
-};
 
 type ReportRange = '24h' | '7d' | '30d';
 type ReportFormat = 'csv' | 'pdf' | 'xlsx';
@@ -77,19 +73,24 @@ export class ReportsService {
     if (monitorId) {
       const monitor = await this.prisma.monitor.findFirst({
         where: { id: monitorId, organizationId },
-        select: { id: true },
+        include: {
+          sections: {
+            include: { section: { include: { members: true } } },
+          },
+        },
       });
 
       if (!monitor) {
         throw new NotFoundException('Monitor no encontrado');
       }
+
+      if (!this.canAccessMonitor(monitor, user)) {
+        throw new ForbiddenException('No tienes acceso a los informes de este monitor.');
+      }
     }
 
     const monitors = await this.prisma.monitor.findMany({
-      where: {
-        organizationId,
-        ...(monitorId ? { id: monitorId } : {}),
-      },
+      where: this.buildMonitorWhere(user, monitorId),
       include: {
         checkResults: {
           where: { checkedAt: { gte: from } },
@@ -373,5 +374,32 @@ export class ReportsService {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '') || 'monitor';
+  }
+
+  private buildMonitorWhere(user: AuthenticatedUser, monitorId?: number): Prisma.MonitorWhereInput {
+    return {
+      ...buildAccessibleMonitorWhere(user),
+      ...(monitorId ? { id: monitorId } : {}),
+    };
+  }
+
+  private canAccessMonitor(
+    monitor: {
+      organizationId: number;
+      sections?: { section: { members: { userId: number }[] } }[];
+    },
+    user: AuthenticatedUser,
+  ) {
+    if (monitor.organizationId !== user.organizationId) return false;
+    if (this.canAccessAllMonitors(user)) return true;
+    return (
+      monitor.sections?.some(({ section }) =>
+        section.members.some((member) => member.userId === user.userId),
+      ) ?? false
+    );
+  }
+
+  private canAccessAllMonitors(user: AuthenticatedUser) {
+    return canAccessAllOrganizationMonitors(user);
   }
 }

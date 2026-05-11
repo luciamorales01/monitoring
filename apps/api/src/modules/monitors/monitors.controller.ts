@@ -48,7 +48,7 @@ export class MonitorsController {
   constructor(private readonly monitorsService: MonitorsService) {}
 
   @Post()
-  @Roles('OWNER', 'ADMIN')
+  @Roles('OWNER')
   @ApiOperation({
     summary: 'Crear monitor',
     description:

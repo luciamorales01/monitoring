@@ -26,14 +26,14 @@ import ResetPasswordPage from "../modules/auth/ResetPasswordPage";
 import AcceptInvitationPage from "../modules/auth/AcceptInvitationPage";
 import { useCurrentUserPermissions } from "../shared/permissions";
 
-function WriteRoute({ children }: { children: ReactNode }) {
-  const { canWrite: canWriteActions, isLoading } = useCurrentUserPermissions();
+function OwnerRoute({ children }: { children: ReactNode }) {
+  const { canManageUsers, isLoading } = useCurrentUserPermissions();
 
   if (isLoading) {
     return <div style={{ padding: 32 }}>Comprobando permisos...</div>;
   }
 
-  if (!canWriteActions) {
+  if (!canManageUsers) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -84,9 +84,9 @@ export const router = createBrowserRouter([
       {
         path: "monitors/create",
         element: (
-          <WriteRoute>
+          <OwnerRoute>
             <CreateMonitorPage />
-          </WriteRoute>
+          </OwnerRoute>
         ),
       },
       { path: "incidents", element: <IncidentsPage /> },
@@ -97,7 +97,14 @@ export const router = createBrowserRouter([
       { path: "sections", element: <SectionsPage /> },
       { path: "reports", element: <ReportsPage /> },
       { path: "notifications", element: <NotificationsPage /> },
-      { path: "users", element: <UsersPage /> },
+      {
+  path: "users",
+  element: (
+    <OwnerRoute>
+      <UsersPage />
+    </OwnerRoute>
+  ),
+},
       { path: "settings", element: <SettingsPage /> },
       { path: "profile", element: <ProfilePage /> },
       { path: "*", element: <NotFoundPage /> },

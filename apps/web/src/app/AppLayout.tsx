@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getActiveIncidents } from "../shared/incidentApi";
 import { appEnv } from "../shared/env";
+import { useCurrentUserPermissions } from "../shared/permissions";
 import {
   realtimeEventName,
   useMonitoringEvents,
@@ -21,35 +22,52 @@ import {
   UsersIcon,
 } from "../shared/uiIcons";
 
-const navItems = [
-  { icon: <HomeIcon size={16} />, label: "Dashboard", to: "/dashboard" },
-  {
-    icon: <MonitorIcon size={16} />,
-    label: "Webs monitorizadas",
-    to: "/monitors",
-  },
-  { icon: <FolderIcon size={16} />, label: "Secciones", to: "/sections" },
-  { icon: <ReportIcon size={16} />, label: "Informes", to: "/reports" },
-  {
-    icon: <AlertTriangleIcon size={16} />,
-    label: "Incidencias",
-    to: "/incidents",
-  },
-  {
-    icon: <BellIcon size={16} />,
-    label: "Notificaciones",
-    to: "/notifications",
-  },
-  { icon: <SettingsIcon size={16} />, label: "Configuración", to: "/settings" },
-  { icon: <UsersIcon size={16} />, label: "Mi perfil", to: "/profile" },
-  { icon: <UserGroupIcon size={16} />, label: "Usuarios", to: "/users" },
-];
-
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeIncidentsCount, setActiveIncidentsCount] = useState(0);
+  const { role } = useCurrentUserPermissions();
+
   useMonitoringEvents();
+
+  const navItems = useMemo(() => {
+    const items = [
+      { icon: <HomeIcon size={16} />, label: "Dashboard", to: "/dashboard" },
+      {
+        icon: <MonitorIcon size={16} />,
+        label: "Webs monitorizadas",
+        to: "/monitors",
+      },
+      { icon: <FolderIcon size={16} />, label: "Secciones", to: "/sections" },
+      { icon: <ReportIcon size={16} />, label: "Informes", to: "/reports" },
+      {
+        icon: <AlertTriangleIcon size={16} />,
+        label: "Incidencias",
+        to: "/incidents",
+      },
+      {
+        icon: <BellIcon size={16} />,
+        label: "Notificaciones",
+        to: "/notifications",
+      },
+      {
+        icon: <SettingsIcon size={16} />,
+        label: "Configuración",
+        to: "/settings",
+      },
+      { icon: <UsersIcon size={16} />, label: "Mi perfil", to: "/profile" },
+    ];
+
+    if (role === "OWNER") {
+      items.push({
+        icon: <UserGroupIcon size={16} />,
+        label: "Usuarios",
+        to: "/users",
+      });
+    }
+
+    return items;
+  }, [role]);
 
   const isActive = (path?: string) => {
     if (!path) return false;
@@ -57,9 +75,9 @@ export default function AppLayout() {
   };
 
   useEffect(() => {
-    const handleAuthExpired = () => navigate('/login', { replace: true });
-    window.addEventListener('auth:expired', handleAuthExpired);
-    return () => window.removeEventListener('auth:expired', handleAuthExpired);
+    const handleAuthExpired = () => navigate("/login", { replace: true });
+    window.addEventListener("auth:expired", handleAuthExpired);
+    return () => window.removeEventListener("auth:expired", handleAuthExpired);
   }, [navigate]);
 
   useEffect(() => {
@@ -77,7 +95,12 @@ export default function AppLayout() {
     const refreshActiveIncidentsOnRealtime = (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
       const detail = event.detail as MonitoringRealtimeEvent;
-      if (detail.name !== "incident.created" && detail.name !== "incident.resolved") return;
+      if (
+        detail.name !== "incident.created" &&
+        detail.name !== "incident.resolved"
+      ) {
+        return;
+      }
       void refreshActiveIncidents();
     };
 
@@ -87,7 +110,10 @@ export default function AppLayout() {
 
     return () => {
       cancelled = true;
-      window.removeEventListener(realtimeEventName, refreshActiveIncidentsOnRealtime);
+      window.removeEventListener(
+        realtimeEventName,
+        refreshActiveIncidentsOnRealtime,
+      );
       window.clearInterval(intervalId);
     };
   }, [location.pathname]);
@@ -119,9 +145,7 @@ export default function AppLayout() {
         <div style={styles.globalCard}>
           <p style={styles.globalTitle}>Estado global</p>
 
-          <strong
-            style={hasActiveIncidents ? styles.redText : styles.greenText}
-          >
+          <strong style={hasActiveIncidents ? styles.redText : styles.greenText}>
             ● {hasActiveIncidents ? "Con incidencias" : "Operativo"}
           </strong>
 
@@ -262,28 +286,28 @@ const styles: Record<string, React.CSSProperties> = {
   },
   nav: { display: "flex", flexDirection: "column", gap: 6 },
   navItem: {
-  display: "flex",
-  alignItems: "center",
-  gap: 12,
-  padding: "12px 14px",
-  borderRadius: uiTheme.radii.sm,
-  fontWeight: 500,
-  color: uiTheme.colors.muted,
-  position: "relative",
-  fontSize: 14,
-  border: "none",
-  boxShadow: "none",
-  outline: "0",
-  outlineOffset: 0,
-  cursor: "pointer",
-  transition:
-    "background 140ms ease, border-color 140ms ease, color 140ms ease",
-},
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "12px 14px",
+    borderRadius: uiTheme.radii.sm,
+    fontWeight: 500,
+    color: uiTheme.colors.muted,
+    position: "relative",
+    fontSize: 14,
+    border: "none",
+    boxShadow: "none",
+    outline: "0",
+    outlineOffset: 0,
+    cursor: "pointer",
+    transition:
+      "background 140ms ease, border-color 140ms ease, color 140ms ease",
+  },
   navItemActive: {
-  background: uiTheme.colors.primarySoft,
-  boxShadow: `inset 0 0 0 1px ${uiTheme.colors.primary}`,
-  color: uiTheme.colors.primary,
-},
+    background: uiTheme.colors.primarySoft,
+    boxShadow: `inset 0 0 0 1px ${uiTheme.colors.primary}`,
+    color: uiTheme.colors.primary,
+  },
   globalCard: {
     marginTop: "auto",
     ...surfaceCard,

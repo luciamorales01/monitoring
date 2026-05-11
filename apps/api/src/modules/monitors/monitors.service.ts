@@ -15,7 +15,8 @@ import {
 } from 'node:dns/promises';
 import { isIP, Socket } from 'node:net';
 import { connect as tlsConnect, type PeerCertificate } from 'node:tls';
-import { Prisma, UserRole } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { buildAccessibleMonitorWhere, canAccessAllOrganizationMonitors, type AuthenticatedUser } from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MonitoringEventName } from '../events/events.types';
@@ -40,12 +41,6 @@ const IncidentStatus = {
 } as const;
 
 type MonitorStatusValue = (typeof MonitorStatus)[keyof typeof MonitorStatus];
-
-type AuthenticatedUser = {
-  organizationId: number;
-  userId: number;
-  role?: string;
-};
 
 type MonitorEntity = {
   id: number;
@@ -423,8 +418,7 @@ export class MonitorsService {
   ): Prisma.MonitorWhereInput {
     const search = query.search?.trim();
     const where: Prisma.MonitorWhereInput = {
-      organizationId: user.organizationId,
-      ...this.buildSectionMembershipMonitorFilter(user),
+      ...buildAccessibleMonitorWhere(user),
     };
 
     if (search) {
@@ -1463,22 +1457,27 @@ export class MonitorsService {
     if (monitor.organizationId !== user.organizationId) {
       throw new ForbiddenException('No tienes acceso a este monitor');
     }
-    if (this.canManageAllMonitors(user)) return;
-    if (monitor.sections?.some(({ section }) => section.members?.some((member) => member.userId === user.userId))) return;
-    throw new ForbiddenException('No tienes acceso a este monitor');
+    if (this.canAccessAllMonitors(user)) return;
+    if (
+      monitor.sections?.some(({ section }) =>
+        section.members?.some((member) => member.userId === user.userId),
+      )
+    ) {
+      return;
+    }
+    throw new ForbiddenException(
+      'No tienes acceso a este monitor porque no pertenece a ninguna de tus secciones.',
+    );
   }
 
-  private canManageAllMonitors(user: AuthenticatedUser) {
-    return !user.role || user.role === UserRole.OWNER || user.role === UserRole.ADMIN;
+  private canAccessAllMonitors(user: AuthenticatedUser) {
+    return canAccessAllOrganizationMonitors(user);
   }
 
   private buildSectionMembershipMonitorFilter(
     user: AuthenticatedUser,
   ): Prisma.MonitorWhereInput {
-    if (this.canManageAllMonitors(user)) return {};
-    return {
-      sections: { some: { section: { members: { some: { userId: user.userId } } } } },
-    };
+    return buildAccessibleMonitorWhere(user);
   }
 
   private monitorHasSection(monitor: MonitorEntity) {

@@ -84,7 +84,7 @@ export default function DashboardPage() {
   const toggleActiveMutation = useToggleMonitorActiveMutation();
   const monitors = monitorsQuery.data ?? EMPTY_MONITORS;
   const summary = summaryQuery.data ?? null;
-  const loading = monitorsQuery.isPending;
+  const loading = monitorsQuery.isPending || summaryQuery.isPending;
 
   const refreshMonitors = async () => {
     const [monitorsResult] = await Promise.all([
@@ -154,18 +154,10 @@ export default function DashboardPage() {
   });
 
   const stats = useMemo(() => {
-    const fallbackTotal = monitors.length;
-    const fallbackOnline = monitors.filter(
-      (monitor) => monitor.currentStatus === "UP",
-    ).length;
-    const fallbackAlerts = monitors.filter(
-      (monitor) => monitor.currentStatus === "DOWN",
-    ).length;
-
-    const total = summary?.totalMonitors ?? fallbackTotal;
-    const online = summary?.onlineMonitors ?? fallbackOnline;
-    const alerts = summary?.openIncidents ?? fallbackAlerts;
-    const uptimePercent = summary?.uptimePercent ?? (total > 0 ? (online / total) * 100 : 0);
+    const total = summary?.totalMonitors ?? 0;
+    const online = summary?.onlineMonitors ?? 0;
+    const alerts = summary?.openIncidents ?? 0;
+    const uptimePercent = summary?.uptimePercent ?? 0;
     const responseMs = summary?.averageResponseTimeMs ?? 0;
 
     return {
@@ -175,7 +167,7 @@ export default function DashboardPage() {
       uptime: `${uptimePercent.toFixed(2)}%`,
       response: `${responseMs} ms`,
     };
-  }, [monitors, summary]);
+  }, [summary]);
 
   return (
     <main style={styles.main}>

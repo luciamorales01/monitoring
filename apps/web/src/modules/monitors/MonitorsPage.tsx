@@ -94,7 +94,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export default function MonitorsPage() {
   const navigate = useNavigate();
-  const { canWrite: canWriteActions } = useCurrentUserPermissions();
+  const { canManageUsers, canWrite: canWriteActions } = useCurrentUserPermissions();
   const selectAllRef = useRef<HTMLInputElement | null>(null);
   const lastSelectedMonitorIdRef = useRef<number | null>(null);
 
@@ -457,7 +457,7 @@ export default function MonitorsPage() {
           subtitle="Gestiona y consulta el estado de todas las webs que tienes monitorizadas."
           onRefresh={() => monitorsQuery.refetch()}
           cta={
-            canWriteActions
+            canManageUsers
               ? {
                   icon: <PlusIcon size={16} />,
                   label: "Nuevo monitor",

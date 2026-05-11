@@ -72,7 +72,10 @@ type ActiveTab = 'monitors' | 'members';
 export default function SectionDetailPage() {
   const { sectionId } = useParams();
   const navigate = useNavigate();
-  const { canWrite: canWriteActions } = useCurrentUserPermissions();
+  const {
+    canManageUsers,
+    canWrite: canWriteActions,
+  } = useCurrentUserPermissions();
   const [section, setSection] = useState<ApiSection | null>(null);
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -102,7 +105,7 @@ export default function SectionDetailPage() {
     try {
       const [nextSection, nextUsers] = await Promise.all([
         getSection(sectionId),
-        canWriteActions ? getUsers() : Promise.resolve([]),
+        canManageUsers ? getUsers() : Promise.resolve([]),
       ]);
 
       setSection(nextSection);
@@ -122,7 +125,7 @@ export default function SectionDetailPage() {
 
   useEffect(() => {
     void loadData();
-  }, [canWriteActions, sectionId]);
+  }, [canManageUsers, sectionId]);
 
 
   const handleRunSectionChecks = async () => {
@@ -276,8 +279,8 @@ export default function SectionDetailPage() {
   }, [search, sectionMonitors, statusFilter, typeFilter]);
 
   const sectionUsers = useMemo(
-    () => (canWriteActions ? users : section?.members ?? []),
-    [canWriteActions, section?.members, users],
+    () => (canManageUsers ? users : section?.members ?? []),
+    [canManageUsers, section?.members, users],
   );
 
   const {
@@ -325,7 +328,7 @@ export default function SectionDetailPage() {
         subtitle={section.name}
         onRefresh={loadData}
         cta={
-          canWriteActions
+          canManageUsers
             ? {
                 icon: <PlusIcon size={16} />,
                 label: "Nuevo monitor",
@@ -385,10 +388,12 @@ export default function SectionDetailPage() {
               <CheckCircleIcon size={16} />
               {isChecking ? 'Comprobando...' : 'Comprobar todos'}
             </button>
-            <Link to="/monitors/create" style={styles.secondaryButton}>
-              <PlusIcon size={16} />
-              Anadir monitor
-            </Link>
+            {canManageUsers ? (
+              <Link to="/monitors/create" style={styles.secondaryButton}>
+                <PlusIcon size={16} />
+                Anadir monitor
+              </Link>
+            ) : null}
             <button type="button" style={styles.moreButton}>
               <MoreHorizontalIcon size={18} />
             </button>
@@ -652,7 +657,7 @@ export default function SectionDetailPage() {
                   <input
                     type="checkbox"
                     checked={memberIds.includes(user.id)}
-                    disabled={!canWriteActions || isSavingMembers}
+                    disabled={!canManageUsers || isSavingMembers}
                     onChange={() => handleToggleMember(user.id)}
                   />
                   <span style={styles.memberCopy}>
@@ -664,7 +669,7 @@ export default function SectionDetailPage() {
               ))}
             </div>
           )}
-          {canWriteActions ? (
+          {canManageUsers ? (
             <div style={styles.memberActions}>
               <button
                 type="button"

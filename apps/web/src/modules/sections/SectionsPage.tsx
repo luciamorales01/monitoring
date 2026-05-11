@@ -85,7 +85,10 @@ type FeedbackState =
 
 export default function SectionsPage() {
   const navigate = useNavigate();
-  const { canWrite: canWriteActions } = useCurrentUserPermissions();
+  const {
+    canManageUsers,
+    canWrite: canWriteActions,
+  } = useCurrentUserPermissions();
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [sections, setSections] = useState<MonitorSection[]>([]);
@@ -119,7 +122,7 @@ export default function SectionsPage() {
       const [nextMonitors, nextSections, nextUsers] = await Promise.all([
         getMonitors(),
         getSections(),
-        canWriteActions ? getUsers() : Promise.resolve([]),
+        canManageUsers ? getUsers() : Promise.resolve([]),
       ]);
 
       setMonitors(nextMonitors);
@@ -139,7 +142,7 @@ export default function SectionsPage() {
 
   useEffect(() => {
     void loadMonitors();
-  }, [canWriteActions]);
+  }, [canManageUsers]);
 
   const sectionSummaries = useMemo<SectionSummary[]>(() => {
     return sections.map((section) => {
@@ -261,7 +264,9 @@ export default function SectionsPage() {
         savedSection = await createSection(sectionPayload);
       }
 
-      await updateSectionMembers(savedSection.id, memberIds);
+      if (canManageUsers) {
+        await updateSectionMembers(savedSection.id, memberIds);
+      }
 
       setFeedback({
         type: 'success',
@@ -575,6 +580,7 @@ export default function SectionsPage() {
       <SectionEditorModal
         isOpen={canWriteActions && editorState.isOpen}
         monitors={monitors}
+        canManageMembers={canManageUsers}
         users={users}
         section={editorState.section}
         sections={sectionSummaries}
@@ -588,6 +594,7 @@ export default function SectionsPage() {
 function SectionEditorModal({
   isOpen,
   monitors,
+  canManageMembers,
   users,
   section,
   sections,
@@ -596,6 +603,7 @@ function SectionEditorModal({
 }: {
   isOpen: boolean;
   monitors: Monitor[];
+  canManageMembers: boolean;
   users: User[];
   section: MonitorSection | null;
   sections: SectionSummary[];
@@ -927,53 +935,55 @@ function SectionEditorModal({
             </div>
           </div>
 
-          <div style={styles.field}>
-            <span>Miembros</span>
-            <p style={styles.fieldHint}>
-              Asigna personas responsables de revisar esta seccion.
-            </p>
-            <label style={styles.inlineSearchWrap}>
-              <SearchIcon size={16} />
-              <input
-                style={styles.inlineSearchInput}
-                value={memberSearch}
-                onChange={(event) => setMemberSearch(event.target.value)}
-                placeholder="Buscar miembros..."
-              />
-            </label>
-            <div style={styles.monitorSelector}>
-              {users.length === 0 ? (
-                <div style={styles.selectorEmpty}>No hay miembros disponibles.</div>
-              ) : filteredUsers.length === 0 ? (
-                <div style={styles.selectorEmpty}>No hay miembros que coincidan con la busqueda.</div>
-              ) : (
-                filteredUsers.map((user) => {
-                  const isSelected = memberIds.includes(user.id);
+          {canManageMembers ? (
+            <div style={styles.field}>
+              <span>Miembros</span>
+              <p style={styles.fieldHint}>
+                Asigna personas responsables de revisar esta seccion.
+              </p>
+              <label style={styles.inlineSearchWrap}>
+                <SearchIcon size={16} />
+                <input
+                  style={styles.inlineSearchInput}
+                  value={memberSearch}
+                  onChange={(event) => setMemberSearch(event.target.value)}
+                  placeholder="Buscar miembros..."
+                />
+              </label>
+              <div style={styles.monitorSelector}>
+                {users.length === 0 ? (
+                  <div style={styles.selectorEmpty}>No hay miembros disponibles.</div>
+                ) : filteredUsers.length === 0 ? (
+                  <div style={styles.selectorEmpty}>No hay miembros que coincidan con la busqueda.</div>
+                ) : (
+                  filteredUsers.map((user) => {
+                    const isSelected = memberIds.includes(user.id);
 
-                  return (
-                    <label
-                      key={user.id}
-                      style={{
-                        ...styles.monitorOption,
-                        ...(isSelected ? styles.selectorOptionSelected : {}),
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleMember(user.id)}
-                      />
-                      <div style={styles.monitorOptionCopy}>
-                        <strong>{user.name}</strong>
-                        <span>{user.email}</span>
-                      </div>
-                      <span style={styles.inlineBadgeSlate}>{user.role}</span>
-                    </label>
-                  );
-                })
-              )}
+                    return (
+                      <label
+                        key={user.id}
+                        style={{
+                          ...styles.monitorOption,
+                          ...(isSelected ? styles.selectorOptionSelected : {}),
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleMember(user.id)}
+                        />
+                        <div style={styles.monitorOptionCopy}>
+                          <strong>{user.name}</strong>
+                          <span>{user.email}</span>
+                        </div>
+                        <span style={styles.inlineBadgeSlate}>{user.role}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
 
         {formError && <div style={styles.feedbackError}>{formError}</div>}

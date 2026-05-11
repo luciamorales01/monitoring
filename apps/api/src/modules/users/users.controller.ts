@@ -24,31 +24,31 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  @Roles('OWNER', 'ADMIN')
+  @Roles('OWNER')
   findAll(@Req() req: any) {
     return this.usersService.findAll(req.user);
   }
 
   @Get('invitations')
-  @Roles('OWNER', 'ADMIN')
+  @Roles('OWNER')
   listInvitations(@Req() req: any) {
     return this.usersService.listInvitations(req.user);
   }
 
   @Post('invitations')
-  @Roles('OWNER', 'ADMIN')
+  @Roles('OWNER')
   createInvitation(@Body() dto: CreateInvitationDto, @Req() req: any) {
     return this.usersService.createInvitation(dto, req.user);
   }
 
   @Delete('invitations/:id')
-  @Roles('OWNER', 'ADMIN')
+  @Roles('OWNER')
   revokeInvitation(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.usersService.revokeInvitation(id, req.user);
   }
 
   @Patch(':id')
-  @Roles('OWNER', 'ADMIN')
+  @Roles('OWNER')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDto,
@@ -58,7 +58,7 @@ export class UsersController {
   }
 
   @Patch(':id/status')
-  @Roles('OWNER', 'ADMIN')
+  @Roles('OWNER')
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserStatusDto,

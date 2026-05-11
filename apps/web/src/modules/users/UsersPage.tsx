@@ -31,7 +31,7 @@ import {
 type UserRoleLabel = 'Administrador' | 'Editor' | 'Solo lectura';
 
 export default function UsersPage() {
-  const { canWrite: canWriteActions } = useCurrentUserPermissions();
+  const { canManageUsers: canWriteActions } = useCurrentUserPermissions();
   const [users, setUsers] = useState<User[]>([]);
   const [invitations, setInvitations] = useState<UserInvitation[]>([]);
   const [loading, setLoading] = useState(true);

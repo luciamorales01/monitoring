@@ -1,15 +1,10 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { IncidentSeverity, IncidentStatus, Prisma, UserRole } from '@prisma/client';
+import { IncidentSeverity, IncidentStatus, Prisma } from '@prisma/client';
+import { buildAccessibleIncidentWhere, canAccessAllOrganizationMonitors, type AuthenticatedUser } from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MonitoringEventName } from '../events/events.types';
 import { UpdateIncidentDto } from './update-incident.dto';
-
-type AuthenticatedUser = {
-  organizationId: number;
-  userId: number;
-  role?: string;
-};
 
 @Injectable()
 export class IncidentsService {
@@ -184,14 +179,7 @@ export class IncidentsService {
   }
 
   private buildIncidentWhere(user: AuthenticatedUser): Prisma.IncidentWhereInput {
-    return {
-      monitor: {
-        organizationId: user.organizationId,
-        ...(this.canManageAll(user)
-          ? {}
-          : { sections: { some: { section: { members: { some: { userId: user.userId } } } } } }),
-      },
-    };
+    return buildAccessibleIncidentWhere(user);
   }
 
   private canAccessMonitor(
@@ -206,6 +194,6 @@ export class IncidentsService {
   }
 
   private canManageAll(user: AuthenticatedUser) {
-    return !user.role || user.role === UserRole.OWNER || user.role === UserRole.ADMIN;
+    return canAccessAllOrganizationMonitors(user);
   }
 }

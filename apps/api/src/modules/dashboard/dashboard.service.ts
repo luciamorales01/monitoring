@@ -1,33 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { IncidentStatus, MonitorStatus } from '@prisma/client';
+import { buildAccessibleCheckResultWhere, buildAccessibleIncidentWhere, buildAccessibleMonitorWhere, type AuthenticatedUser } from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
-
-type AuthenticatedUser = {
-  organizationId: number;
-  userId: number;
-};
 
 @Injectable()
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getSummary(user: AuthenticatedUser) {
-    const organizationId = user.organizationId;
+    const accessibleMonitorWhere = buildAccessibleMonitorWhere(user);
 
     const [totalMonitors, activeMonitors, onlineMonitors, downMonitors, openIncidents, recentChecks] =
       await Promise.all([
-        this.prisma.monitor.count({ where: { organizationId } }),
-        this.prisma.monitor.count({ where: { organizationId, isActive: true } }),
-        this.prisma.monitor.count({ where: { organizationId, isActive: true, currentStatus: MonitorStatus.UP } }),
-        this.prisma.monitor.count({ where: { organizationId, isActive: true, currentStatus: MonitorStatus.DOWN } }),
+        this.prisma.monitor.count({ where: accessibleMonitorWhere }),
+        this.prisma.monitor.count({ where: { ...accessibleMonitorWhere, isActive: true } }),
+        this.prisma.monitor.count({ where: { ...accessibleMonitorWhere, isActive: true, currentStatus: MonitorStatus.UP } }),
+        this.prisma.monitor.count({ where: { ...accessibleMonitorWhere, isActive: true, currentStatus: MonitorStatus.DOWN } }),
         this.prisma.incident.count({
           where: {
             status: IncidentStatus.OPEN,
-            monitor: { organizationId },
+            ...buildAccessibleIncidentWhere(user),
           },
         }),
         this.prisma.checkResult.findMany({
-          where: { monitor: { organizationId } },
+          where: buildAccessibleCheckResultWhere(user),
           orderBy: { checkedAt: 'desc' },
           take: 1000,
           select: {
