@@ -14,9 +14,7 @@ import MonitorsPage from "../modules/monitors/MonitorsPage";
 import SectionDetailPage from "../modules/sections/SectionDetailPage";
 import SectionsPage from "../modules/sections/SectionsPage";
 import UsersPage from "../modules/users/UsersPage";
-import ReportsPage from "../modules/reports/ReportsPage";
 import ProfilePage from "../modules/profile/ProfilePage";
-import NotificationsPage from "../modules/notifications/NotificationsPage";
 import PublicStatusPage from "../modules/status/PublicStatusPage";
 import AuthRedirect from "./AuthRedirect";
 import RouteErrorPage from "./RouteErrorPage";
@@ -94,8 +92,6 @@ export const router = createBrowserRouter([
       { path: "monitors", element: <MonitorsPage /> },
       { path: "sections/:sectionId", element: <SectionDetailPage /> },
       { path: "sections", element: <SectionsPage /> },
-      { path: "reports", element: <ReportsPage /> },
-      { path: "notifications", element: <NotificationsPage /> },
       {
   path: "users",
   element: (

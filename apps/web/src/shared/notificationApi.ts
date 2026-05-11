@@ -29,7 +29,6 @@ export type NotificationEvent = {
   } | null;
 };
 
-export type NotificationUnreadCount = { count: number };
 export type NotificationUpdateResult = { updated: number };
 
 export function getNotifications(options?: { limit?: number; unreadOnly?: boolean }) {
@@ -38,10 +37,6 @@ export function getNotifications(options?: { limit?: number; unreadOnly?: boolea
   if (options?.unreadOnly) params.set('unreadOnly', 'true');
   const query = params.toString();
   return apiClient<NotificationEvent[]>(`/notifications${query ? `?${query}` : ''}`);
-}
-
-export function getUnreadNotificationsCount() {
-  return apiClient<NotificationUnreadCount>('/notifications/unread-count');
 }
 
 export function markNotificationsAsRead(ids: number[]) {

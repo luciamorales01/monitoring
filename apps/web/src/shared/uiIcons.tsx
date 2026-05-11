@@ -68,17 +68,6 @@ export function AlertTriangleIcon(props: IconProps) {
   );
 }
 
-export function ReportIcon(props: IconProps) {
-  return (
-    <IconBase {...props}>
-      <path d="M7 4h7l4 4v12H7z" />
-      <path d="M14 4v4h4" />
-      <path d="M10 13h5" />
-      <path d="M10 17h5" />
-    </IconBase>
-  );
-}
-
 export function SettingsIcon({ size = 16 }) {
   return (
     <svg

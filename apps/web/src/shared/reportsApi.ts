@@ -1,71 +1,35 @@
 import { appEnv } from './env';
-import { apiClient } from './apiClient';
-import type { MonitorStatus, MonitorType } from './monitorApi';
 import { tokenStorage } from './tokenStorage';
 
 export type ReportRange = '24h' | '7d' | '30d';
 export type ReportFormat = 'csv' | 'pdf' | 'xlsx';
-
-export type ReportRow = {
-  monitor: {
-    id: number;
-    name: string;
-    target: string;
-    type?: MonitorType | string;
-    currentStatus: MonitorStatus;
-    isActive: boolean;
-  };
-  uptimePercent: number;
-  slaPercent?: number;
-  averageResponseTimeMs: number;
-  incidents: number;
-  openIncidents: number;
-  checks: number;
-  downChecks?: number;
-  estimatedDowntimeSeconds?: number;
-  lastDowntime: string | null;
+export type ReportScope = {
+  monitorId?: number | string | null;
+  sectionId?: number | string | null;
 };
 
-export type ReportsSummary = {
-  range: ReportRange;
-  from: string;
-  to: string;
-  totals: {
-    averageUptimePercent: number;
-    averageResponseTimeMs: number;
-    incidents: number;
-    checks: number;
-    monitors: number;
-    estimatedDowntimeSeconds?: number;
-  };
-  rows: ReportRow[];
-};
-
-function buildReportsQuery(range: ReportRange, monitorId?: number | string | null) {
+function buildReportsQuery(range: ReportRange, scope?: ReportScope) {
   const params = new URLSearchParams({ range });
-  if (monitorId && monitorId !== 'all') {
-    params.set('monitorId', String(monitorId));
+
+  if (scope?.monitorId && scope.monitorId !== 'all') {
+    params.set('monitorId', String(scope.monitorId));
   }
+
+  if (scope?.sectionId && scope.sectionId !== 'all') {
+    params.set('sectionId', String(scope.sectionId));
+  }
+
   return params.toString();
 }
-
-export const getReportsSummary = async (
-  range: ReportRange,
-  monitorId?: number | string | null,
-) => {
-  return apiClient<ReportsSummary>(`/reports/summary?${buildReportsQuery(range, monitorId)}`);
-};
 
 export async function downloadReportExport(
   range: ReportRange,
   format: ReportFormat,
-  monitorId?: number | string | null,
+  scope?: ReportScope,
 ) {
   const token = tokenStorage.get();
-  const params = new URLSearchParams({ range, format });
-  if (monitorId && monitorId !== 'all') {
-    params.set('monitorId', String(monitorId));
-  }
+  const params = new URLSearchParams(buildReportsQuery(range, scope));
+  params.set('format', format);
 
   const response = await fetch(`${appEnv.apiUrl}/reports/export?${params.toString()}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -88,4 +52,3 @@ export async function downloadReportExport(
   anchor.click();
   URL.revokeObjectURL(url);
 }
-

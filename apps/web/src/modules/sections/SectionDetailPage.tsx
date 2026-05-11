@@ -26,6 +26,7 @@ import { useLocalPagination } from '../../shared/useLocalPagination';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
 import { useCurrentUserPermissions } from '../../shared/permissions';
+import { downloadReportExport, type ReportFormat, type ReportRange } from '../../shared/reportsApi';
 import {
   getSections,
   getSection,
@@ -97,6 +98,8 @@ export default function SectionDetailPage() {
   const [editError, setEditError] = useState<string | null>(null);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
   const [sectionEditorMode, setSectionEditorMode] = useState<SectionEditorMode | null>(null);
+  const [exportRange, setExportRange] = useState<ReportRange>('7d');
+  const [exportingFormat, setExportingFormat] = useState<ReportFormat | null>(null);
 
   const loadData = async () => {
     if (!sectionId) {
@@ -246,6 +249,25 @@ export default function SectionDetailPage() {
       setEditError(currentError instanceof Error ? currentError.message : 'No se pudo aplicar la configuracion de la seccion.');
     } finally {
       setIsSavingMonitor(false);
+    }
+  };
+
+  const handleExportReport = async (format: ReportFormat) => {
+    if (!sectionId) {
+      return;
+    }
+
+    setExportingFormat(format);
+    setFeedback(null);
+
+    try {
+      await downloadReportExport(exportRange, format, { sectionId });
+      setFeedback('Informe de seccion exportado correctamente.');
+    } catch (currentError) {
+      console.error('Error exporting section report', currentError);
+      setFeedback('No se pudo exportar el informe de la seccion.');
+    } finally {
+      setExportingFormat(null);
     }
   };
 
@@ -492,6 +514,45 @@ export default function SectionDetailPage() {
           value={stats.uptime}
           note="Segun estado actual"
         />
+      </section>
+
+      <section style={styles.exportCard}>
+        <div>
+          <h2 style={styles.exportTitle}>Exportar informe de la seccion</h2>
+          <p style={styles.exportSubtitle}>
+            Descarga un resumen consolidado de los monitores de {section.name} para el periodo seleccionado.
+          </p>
+        </div>
+
+        <div style={styles.exportControls}>
+          <select
+            value={exportRange}
+            onChange={(event) => setExportRange(event.target.value as ReportRange)}
+            style={styles.exportSelect}
+          >
+            <option value="24h">Ultimas 24 horas</option>
+            <option value="7d">Ultimos 7 dias</option>
+            <option value="30d">Ultimos 30 dias</option>
+          </select>
+
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            onClick={() => void handleExportReport('csv')}
+            disabled={exportingFormat !== null}
+          >
+            {exportingFormat === 'csv' ? 'Exportando...' : 'CSV'}
+          </button>
+
+          <button
+            type="button"
+            style={styles.primaryButton}
+            onClick={() => void handleExportReport('pdf')}
+            disabled={exportingFormat !== null}
+          >
+            {exportingFormat === 'pdf' ? 'Exportando...' : 'PDF'}
+          </button>
+        </div>
       </section>
 
       <nav style={styles.tabs}>
@@ -989,6 +1050,20 @@ const styles: Record<string, CSSProperties> = {
     display: 'flex',
     justifyContent: 'flex-end',
   },
+  primaryButton: {
+    ...controlBase,
+    minHeight: 40,
+    padding: '0 16px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    borderRadius: 12,
+    borderColor: uiTheme.colors.primary,
+    background: uiTheme.colors.primary,
+    color: '#fff',
+    fontWeight: 700,
+  },
   secondaryLink: {
     ...secondaryButtonBase,
     marginTop: 16,
@@ -1057,6 +1132,39 @@ const styles: Record<string, CSSProperties> = {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
     gap: 14,
+  },
+  exportCard: {
+    ...surfaceCard,
+    borderRadius: 20,
+    padding: 18,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 16,
+  },
+  exportTitle: {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 700,
+  },
+  exportSubtitle: {
+    margin: '6px 0 0',
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+    maxWidth: 640,
+  },
+  exportControls: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  exportSelect: {
+    ...inputBase,
+    minHeight: 40,
+    borderRadius: 12,
+    minWidth: 170,
   },
   kpiCard: {
     ...surfaceCard,

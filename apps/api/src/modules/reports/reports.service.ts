@@ -12,6 +12,7 @@ type ExportReportParams = {
   range: ReportRange;
   format: ReportFormat;
   monitorId?: number;
+  sectionId?: number;
 };
 
 type ReportRow = {
@@ -66,7 +67,12 @@ function formatSeconds(seconds: number) {
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getSummary(user: AuthenticatedUser, range: ReportRange, monitorId?: number) {
+  async getSummary(
+    user: AuthenticatedUser,
+    range: ReportRange,
+    monitorId?: number,
+    sectionId?: number,
+  ) {
     const organizationId = user.organizationId;
     const from = getRangeStart(range);
 
@@ -89,8 +95,29 @@ export class ReportsService {
       }
     }
 
+    if (sectionId) {
+      const section = await this.prisma.section.findFirst({
+        where: {
+          id: sectionId,
+          organizationId,
+          ...(this.canAccessAllMonitors(user)
+            ? {}
+            : {
+                members: {
+                  some: { userId: user.userId },
+                },
+              }),
+        },
+        select: { id: true },
+      });
+
+      if (!section) {
+        throw new NotFoundException('Seccion no encontrada');
+      }
+    }
+
     const monitors = await this.prisma.monitor.findMany({
-      where: this.buildMonitorWhere(user, monitorId),
+      where: this.buildMonitorWhere(user, monitorId, sectionId),
       include: {
         checkResults: {
           where: { checkedAt: { gte: from } },
@@ -180,6 +207,7 @@ export class ReportsService {
       from: from.toISOString(),
       to: new Date().toISOString(),
       selectedMonitorId: monitorId ?? null,
+      selectedSectionId: sectionId ?? null,
       totals: {
         averageUptimePercent,
         averageResponseTimeMs,
@@ -193,10 +221,23 @@ export class ReportsService {
   }
 
   async exportReport(params: ExportReportParams) {
-    const summary = await this.getSummary(params.user, params.range, params.monitorId);
-    const suffix = params.monitorId && summary.rows[0]
-      ? this.slugify(summary.rows[0].monitor.name)
-      : 'todos-los-monitores';
+    const summary = await this.getSummary(
+      params.user,
+      params.range,
+      params.monitorId,
+      params.sectionId,
+    );
+    let suffix = 'todos-los-monitores';
+
+    if (params.monitorId && summary.rows[0]) {
+      suffix = this.slugify(summary.rows[0].monitor.name);
+    } else if (params.sectionId) {
+      const section = await this.prisma.section.findUnique({
+        where: { id: params.sectionId },
+        select: { name: true },
+      });
+      suffix = section ? this.slugify(section.name) : `seccion-${params.sectionId}`;
+    }
 
     if (params.format === 'xlsx') {
       return {
@@ -376,11 +417,26 @@ export class ReportsService {
       .replace(/(^-|-$)/g, '') || 'monitor';
   }
 
-  private buildMonitorWhere(user: AuthenticatedUser, monitorId?: number): Prisma.MonitorWhereInput {
-    return {
-      ...buildAccessibleMonitorWhere(user),
-      ...(monitorId ? { id: monitorId } : {}),
-    };
+  private buildMonitorWhere(
+    user: AuthenticatedUser,
+    monitorId?: number,
+    sectionId?: number,
+  ): Prisma.MonitorWhereInput {
+    const filters: Prisma.MonitorWhereInput[] = [buildAccessibleMonitorWhere(user)];
+
+    if (monitorId) {
+      filters.push({ id: monitorId });
+    }
+
+    if (sectionId) {
+      filters.push({
+        sections: {
+          some: { sectionId },
+        },
+      });
+    }
+
+    return filters.length === 1 ? filters[0] : { AND: filters };
   }
 
   private canAccessMonitor(

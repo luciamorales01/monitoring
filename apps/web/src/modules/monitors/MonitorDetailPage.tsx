@@ -128,7 +128,7 @@ export default function MonitorDetailPage() {
   const handleExportReport = async (format: ReportFormat) => {
     try {
       setExportingFormat(format);
-      await downloadReportExport(exportRange, format, monitorId);
+      await downloadReportExport(exportRange, format, { monitorId });
       setToast({ text: "Informe exportado", type: "ok" });
     } catch {
       setToast({ text: "No se pudo exportar el informe", type: "error" });

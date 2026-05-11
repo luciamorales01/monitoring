@@ -120,7 +120,6 @@ export class SectionsService {
             expectedStatusCode: updatedSection.expectedStatusCode,
             frequencySeconds: updatedSection.frequencySeconds,
             timeoutSeconds: updatedSection.timeoutSeconds,
-            locations: updatedSection.locations,
             isActive: updatedSection.isActive,
             usesSectionSchedule: true,
             nextCheckAt: updatedSection.isActive ? new Date() : undefined,
@@ -330,7 +329,6 @@ export class SectionsService {
       expectedStatusCode: number;
       frequencySeconds: number;
       timeoutSeconds: number;
-      locations: string[];
       isActive: boolean;
     },
   ) {
@@ -341,7 +339,6 @@ export class SectionsService {
         expectedStatusCode: section.expectedStatusCode,
         frequencySeconds: section.frequencySeconds,
         timeoutSeconds: section.timeoutSeconds,
-        locations: section.locations,
         isActive: section.isActive,
         usesSectionSchedule: true,
         nextCheckAt: section.isActive ? new Date() : undefined,

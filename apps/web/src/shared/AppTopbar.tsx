@@ -169,7 +169,7 @@ export default function AppTopbar({
     } else if (notification.monitorId) {
       navigate(`/monitors/${notification.monitorId}`);
     } else {
-      navigate('/notifications');
+      navigate('/incidents');
     }
   };
 
@@ -233,8 +233,8 @@ export default function AppTopbar({
             <div style={styles.dropdown}>
               <div style={styles.dropdownHeader}>
                 <strong>Centro de alertas</strong>
-                <Link to="/notifications" style={styles.dropdownLink}>
-                  Ver historial
+                <Link to="/incidents" style={styles.dropdownLink}>
+                  Ver incidencias
                 </Link>
               </div>
 

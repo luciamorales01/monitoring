@@ -49,6 +49,12 @@ export class ReportsController {
     example: '12',
     description: 'ID de monitor concreto o `all` para todos.',
   })
+  @ApiQuery({
+    name: 'sectionId',
+    required: false,
+    example: '4',
+    description: 'ID de seccion concreta o `all` para todas.',
+  })
   @ApiOkResponse({
     description: 'Resumen del informe generado.',
     schema: {
@@ -97,11 +103,13 @@ export class ReportsController {
     @Req() req: any,
     @Query('range') range?: ReportRange,
     @Query('monitorId') monitorId?: string,
+    @Query('sectionId') sectionId?: string,
   ) {
     return this.reportsService.getSummary(
       req.user,
       range ?? '7d',
       this.parseOptionalNumber(monitorId),
+      this.parseOptionalNumber(sectionId),
     );
   }
 
@@ -131,6 +139,12 @@ export class ReportsController {
     example: 'all',
     description: 'ID de monitor concreto o `all` para todos.',
   })
+  @ApiQuery({
+    name: 'sectionId',
+    required: false,
+    example: 'all',
+    description: 'ID de seccion concreta o `all` para todas.',
+  })
   @ApiProduces(
     'text/csv',
     'application/pdf',
@@ -151,12 +165,14 @@ export class ReportsController {
     @Query('range') range?: ReportRange,
     @Query('format') format?: ReportFormat,
     @Query('monitorId') monitorId?: string,
+    @Query('sectionId') sectionId?: string,
   ) {
     const file = await this.reportsService.exportReport({
       user: req.user,
       range: range ?? '7d',
       format: format ?? 'csv',
       monitorId: this.parseOptionalNumber(monitorId),
+      sectionId: this.parseOptionalNumber(sectionId),
     });
 
     return new StreamableFile(file.buffer, {

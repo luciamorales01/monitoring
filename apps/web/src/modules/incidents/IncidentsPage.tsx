@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUniqueOptions, matchesSearchTerm, normalizeSearchTerm } from '../../shared/filterUtils';
 import { getIncidents, type Incident } from '../../shared/incidentApi';
+import {
+  getNotifications,
+  markAllNotificationsAsRead,
+  markNotificationsAsRead,
+  type NotificationEvent,
+} from '../../shared/notificationApi';
 import { realtimeEventName, type MonitoringRealtimeEvent } from '../../shared/realtimeEvents';
 import { useLocalPagination } from '../../shared/useLocalPagination';
 import { useUrlFilterState } from '../../shared/useUrlFilterState';
@@ -49,8 +55,10 @@ const incidentAllowedValues = {
 export default function IncidentsPage() {
   const navigate = useNavigate();
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [notifications, setNotifications] = useState<NotificationEvent[]>([]);
   const [hoveredIncidentId, setHoveredIncidentId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notificationLoading, setNotificationLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { filters, setFilter } = useUrlFilterState(
     incidentFilterDefaults,
@@ -60,12 +68,19 @@ export default function IncidentsPage() {
   const loadData = async () => {
     try {
       setError(null);
-      const allIncidents = await getIncidents();
+      const [allIncidents, recentNotifications] = await Promise.all([
+        getIncidents(),
+        getNotifications({ limit: 6 }),
+      ]);
       setIncidents(allIncidents);
+      setNotifications(Array.isArray(recentNotifications) ? recentNotifications : []);
     } catch (currentError) {
       console.error('Error loading incidents', currentError);
       setError('No se pudieron cargar las incidencias.');
       setIncidents([]);
+      setNotifications([]);
+    } finally {
+      setNotificationLoading(false);
     }
   };
 
@@ -188,6 +203,53 @@ export default function IncidentsPage() {
 
     return `conic-gradient(${uiTheme.colors.danger} 0 ${openAngle}%, ${uiTheme.colors.warning} ${openAngle}% ${resolvedStart}%, ${uiTheme.colors.primary} ${resolvedStart}% 100%)`;
   }, [investigatingCount, openCount, resolvedCount]);
+
+  const unreadNotificationsCount = useMemo(
+    () => notifications.filter((item) => !item.readAt).length,
+    [notifications],
+  );
+
+  const handleNotificationClick = async (notification: NotificationEvent) => {
+    if (!notification.readAt) {
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item,
+        ),
+      );
+
+      try {
+        await markNotificationsAsRead([notification.id]);
+      } catch {
+        const refreshed = await getNotifications({ limit: 6 });
+        setNotifications(Array.isArray(refreshed) ? refreshed : []);
+      }
+    }
+
+    if (notification.incidentId) {
+      navigate(`/incidents/${notification.incidentId}`);
+      return;
+    }
+
+    if (notification.monitorId) {
+      navigate(`/monitors/${notification.monitorId}`);
+    }
+  };
+
+  const handleMarkAllNotificationsAsRead = async () => {
+    setNotifications((current) =>
+      current.map((item) => ({
+        ...item,
+        readAt: item.readAt ?? new Date().toISOString(),
+      })),
+    );
+
+    try {
+      await markAllNotificationsAsRead();
+    } catch {
+      const refreshed = await getNotifications({ limit: 6 });
+      setNotifications(Array.isArray(refreshed) ? refreshed : []);
+    }
+  };
 
   return (
     <main style={styles.main}>
@@ -411,6 +473,61 @@ export default function IncidentsPage() {
               ))
             )}
           </div>
+          <div style={styles.sideCard}>
+            <div style={styles.notificationsHeader}>
+              <h2 style={styles.cardTitle}>Alertas recientes</h2>
+              {unreadNotificationsCount > 0 ? (
+                <button
+                  type="button"
+                  style={styles.linkButton}
+                  onClick={() => void handleMarkAllNotificationsAsRead()}
+                >
+                  Marcar leidas
+                </button>
+              ) : null}
+            </div>
+
+            {notificationLoading ? (
+              <p style={styles.empty}>Cargando alertas...</p>
+            ) : notifications.length === 0 ? (
+              <p style={styles.empty}>No hay alertas recientes.</p>
+            ) : (
+              <div style={styles.notificationsList}>
+                {notifications.map((notification) => (
+                  <button
+                    key={notification.id}
+                    type="button"
+                    style={{
+                      ...styles.notificationItem,
+                      ...(!notification.readAt ? styles.notificationItemUnread : {}),
+                    }}
+                    onClick={() => void handleNotificationClick(notification)}
+                  >
+                    <span
+                      style={
+                        notification.type === 'MONITOR_DOWN'
+                          ? styles.notificationIconDanger
+                          : styles.notificationIconSuccess
+                      }
+                    >
+                      <BellIcon size={14} />
+                    </span>
+                    <span style={styles.notificationCopy}>
+                      <strong>
+                        {notification.type === 'MONITOR_DOWN'
+                          ? 'Monitor caido'
+                          : 'Monitor recuperado'}
+                      </strong>
+                      <small>
+                        {notification.monitor?.name ?? 'Monitor'} ·{' '}
+                        {formatNotificationDate(notification.createdAt)}
+                      </small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </aside>
       </section>
     </main>
@@ -602,4 +719,80 @@ const styles: Record<string, React.CSSProperties> = {
   dot: { width: 8, height: 8, borderRadius: 999 },
   topRow: { display: 'grid', gridTemplateColumns: '20px 1fr 28px', alignItems: 'center', gap: 8, padding: '9px 0', fontSize: 12 },
   countBadge: { background: '#fee2e2', color: '#dc2626', borderRadius: 999, padding: '3px 8px', fontWeight: 800 },
+  notificationsHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 14,
+  },
+  linkButton: {
+    border: 0,
+    background: 'transparent',
+    color: uiTheme.colors.primary,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 700,
+    padding: 0,
+  },
+  notificationsList: {
+    display: 'grid',
+    gap: 10,
+  },
+  notificationItem: {
+    width: '100%',
+    border: 0,
+    background: 'transparent',
+    display: 'grid',
+    gridTemplateColumns: '30px 1fr',
+    alignItems: 'center',
+    gap: 10,
+    padding: '10px 0',
+    color: uiTheme.colors.text,
+    cursor: 'pointer',
+    textAlign: 'left',
+    borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
+  },
+  notificationItemUnread: {
+    color: uiTheme.colors.primary,
+  },
+  notificationIconDanger: {
+    width: 30,
+    height: 30,
+    display: 'grid',
+    placeItems: 'center',
+    borderRadius: 999,
+    color: uiTheme.colors.danger,
+    background: uiTheme.colors.dangerSoft,
+  },
+  notificationIconSuccess: {
+    width: 30,
+    height: 30,
+    display: 'grid',
+    placeItems: 'center',
+    borderRadius: 999,
+    color: uiTheme.colors.success,
+    background: uiTheme.colors.successSoft,
+  },
+  notificationCopy: {
+    display: 'grid',
+    gap: 3,
+    minWidth: 0,
+  },
 };
+
+function formatNotificationDate(value: string) {
+  const diffMs = Date.now() - new Date(value).getTime();
+  const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
+
+  if (diffMinutes < 1) return 'ahora';
+  if (diffMinutes < 60) return `hace ${diffMinutes} min`;
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `hace ${diffHours} h`;
+
+  return new Intl.DateTimeFormat('es-ES', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}

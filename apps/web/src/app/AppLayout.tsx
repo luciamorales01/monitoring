@@ -11,12 +11,10 @@ import {
 import { surfaceCard, uiTheme } from "../theme/commonStyles";
 import {
   AlertTriangleIcon,
-  BellIcon,
   BrandMark,
   FolderIcon,
   HomeIcon,
   MonitorIcon,
-  ReportIcon,
   UserGroupIcon,
   UsersIcon,
 } from "../shared/uiIcons";
@@ -32,30 +30,20 @@ export default function AppLayout() {
   const navItems = useMemo(() => {
     const items = [
       { icon: <HomeIcon size={16} />, label: "Dashboard", to: "/dashboard" },
-      {
-        icon: <MonitorIcon size={16} />,
-        label: "Webs monitorizadas",
-        to: "/monitors",
-      },
+      { icon: <MonitorIcon size={16} />, label: "Monitores", to: "/monitors" },
       { icon: <FolderIcon size={16} />, label: "Secciones", to: "/sections" },
-      { icon: <ReportIcon size={16} />, label: "Informes", to: "/reports" },
       {
         icon: <AlertTriangleIcon size={16} />,
         label: "Incidencias",
         to: "/incidents",
       },
-      {
-        icon: <BellIcon size={16} />,
-        label: "Notificaciones",
-        to: "/notifications",
-      },
-      { icon: <UsersIcon size={16} />, label: "Mi perfil", to: "/profile" },
+      { icon: <UsersIcon size={16} />, label: "Perfil", to: "/profile" },
     ];
 
     if (role === "OWNER") {
       items.push({
         icon: <UserGroupIcon size={16} />,
-        label: "Usuarios",
+        label: "Usuarios / empresa",
         to: "/users",
       });
     }
@@ -124,37 +112,39 @@ export default function AppLayout() {
           <span>{appEnv.appName}</span>
         </div>
 
-        <nav style={styles.nav}>
-          {navItems.map((item) => (
-            <SidebarItem
-              key={item.label}
-              icon={item.icon}
-              label={item.label}
-              to={item.to}
-              active={isActive(item.to)}
-            />
-          ))}
-        </nav>
+        <div style={styles.sidebarMain}>
+          <nav style={styles.nav}>
+            {navItems.map((item) => (
+              <SidebarItem
+                key={item.label}
+                icon={item.icon}
+                label={item.label}
+                to={item.to}
+                active={isActive(item.to)}
+              />
+            ))}
+          </nav>
 
-        <div style={styles.globalCard}>
-          <p style={styles.globalTitle}>Estado global</p>
+          <div style={styles.globalCard}>
+            <p style={styles.globalTitle}>Estado global</p>
 
-          <strong style={hasActiveIncidents ? styles.redText : styles.greenText}>
-            ● {hasActiveIncidents ? "Con incidencias" : "Operativo"}
-          </strong>
+            <strong style={hasActiveIncidents ? styles.redText : styles.greenText}>
+              â— {hasActiveIncidents ? "Con incidencias" : "Operativo"}
+            </strong>
 
-          <div style={hasActiveIncidents ? styles.bigRed : styles.bigGreen}>
-            {hasActiveIncidents ? `${activeIncidentsCount} activa` : "99.9%"}
+            <div style={hasActiveIncidents ? styles.bigRed : styles.bigGreen}>
+              {hasActiveIncidents ? `${activeIncidentsCount} activa` : "99.9%"}
+            </div>
+
+            <p style={styles.globalSubtitle}>
+              {hasActiveIncidents ? "Incidencia pendiente" : "Uptime promedio"}
+            </p>
+
+            <MiniSparkline warning={hasActiveIncidents} />
           </div>
-
-          <p style={styles.globalSubtitle}>
-            {hasActiveIncidents ? "Incidencia pendiente" : "Uptime promedio"}
-          </p>
-
-          <MiniSparkline warning={hasActiveIncidents} />
         </div>
 
-        <p style={styles.footerText}>© 2026 {appEnv.appName}</p>
+        <p style={styles.footerText}>Â© 2026 {appEnv.appName}</p>
       </aside>
 
       <div style={styles.content}>
@@ -265,7 +255,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 9,
     fontSize: 20,
     fontWeight: 600,
-    marginBottom: 22,
+    marginBottom: 12,
     color: uiTheme.colors.text,
   },
   logoIcon: {
@@ -277,6 +267,11 @@ const styles: Record<string, React.CSSProperties> = {
     color: uiTheme.colors.primary,
     background: uiTheme.colors.primarySoft,
     border: `1px solid ${uiTheme.colors.border}`,
+  },
+  sidebarMain: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
   },
   nav: { display: "flex", flexDirection: "column", gap: 6 },
   navItem: {
@@ -303,7 +298,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: uiTheme.colors.primary,
   },
   globalCard: {
-    marginTop: "auto",
     ...surfaceCard,
     background: uiTheme.colors.surface,
     borderRadius: uiTheme.radii.md,
@@ -321,7 +315,12 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
   },
   sparklineSvg: { display: "block", marginTop: 2 },
-  footerText: { color: uiTheme.colors.muted, fontSize: 11, marginTop: 20 },
+  footerText: {
+    color: uiTheme.colors.muted,
+    fontSize: 11,
+    marginTop: "auto",
+    paddingTop: 18,
+  },
   greenText: { color: uiTheme.colors.success },
   bigGreen: {
     marginTop: 10,
