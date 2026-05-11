@@ -1,8 +1,8 @@
-import { apiClient } from './apiClient';
+import { apiClient } from "./apiClient";
 
-export type UserRole = 'OWNER' | 'ADMIN' | 'VIEWER';
-export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING';
-export type InvitationStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+export type UserRole = "OWNER" | "ADMIN" | "VIEWER";
+export type UserStatus = "ACTIVE" | "INACTIVE" | "PENDING";
+export type InvitationStatus = "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
 
 export type User = {
   id: number;
@@ -18,6 +18,29 @@ export type User = {
     name: string;
     slug: string;
   } | null;
+
+  phone?: string;
+timezone?: string;
+language?: string;
+};
+
+export type UpdateCurrentUserInput = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  timezone?: string;
+  language?: string;
+};
+
+export const getCurrentUser = async () => {
+  return apiClient<User>("/users/me");
+};
+
+export const updateCurrentUser = async (data: UpdateCurrentUserInput) => {
+  return apiClient<User>("/users/me", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 };
 
 export type UserInvitation = {
@@ -47,36 +70,42 @@ export type CreateInvitationInput = {
 };
 
 export const getUsers = async () => {
-  return apiClient<User[]>('/users');
+  return apiClient<User[]>("/users");
 };
 
 export const updateUser = async (id: number, data: UpdateUserInput) => {
   return apiClient<User>(`/users/${encodeURIComponent(String(id))}`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify(data),
   });
 };
 
-export const updateUserStatus = async (id: number, status: Exclude<UserStatus, 'PENDING'>) => {
+export const updateUserStatus = async (
+  id: number,
+  status: Exclude<UserStatus, "PENDING">,
+) => {
   return apiClient<User>(`/users/${encodeURIComponent(String(id))}/status`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify({ status }),
   });
 };
 
 export const getInvitations = async () => {
-  return apiClient<UserInvitation[]>('/users/invitations');
+  return apiClient<UserInvitation[]>("/users/invitations");
 };
 
 export const createInvitation = async (data: CreateInvitationInput) => {
-  return apiClient<UserInvitation>('/users/invitations', {
-    method: 'POST',
+  return apiClient<UserInvitation>("/users/invitations", {
+    method: "POST",
     body: JSON.stringify(data),
   });
 };
 
 export const revokeInvitation = async (id: number) => {
-  return apiClient<UserInvitation>(`/users/invitations/${encodeURIComponent(String(id))}`, {
-    method: 'DELETE',
-  });
+  return apiClient<UserInvitation>(
+    `/users/invitations/${encodeURIComponent(String(id))}`,
+    {
+      method: "DELETE",
+    },
+  );
 };

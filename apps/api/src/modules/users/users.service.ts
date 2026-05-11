@@ -12,6 +12,7 @@ import { PrismaService } from '../../database/prisma/prisma.service';
 import { CreateInvitationDto } from './create-invitation.dto';
 import { UpdateUserStatusDto } from './update-user-status.dto';
 import { UpdateUserDto } from './update-user.dto';
+import { UpdateCurrentUserDto } from './update-current-user.dto';
 
 type AuthenticatedUser = {
   organizationId: number;
@@ -65,7 +66,9 @@ export class UsersService {
     }
 
     if (existingUser.organizationId !== user.organizationId) {
-      throw new ForbiddenException('No puedes editar usuarios de otra organización.');
+      throw new ForbiddenException(
+        'No puedes editar usuarios de otra organización.',
+      );
     }
 
     this.ensureCanManageUser(user, existingUser.role);
@@ -74,8 +77,14 @@ export class UsersService {
       throw new ForbiddenException('No puedes cambiar tu propio rol.');
     }
 
-    if (dto.role !== undefined && dto.role === UserRole.OWNER && user.role !== UserRole.OWNER) {
-      throw new ForbiddenException('Solo un propietario puede asignar el rol OWNER.');
+    if (
+      dto.role !== undefined &&
+      dto.role === UserRole.OWNER &&
+      user.role !== UserRole.OWNER
+    ) {
+      throw new ForbiddenException(
+        'Solo un propietario puede asignar el rol OWNER.',
+      );
     }
 
     const data: Prisma.UserUpdateInput = {};
@@ -112,7 +121,77 @@ export class UsersService {
     }
   }
 
-  async updateStatus(id: number, dto: UpdateUserStatusDto, user: AuthenticatedUser) {
+  async getCurrentUser(user: AuthenticatedUser) {
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    if (!currentUser) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    return this.toSafeUser(currentUser);
+  }
+
+  async updateCurrentUser(dto: UpdateCurrentUserDto, user: AuthenticatedUser) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: user.userId },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+
+    if (dto.name !== undefined) data.name = dto.name.trim();
+    if (dto.email !== undefined) data.email = dto.email.trim().toLowerCase();
+    if (dto.phone !== undefined) data.phone = dto.phone.trim();
+    if (dto.timezone !== undefined) data.timezone = dto.timezone.trim();
+    if (dto.language !== undefined) data.language = dto.language.trim();
+
+    try {
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.userId },
+        data,
+        include: {
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      });
+
+      return this.toSafeUser(updatedUser);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Ya existe un usuario con ese email.');
+      }
+
+      throw error;
+    }
+  }
+
+  async updateStatus(
+    id: number,
+    dto: UpdateUserStatusDto,
+    user: AuthenticatedUser,
+  ) {
     const existingUser = await this.prisma.user.findUnique({
       where: { id },
       include: {
@@ -127,7 +206,9 @@ export class UsersService {
     }
 
     if (existingUser.organizationId !== user.organizationId) {
-      throw new ForbiddenException('No puedes modificar usuarios de otra organización.');
+      throw new ForbiddenException(
+        'No puedes modificar usuarios de otra organización.',
+      );
     }
 
     if (existingUser.id === user.userId) {
@@ -137,7 +218,9 @@ export class UsersService {
     this.ensureCanManageUser(user, existingUser.role);
 
     if (dto.status === UserStatus.PENDING) {
-      throw new BadRequestException('El estado PENDING solo se usa para invitaciones.');
+      throw new BadRequestException(
+        'El estado PENDING solo se usa para invitaciones.',
+      );
     }
 
     const updatedUser = await this.prisma.$transaction(async (tx) => {
@@ -170,7 +253,9 @@ export class UsersService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return invitations.map((invitation) => this.serializeInvitation(invitation));
+    return invitations.map((invitation) =>
+      this.serializeInvitation(invitation),
+    );
   }
 
   async createInvitation(dto: CreateInvitationDto, user: AuthenticatedUser) {
@@ -179,14 +264,20 @@ export class UsersService {
     }
 
     if (dto.role === UserRole.OWNER && user.role !== UserRole.OWNER) {
-      throw new ForbiddenException('Solo un propietario puede invitar propietarios.');
+      throw new ForbiddenException(
+        'Solo un propietario puede invitar propietarios.',
+      );
     }
 
     const email = dto.email.trim().toLowerCase();
 
-    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
     if (existingUser && existingUser.organizationId === user.organizationId) {
-      throw new ConflictException('Ese usuario ya pertenece a tu organización.');
+      throw new ConflictException(
+        'Ese usuario ya pertenece a tu organización.',
+      );
     }
 
     const activeInvitation = await this.prisma.userInvitation.findFirst({
@@ -200,7 +291,9 @@ export class UsersService {
     });
 
     if (activeInvitation) {
-      throw new ConflictException('Ya existe una invitación activa para ese email.');
+      throw new ConflictException(
+        'Ya existe una invitación activa para ese email.',
+      );
     }
 
     const token = this.createOpaqueToken();
@@ -220,23 +313,30 @@ export class UsersService {
     return {
       ...this.serializeInvitation(invitation),
       inviteUrl: this.buildInvitationUrl(token),
-      inviteToken: this.configService.get('NODE_ENV') !== 'production' ? token : undefined,
+      inviteToken:
+        this.configService.get('NODE_ENV') !== 'production' ? token : undefined,
     };
   }
 
   async revokeInvitation(id: number, user: AuthenticatedUser) {
-    const invitation = await this.prisma.userInvitation.findUnique({ where: { id } });
+    const invitation = await this.prisma.userInvitation.findUnique({
+      where: { id },
+    });
 
     if (!invitation) {
       throw new NotFoundException('Invitación no encontrada.');
     }
 
     if (invitation.organizationId !== user.organizationId) {
-      throw new ForbiddenException('No puedes revocar invitaciones de otra organización.');
+      throw new ForbiddenException(
+        'No puedes revocar invitaciones de otra organización.',
+      );
     }
 
     if (invitation.acceptedAt) {
-      throw new BadRequestException('No puedes revocar una invitación aceptada.');
+      throw new BadRequestException(
+        'No puedes revocar una invitación aceptada.',
+      );
     }
 
     const updated = await this.prisma.userInvitation.update({
@@ -251,7 +351,9 @@ export class UsersService {
     if (user.role === UserRole.OWNER) return;
 
     if (targetRole === UserRole.OWNER) {
-      throw new ForbiddenException('No puedes gestionar usuarios propietarios.');
+      throw new ForbiddenException(
+        'No puedes gestionar usuarios propietarios.',
+      );
     }
   }
 
@@ -305,8 +407,12 @@ export class UsersService {
   }
 
   private getInvitationTtlMs() {
-    const hours = Number(this.configService.get<string>('INVITATION_TOKEN_HOURS') ?? 72);
-    return Number.isFinite(hours) && hours > 0 ? hours * 60 * 60 * 1000 : 72 * 60 * 60 * 1000;
+    const hours = Number(
+      this.configService.get<string>('INVITATION_TOKEN_HOURS') ?? 72,
+    );
+    return Number.isFinite(hours) && hours > 0
+      ? hours * 60 * 60 * 1000
+      : 72 * 60 * 60 * 1000;
   }
 
   private toSafeUser<T extends { passwordHash: string }>(user: T) {

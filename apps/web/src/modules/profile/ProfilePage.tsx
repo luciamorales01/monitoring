@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { changePassword, getMe, logout } from "../auth/authApi";
+import { changePassword, logout } from "../auth/authApi";
 import AppTopbar from "../../shared/AppTopbar";
 import LoadingState from "../../shared/LoadingState";
 import { tokenStorage } from "../../shared/tokenStorage";
@@ -40,6 +40,7 @@ import {
   SettingsIcon,
   ShieldIcon,
 } from "../../shared/uiIcons";
+import { getCurrentUser, updateCurrentUser } from "../../shared/userApi";
 
 type ProfileTab = "personal" | "security" | "notifications" | "appearance";
 
@@ -132,7 +133,7 @@ export default function ProfilePage() {
   const loadProfile = async () => {
     try {
       setIsLoading(true);
-      const currentUser = await getMe();
+      const currentUser = await getCurrentUser();
       const nextProfile: ProfileData = {
         ...emptyProfile,
         name: currentUser.name,
@@ -142,6 +143,9 @@ export default function ProfilePage() {
         memberSince: "Cuenta activa",
         lastAccess: "Sesion actual",
         location: `Organizacion ${currentUser.organizationId}`,
+        phone: currentUser.phone ?? "",
+        timezone: currentUser.timezone ?? emptyProfile.timezone,
+        language: currentUser.language ?? emptyProfile.language,
       };
 
       setProfile(nextProfile);
@@ -193,14 +197,38 @@ export default function ProfilePage() {
       setForm((current) => ({ ...current, [field]: value }));
     };
 
-  const handleSave = (event: FormEvent<HTMLFormElement>) => {
+  const handleSave = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setStatusMessage("");
 
-    const nextProfile = { ...profile, ...form };
-    setProfile(nextProfile);
-    setStatusMessage(
-      "Cambios aplicados en la vista actual. Para guardarlos en base de datos falta conectar PATCH /users/me.",
-    );
+    try {
+      const updatedUser = await updateCurrentUser({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        timezone: form.timezone,
+        language: form.language,
+      });
+
+      const nextProfile: ProfileData = {
+        ...profile,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone ?? "",
+        timezone: updatedUser.timezone ?? emptyProfile.timezone,
+        language: updatedUser.language ?? emptyProfile.language,
+      };
+
+      setProfile(nextProfile);
+      setForm(pickForm(nextProfile));
+      setStatusMessage("Cambios guardados correctamente.");
+    } catch (err) {
+      setStatusMessage(
+        err instanceof Error
+          ? err.message
+          : "No se pudieron guardar los cambios.",
+      );
+    }
   };
 
   const handleNotificationSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -254,7 +282,9 @@ export default function ProfilePage() {
       window.setTimeout(() => navigate("/login", { replace: true }), 900);
     } catch (err) {
       setStatusMessage(
-        err instanceof Error ? err.message : "No se pudo cambiar la contrasena.",
+        err instanceof Error
+          ? err.message
+          : "No se pudo cambiar la contrasena.",
       );
     }
   };
@@ -295,7 +325,10 @@ export default function ProfilePage() {
         </section>
       ) : (
         <div style={styles.pageGrid} className="profile-page-grid">
-          <section style={styles.heroCard} className="profile-surface profile-hero">
+          <section
+            style={styles.heroCard}
+            className="profile-surface profile-hero"
+          >
             <div style={styles.heroLeft}>
               <div style={styles.avatarWrap}>
                 <div style={styles.avatar}>{getInitials(profile.name)}</div>
@@ -317,7 +350,9 @@ export default function ProfilePage() {
                   </div>
 
                   <h2 style={styles.profileName}>{profile.name}</h2>
-                  <p style={styles.profileRoleDescription}>{profile.roleDescription}</p>
+                  <p style={styles.profileRoleDescription}>
+                    {profile.roleDescription}
+                  </p>
                 </div>
 
                 <div style={styles.identityMeta}>
@@ -369,7 +404,9 @@ export default function ProfilePage() {
                   }}
                   onClick={() => setActiveTab(tab.key)}
                   onMouseDown={(event) => event.preventDefault()}
-                  className={isActive ? "profile-tab profile-tab--active" : "profile-tab"}
+                  className={
+                    isActive ? "profile-tab profile-tab--active" : "profile-tab"
+                  }
                 >
                   {tab.label}
                 </button>
@@ -445,10 +482,13 @@ export default function ProfilePage() {
 
                     <div style={styles.formFooter}>
                       {statusMessage ? (
-                        <span style={styles.successMessage}>{statusMessage}</span>
+                        <span style={styles.successMessage}>
+                          {statusMessage}
+                        </span>
                       ) : (
                         <span style={styles.footerHint}>
-                          Los cambios se aplican solo en la vista hasta conectar el backend.
+                          Los cambios se aplican solo en la vista hasta conectar
+                          el backend.
                         </span>
                       )}
                       <button
@@ -469,10 +509,16 @@ export default function ProfilePage() {
                 >
                   <div style={styles.noticeBanner}>
                     <ShieldIcon size={16} />
-                    <span>Conviene usar una clave unica y renovar el acceso tras cualquier cambio sensible.</span>
+                    <span>
+                      Conviene usar una clave unica y renovar el acceso tras
+                      cualquier cambio sensible.
+                    </span>
                   </div>
 
-                  <form onSubmit={handlePasswordSubmit} style={styles.profileForm}>
+                  <form
+                    onSubmit={handlePasswordSubmit}
+                    style={styles.profileForm}
+                  >
                     <Field label="Contrasena actual">
                       <input
                         value={passwordForm.currentPassword}
@@ -523,10 +569,13 @@ export default function ProfilePage() {
 
                     <div style={styles.formFooter}>
                       {statusMessage ? (
-                        <span style={styles.successMessage}>{statusMessage}</span>
+                        <span style={styles.successMessage}>
+                          {statusMessage}
+                        </span>
                       ) : (
                         <span style={styles.footerHint}>
-                          Debe tener al menos 6 caracteres y coincidir con la confirmacion.
+                          Debe tener al menos 6 caracteres y coincidir con la
+                          confirmacion.
                         </span>
                       )}
                       <div style={styles.formActions}>
@@ -555,7 +604,10 @@ export default function ProfilePage() {
                   subtitle="Configura que avisos quieres recibir desde la plataforma."
                   badge="Preferencias personales"
                 >
-                  <form onSubmit={handleNotificationSubmit} style={styles.notificationForm}>
+                  <form
+                    onSubmit={handleNotificationSubmit}
+                    style={styles.notificationForm}
+                  >
                     <SwitchRow
                       icon={<BellIcon size={16} />}
                       title="Alertas de incidencias por email"
@@ -595,10 +647,13 @@ export default function ProfilePage() {
 
                     <div style={styles.formFooter}>
                       {statusMessage ? (
-                        <span style={styles.successMessage}>{statusMessage}</span>
+                        <span style={styles.successMessage}>
+                          {statusMessage}
+                        </span>
                       ) : (
                         <span style={styles.footerHint}>
-                          Los avisos se aplican solo en la vista hasta conectar el endpoint.
+                          Los avisos se aplican solo en la vista hasta conectar
+                          el endpoint.
                         </span>
                       )}
                       <button
@@ -620,10 +675,13 @@ export default function ProfilePage() {
                   <div style={styles.themeHeader}>
                     <div style={styles.themePreview}>
                       <span style={styles.themePreviewLabel}>Modo actual</span>
-                      <strong>{resolvedTheme === "dark" ? "oscuro" : "claro"}</strong>
+                      <strong>
+                        {resolvedTheme === "dark" ? "oscuro" : "claro"}
+                      </strong>
                     </div>
                     <p style={styles.themeHint}>
-                      El cambio afecta solo a tu experiencia local y se guarda en el navegador.
+                      El cambio afecta solo a tu experiencia local y se guarda
+                      en el navegador.
                     </p>
                   </div>
 
@@ -667,7 +725,9 @@ export default function ProfilePage() {
                 <div style={styles.sideHeader}>
                   <div>
                     <h3 style={styles.sideTitle}>Resumen</h3>
-                    <p style={styles.sideSubtitle}>Datos clave del perfil y contexto local.</p>
+                    <p style={styles.sideSubtitle}>
+                      Datos clave del perfil y contexto local.
+                    </p>
                   </div>
                   <span style={styles.statusChip}>Live</span>
                 </div>
@@ -677,9 +737,18 @@ export default function ProfilePage() {
                     icon={<PhoneIcon size={15} />}
                     label={profile.phone || "Telefono no configurado"}
                   />
-                  <MetaRow icon={<ClockIcon size={15} />} label={profile.timezone} />
-                  <MetaRow icon={<GlobeIcon size={15} />} label={profile.language} />
-                  <MetaRow icon={<MapPinIcon size={15} />} label={profile.location} />
+                  <MetaRow
+                    icon={<ClockIcon size={15} />}
+                    label={profile.timezone}
+                  />
+                  <MetaRow
+                    icon={<GlobeIcon size={15} />}
+                    label={profile.language}
+                  />
+                  <MetaRow
+                    icon={<MapPinIcon size={15} />}
+                    label={profile.location}
+                  />
                 </div>
               </section>
 
@@ -760,7 +829,10 @@ function SectionCard({
   badge: string;
 }) {
   return (
-    <section style={styles.formCard} className="profile-surface profile-sectionCard">
+    <section
+      style={styles.formCard}
+      className="profile-surface profile-sectionCard"
+    >
       <div style={styles.cardHeader}>
         <div>
           <h3 style={styles.cardTitle}>{title}</h3>

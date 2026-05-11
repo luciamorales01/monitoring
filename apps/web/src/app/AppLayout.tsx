@@ -43,7 +43,7 @@ export default function AppLayout() {
     if (role === "OWNER") {
       items.push({
         icon: <UserGroupIcon size={16} />,
-        label: "Usuarios / empresa",
+        label: "Usuarios",
         to: "/users",
       });
     }
@@ -76,19 +76,26 @@ export default function AppLayout() {
 
     const refreshActiveIncidentsOnRealtime = (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
+
       const detail = event.detail as MonitoringRealtimeEvent;
+
       if (
         detail.name !== "incident.created" &&
         detail.name !== "incident.resolved"
       ) {
         return;
       }
+
       void refreshActiveIncidents();
     };
 
     refreshActiveIncidents();
+
     const intervalId = window.setInterval(refreshActiveIncidents, 10000);
-    window.addEventListener(realtimeEventName, refreshActiveIncidentsOnRealtime);
+    window.addEventListener(
+      realtimeEventName,
+      refreshActiveIncidentsOnRealtime,
+    );
 
     return () => {
       cancelled = true;
@@ -128,8 +135,20 @@ export default function AppLayout() {
           <div style={styles.globalCard}>
             <p style={styles.globalTitle}>Estado global</p>
 
-            <strong style={hasActiveIncidents ? styles.redText : styles.greenText}>
-              â— {hasActiveIncidents ? "Con incidencias" : "Operativo"}
+            <strong
+              style={
+                hasActiveIncidents ? styles.statusDanger : styles.statusSuccess
+              }
+            >
+              <span
+                style={{
+                  ...styles.statusDot,
+                  backgroundColor: hasActiveIncidents
+                    ? uiTheme.colors.danger
+                    : uiTheme.colors.success,
+                }}
+              />
+              {hasActiveIncidents ? "Con incidencias" : "Operativo"}
             </strong>
 
             <div style={hasActiveIncidents ? styles.bigRed : styles.bigGreen}>
@@ -144,7 +163,7 @@ export default function AppLayout() {
           </div>
         </div>
 
-        <p style={styles.footerText}>Â© 2026 {appEnv.appName}</p>
+        <p style={styles.footerText}>© 2026 {appEnv.appName}</p>
       </aside>
 
       <div style={styles.content}>
@@ -271,9 +290,13 @@ const styles: Record<string, React.CSSProperties> = {
   sidebarMain: {
     display: "flex",
     flexDirection: "column",
-    gap: 18,
+    flex: 1,
   },
-  nav: { display: "flex", flexDirection: "column", gap: 6 },
+  nav: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
+  },
   navItem: {
     display: "flex",
     alignItems: "center",
@@ -298,37 +321,63 @@ const styles: Record<string, React.CSSProperties> = {
     color: uiTheme.colors.primary,
   },
   globalCard: {
-    ...surfaceCard,
-    background: uiTheme.colors.surface,
-    borderRadius: uiTheme.radii.md,
-    padding: 18,
-  },
+  ...surfaceCard,
+  background: uiTheme.colors.surface,
+  borderRadius: uiTheme.radii.md,
+  padding: 18,
+  marginTop: "auto",
+},
   globalTitle: {
     margin: "0 0 12px",
     color: uiTheme.colors.muted,
     fontSize: 12,
     fontWeight: 500,
   },
+  statusDanger: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    color: uiTheme.colors.danger,
+  },
+  statusSuccess: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    color: uiTheme.colors.success,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
   globalSubtitle: {
     margin: "5px 0 14px",
     color: uiTheme.colors.muted,
     fontSize: 12,
   },
-  sparklineSvg: { display: "block", marginTop: 2 },
+  sparklineSvg: {
+    display: "block",
+    marginTop: 2,
+  },
   footerText: {
     color: uiTheme.colors.muted,
     fontSize: 11,
     marginTop: "auto",
     paddingTop: 18,
   },
-  greenText: { color: uiTheme.colors.success },
+  greenText: {
+    color: uiTheme.colors.success,
+  },
   bigGreen: {
     marginTop: 10,
     fontSize: 26,
     fontWeight: 600,
     color: uiTheme.colors.success,
   },
-  redText: { color: uiTheme.colors.danger },
+  redText: {
+    color: uiTheme.colors.danger,
+  },
   bigRed: {
     marginTop: 10,
     fontSize: 20,

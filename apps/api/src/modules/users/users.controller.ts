@@ -14,6 +14,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateInvitationDto } from './create-invitation.dto';
+import { UpdateCurrentUserDto } from './update-current-user.dto';
 import { UpdateUserStatusDto } from './update-user-status.dto';
 import { UpdateUserDto } from './update-user.dto';
 import { UsersService } from './users.service';
@@ -22,6 +23,16 @@ import { UsersService } from './users.service';
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('me')
+  getCurrentUser(@Req() req: any) {
+    return this.usersService.getCurrentUser(req.user);
+  }
+
+  @Patch('me')
+  updateCurrentUser(@Body() dto: UpdateCurrentUserDto, @Req() req: any) {
+    return this.usersService.updateCurrentUser(dto, req.user);
+  }
 
   @Get()
   @Roles('OWNER')
