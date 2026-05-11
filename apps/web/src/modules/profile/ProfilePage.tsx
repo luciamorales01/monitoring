@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ChangeEvent,
@@ -40,7 +41,13 @@ import {
   SettingsIcon,
   ShieldIcon,
 } from "../../shared/uiIcons";
-import { getCurrentUser, updateCurrentUser } from "../../shared/userApi";
+import {
+  getCurrentUser,
+  updateCurrentUser,
+  updateCurrentUserAvatar,
+  type LanguageCode,
+} from "../../shared/userApi";
+import { useI18n } from "../../shared/i18n";
 
 type ProfileTab = "personal" | "security" | "notifications" | "appearance";
 
@@ -51,7 +58,8 @@ type ProfileData = {
   email: string;
   phone: string;
   timezone: string;
-  language: string;
+  language: LanguageCode;
+  avatarUrl?: string | null;
   memberSince: string;
   lastAccess: string;
   location: string;
@@ -104,7 +112,8 @@ const emptyProfile: ProfileData = {
   email: "",
   phone: "",
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Madrid",
-  language: "Espanol",
+  language: "es",
+  avatarUrl: null,
   memberSince: "No disponible",
   lastAccess: "Sesion actual",
   location: "No disponible",
@@ -113,6 +122,8 @@ const emptyProfile: ProfileData = {
 export default function ProfilePage() {
   const navigate = useNavigate();
   const { preference, resolvedTheme, setPreference } = useThemePreference();
+  const { setLanguage, t } = useI18n();
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [activeTab, setActiveTab] = useState<ProfileTab>("personal");
   const [profile, setProfile] = useState<ProfileData>(emptyProfile);
   const [form, setForm] = useState<ProfileFormState>(pickForm(emptyProfile));
@@ -146,6 +157,7 @@ export default function ProfilePage() {
         phone: currentUser.phone ?? "",
         timezone: currentUser.timezone ?? emptyProfile.timezone,
         language: currentUser.language ?? emptyProfile.language,
+        avatarUrl: currentUser.avatarUrl ?? null,
       };
 
       setProfile(nextProfile);
@@ -217,16 +229,70 @@ export default function ProfilePage() {
         phone: updatedUser.phone ?? "",
         timezone: updatedUser.timezone ?? emptyProfile.timezone,
         language: updatedUser.language ?? emptyProfile.language,
+        avatarUrl: updatedUser.avatarUrl ?? null,
       };
 
       setProfile(nextProfile);
       setForm(pickForm(nextProfile));
+      await setLanguage((updatedUser.language ?? "es") as LanguageCode);
       setStatusMessage("Cambios guardados correctamente.");
     } catch (err) {
       setStatusMessage(
         err instanceof Error
           ? err.message
           : "No se pudieron guardar los cambios.",
+      );
+    }
+  };
+
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setStatusMessage("La imagen debe ser JPG, PNG o WebP.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setStatusMessage("La imagen no puede superar 2 MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      if (typeof reader.result !== "string") {
+        setStatusMessage("No se pudo leer la imagen.");
+        return;
+      }
+
+      try {
+        const updatedUser = await updateCurrentUserAvatar(reader.result);
+        setProfile((current) => ({
+          ...current,
+          avatarUrl: updatedUser.avatarUrl ?? null,
+        }));
+        setStatusMessage("Avatar actualizado correctamente.");
+      } catch (err) {
+        setStatusMessage(
+          err instanceof Error ? err.message : "No se pudo actualizar el avatar.",
+        );
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClearAvatar = async () => {
+    try {
+      const updatedUser = await updateCurrentUserAvatar(null);
+      setProfile((current) => ({
+        ...current,
+        avatarUrl: updatedUser.avatarUrl ?? null,
+      }));
+      setStatusMessage("Avatar eliminado correctamente.");
+    } catch (err) {
+      setStatusMessage(
+        err instanceof Error ? err.message : "No se pudo eliminar el avatar.",
       );
     }
   };
@@ -313,6 +379,7 @@ export default function ProfilePage() {
         searchValue={searchValue}
         onSearchChange={setSearchValue}
         userSummary={{
+          avatarUrl: profile.avatarUrl,
           initials: getInitials(profile.name),
           name: profile.name,
           role: profile.role,
@@ -331,12 +398,24 @@ export default function ProfilePage() {
           >
             <div style={styles.heroLeft}>
               <div style={styles.avatarWrap}>
-                <div style={styles.avatar}>{getInitials(profile.name)}</div>
+                {profile.avatarUrl ? (
+                  <img alt="" src={profile.avatarUrl} style={styles.avatarImage} />
+                ) : (
+                  <div style={styles.avatar}>{getInitials(profile.name)}</div>
+                )}
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  hidden
+                  onChange={(event) => void handleAvatarChange(event)}
+                  ref={avatarInputRef}
+                  type="file"
+                />
                 <button
                   type="button"
                   style={styles.avatarEditButton}
                   aria-label="Editar avatar"
                   className="profile-iconButton"
+                  onClick={() => avatarInputRef.current?.click()}
                 >
                   <SettingsIcon size={14} />
                 </button>
@@ -467,16 +546,15 @@ export default function ProfilePage() {
                       </select>
                     </Field>
 
-                    <Field label="Idioma" wide>
+                    <Field label={t("profile.language")} wide>
                       <select
                         value={form.language}
                         onChange={handleFormChange("language")}
                         style={styles.input}
                         className="profile-input"
                       >
-                        <option>Espanol</option>
-                        <option>English</option>
-                        <option>Portugues</option>
+                        <option value="es">{t("language.es")}</option>
+                        <option value="en">{t("language.en")}</option>
                       </select>
                     </Field>
 
@@ -496,8 +574,18 @@ export default function ProfilePage() {
                         style={styles.primaryButton}
                         className="profile-primaryButton"
                       >
-                        Guardar cambios
+                        {t("actions.save")}
                       </button>
+                      {profile.avatarUrl ? (
+                        <button
+                          type="button"
+                          style={styles.secondaryButton}
+                          className="profile-secondaryButton"
+                          onClick={() => void handleClearAvatar()}
+                        >
+                          Quitar avatar
+                        </button>
+                      ) : null}
                     </div>
                   </form>
                 </SectionCard>

@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { getActiveIncidents } from "../shared/incidentApi";
 import { appEnv } from "../shared/env";
 import { useCurrentUserPermissions } from "../shared/permissions";
+import { useI18n } from "../shared/i18n";
 import {
   realtimeEventName,
   useMonitoringEvents,
@@ -24,32 +25,33 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const [activeIncidentsCount, setActiveIncidentsCount] = useState(0);
   const { role } = useCurrentUserPermissions();
+  const { t } = useI18n();
 
   useMonitoringEvents();
 
   const navItems = useMemo(() => {
     const items = [
-      { icon: <HomeIcon size={16} />, label: "Dashboard", to: "/dashboard" },
-      { icon: <MonitorIcon size={16} />, label: "Monitores", to: "/monitors" },
-      { icon: <FolderIcon size={16} />, label: "Secciones", to: "/sections" },
+      { icon: <HomeIcon size={16} />, label: t("nav.dashboard"), to: "/dashboard" },
+      { icon: <MonitorIcon size={16} />, label: t("nav.monitors"), to: "/monitors" },
+      { icon: <FolderIcon size={16} />, label: t("nav.sections"), to: "/sections" },
       {
         icon: <AlertTriangleIcon size={16} />,
-        label: "Incidencias",
+        label: t("nav.incidents"),
         to: "/incidents",
       },
-      { icon: <UsersIcon size={16} />, label: "Perfil", to: "/profile" },
+      { icon: <UsersIcon size={16} />, label: t("nav.profile"), to: "/profile" },
     ];
 
     if (role === "OWNER") {
       items.push({
         icon: <UserGroupIcon size={16} />,
-        label: "Usuarios",
+        label: t("nav.users"),
         to: "/users",
       });
     }
 
     return items;
-  }, [role]);
+  }, [role, t]);
 
   const isActive = (path?: string) => {
     if (!path) return false;
@@ -133,7 +135,7 @@ export default function AppLayout() {
           </nav>
 
           <div style={styles.globalCard}>
-            <p style={styles.globalTitle}>Estado global</p>
+            <p style={styles.globalTitle}>{t("app.statusGlobal")}</p>
 
             <strong
               style={

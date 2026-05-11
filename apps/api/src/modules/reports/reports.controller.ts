@@ -20,7 +20,7 @@ import {
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ReportsService } from './reports.service';
 
-type ReportRange = '24h' | '7d' | '30d';
+type ReportRange = '24h' | '7d' | '30d' | 'custom';
 type ReportFormat = 'csv' | 'pdf' | 'xlsx';
 
 @ApiTags('reports')
@@ -39,7 +39,7 @@ export class ReportsController {
   @ApiQuery({
     name: 'range',
     required: false,
-    enum: ['24h', '7d', '30d'],
+    enum: ['24h', '7d', '30d', 'custom'],
     example: '7d',
     description: 'Rango temporal del informe.',
   })
@@ -54,6 +54,18 @@ export class ReportsController {
     required: false,
     example: '4',
     description: 'ID de seccion concreta o `all` para todas.',
+  })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    example: '2026-05-01T00:00:00.000Z',
+    description: 'Fecha inicial ISO para rango custom.',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    example: '2026-05-10T23:59:59.000Z',
+    description: 'Fecha final ISO para rango custom.',
   })
   @ApiOkResponse({
     description: 'Resumen del informe generado.',
@@ -104,12 +116,16 @@ export class ReportsController {
     @Query('range') range?: ReportRange,
     @Query('monitorId') monitorId?: string,
     @Query('sectionId') sectionId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
     return this.reportsService.getSummary(
       req.user,
       range ?? '7d',
       this.parseOptionalNumber(monitorId),
       this.parseOptionalNumber(sectionId),
+      from,
+      to,
     );
   }
 
@@ -122,7 +138,7 @@ export class ReportsController {
   @ApiQuery({
     name: 'range',
     required: false,
-    enum: ['24h', '7d', '30d'],
+    enum: ['24h', '7d', '30d', 'custom'],
     example: '30d',
     description: 'Rango temporal del informe.',
   })
@@ -145,6 +161,18 @@ export class ReportsController {
     example: 'all',
     description: 'ID de seccion concreta o `all` para todas.',
   })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    example: '2026-05-01T00:00:00.000Z',
+    description: 'Fecha inicial ISO para rango custom.',
+  })
+  @ApiQuery({
+    name: 'to',
+    required: false,
+    example: '2026-05-10T23:59:59.000Z',
+    description: 'Fecha final ISO para rango custom.',
+  })
   @ApiProduces(
     'text/csv',
     'application/pdf',
@@ -166,6 +194,8 @@ export class ReportsController {
     @Query('format') format?: ReportFormat,
     @Query('monitorId') monitorId?: string,
     @Query('sectionId') sectionId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
     const file = await this.reportsService.exportReport({
       user: req.user,
@@ -173,6 +203,8 @@ export class ReportsController {
       format: format ?? 'csv',
       monitorId: this.parseOptionalNumber(monitorId),
       sectionId: this.parseOptionalNumber(sectionId),
+      from,
+      to,
     });
 
     return new StreamableFile(file.buffer, {

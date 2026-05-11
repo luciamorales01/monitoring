@@ -21,7 +21,6 @@ import {
   getMonitorViewStatus,
   sortMonitors,
   type MonitorSortOption,
-  type MonitorViewStatus,
 } from "../../shared/monitorFilters";
 import { useLocalPagination } from "../../shared/useLocalPagination";
 import AppTopbar from "../../shared/AppTopbar";
@@ -42,6 +41,8 @@ import {
 } from "../../shared/sectionsApi";
 import { getUsers, type User } from "../../shared/userApi";
 import MonitorEditModal from "../monitors/MonitorEditModal";
+import MonitorTable from "../monitors/MonitorTable";
+import type { ActionMenuItem } from "../../shared/ui";
 import {
   CheckCircleIcon,
   ChevronRightIcon,
@@ -112,6 +113,8 @@ export default function SectionDetailPage() {
   const [exportingFormat, setExportingFormat] = useState<ReportFormat | null>(
     null,
   );
+  const [customExportFrom, setCustomExportFrom] = useState("");
+  const [customExportTo, setCustomExportTo] = useState("");
 
   const loadData = async () => {
     if (!sectionId) {
@@ -295,7 +298,11 @@ export default function SectionDetailPage() {
     setFeedback(null);
 
     try {
-      await downloadReportExport(exportRange, format, { sectionId });
+      await downloadReportExport(exportRange, format, {
+        sectionId,
+        from: customExportFrom ? new Date(customExportFrom).toISOString() : undefined,
+        to: customExportTo ? new Date(customExportTo).toISOString() : undefined,
+      });
       setFeedback("Informe de seccion exportado correctamente.");
     } catch (currentError) {
       console.error("Error exporting section report", currentError);
@@ -397,6 +404,21 @@ export default function SectionDetailPage() {
     pageSize: 10,
     resetKey: `${search}|${statusFilter}|${typeFilter}|${filteredMonitors.length}`,
   });
+
+  const buildMonitorActions = (monitor: Monitor): ActionMenuItem[] => [
+    {
+      id: "detail",
+      icon: <MonitorIcon size={14} />,
+      label: "Ver detalle",
+      onSelect: () => navigate(`/monitors/${monitor.id}`),
+    },
+    {
+      id: "edit",
+      icon: <EditIcon size={14} />,
+      label: "Editar monitor",
+      onSelect: () => setEditingMonitor(monitor),
+    },
+  ];
 
   if (loading) {
     return (
@@ -589,7 +611,24 @@ export default function SectionDetailPage() {
             <option value="24h">Ultimas 24 horas</option>
             <option value="7d">Ultimos 7 dias</option>
             <option value="30d">Ultimos 30 dias</option>
+            <option value="custom">Personalizado</option>
           </select>
+          {exportRange === "custom" ? (
+            <>
+              <input
+                type="date"
+                value={customExportFrom}
+                onChange={(event) => setCustomExportFrom(event.target.value)}
+                style={styles.exportSelect}
+              />
+              <input
+                type="date"
+                value={customExportTo}
+                onChange={(event) => setCustomExportTo(event.target.value)}
+                style={styles.exportSelect}
+              />
+            </>
+          ) : null}
 
           <button
             type="button"
@@ -598,6 +637,15 @@ export default function SectionDetailPage() {
             disabled={exportingFormat !== null}
           >
             {exportingFormat === "csv" ? "Exportando..." : "CSV"}
+          </button>
+
+          <button
+            type="button"
+            style={styles.secondaryButton}
+            onClick={() => void handleExportReport("xlsx")}
+            disabled={exportingFormat !== null}
+          >
+            {exportingFormat === "xlsx" ? "Exportando..." : "XLSX"}
           </button>
 
           <button
@@ -701,154 +749,25 @@ export default function SectionDetailPage() {
           </div>
 
           <div style={styles.tableCard}>
-            {filteredMonitors.length === 0 ? (
-              <div style={styles.emptyTable}>
-                <strong>No hay monitores en esta vista.</strong>
-              </div>
-            ) : (
-              <table style={styles.table}>
-                <colgroup>
-                  <col style={{ width: "28%" }} />
-                  <col style={{ width: "11%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "12%" }} />
-                  {canWriteActions ? <col style={{ width: "90px" }} /> : null}
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Monitor</th>
-                    <th style={styles.th}>Tipo</th>
-                    <th style={styles.th}>Estado</th>
-                    <th style={styles.th}>Uptime estimado</th>
-                    <th style={styles.th}>Ultima comprobacion</th>
-                    <th style={styles.th}>Programacion</th>
-                    {canWriteActions ? (
-                      <th style={styles.th}>Acciones</th>
-                    ) : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageItems.map((monitor) => {
-                    const viewStatus = getMonitorViewStatus(monitor);
-
-                    return (
-                      <tr
-                        key={monitor.id}
-                        style={styles.tr}
-                        onClick={() => navigate(`/monitors/${monitor.id}`)}
-                      >
-                        <td style={styles.td}>
-                          <div style={styles.monitorCell}>
-                            <span style={styles.monitorIcon}>
-                              {monitor.type === "HTTPS" ? (
-                                <GlobeIcon size={18} />
-                              ) : (
-                                <MonitorIcon size={18} />
-                              )}
-                            </span>
-                            <span style={styles.monitorCopy}>
-                              <strong>{monitor.name}</strong>
-                              <span>{monitor.target}</span>
-                            </span>
-                          </div>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={styles.typeBadge}>{monitor.type}</span>
-                        </td>
-                        <td style={styles.td}>
-                          <StatusText status={viewStatus} />
-                        </td>
-                        <td style={styles.td}>
-                          <span style={styles.uptimeCell}>
-                            {getMonitorUptime(viewStatus)}
-                            {viewStatus === "UP" && (
-                              <small style={styles.uptimeTrend}>+ 0.02%</small>
-                            )}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          {formatRelativeDate(monitor.lastCheckedAt)}
-                        </td>
-                        <td style={styles.td}>
-                          {monitor.usesSectionSchedule === false ? (
-                            <span style={styles.customBadge}>
-                              Personalizada
-                            </span>
-                          ) : (
-                            <span style={styles.scheduleText}>Seccion</span>
-                          )}
-                        </td>
-                        {canWriteActions ? (
-                          <td
-                            style={styles.tdActions}
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <button
-                              type="button"
-                              style={styles.rowActionButton}
-                              aria-label={`Acciones de ${monitor.name}`}
-                              onClick={() => setEditingMonitor(monitor)}
-                            >
-                              <MoreHorizontalIcon size={18} />
-                            </button>
-                          </td>
-                        ) : null}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <div style={styles.pagination}>
-            <span style={styles.paginationText}>
-              Mostrando {rangeStart} a {rangeEnd} de {filteredMonitors.length}{" "}
-              monitores
-            </span>
-
-            <div style={styles.pages}>
-              <button
-                type="button"
-                style={styles.pageArrow}
-                onClick={() => setPage(page - 1)}
-                disabled={!hasPreviousPage}
-                aria-label="Pagina anterior"
-              >
-                <span style={styles.pageArrowLeft}>
-                  <ChevronRightIcon size={14} />
-                </span>
-              </button>
-              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                (pageNumber) => (
-                  <button
-                    key={pageNumber}
-                    type="button"
-                    style={
-                      pageNumber === page
-                        ? styles.pageActiveButton
-                        : styles.pageNumberButton
-                    }
-                    onClick={() => setPage(pageNumber)}
-                  >
-                    {pageNumber}
-                  </button>
-                ),
-              )}
-              <button
-                type="button"
-                style={styles.pageArrow}
-                onClick={() => setPage(page + 1)}
-                disabled={!hasNextPage}
-                aria-label="Pagina siguiente"
-              >
-                <ChevronRightIcon size={14} />
-              </button>
-            </div>
-
-            <span style={styles.pageSize}>10 por pagina</span>
+            <MonitorTable
+              emptyLabel="No hay monitores en esta vista."
+              getActions={canWriteActions ? buildMonitorActions : undefined}
+              monitors={pageItems}
+              onRowClick={(monitor) => navigate(`/monitors/${monitor.id}`)}
+              pagination={{
+                hasNextPage,
+                hasPreviousPage,
+                onPageChange: setPage,
+                page,
+                rangeEnd,
+                rangeStart,
+                totalItems: filteredMonitors.length,
+                totalPages,
+              }}
+              showActions={canWriteActions}
+              showSchedule
+              showType
+            />
           </div>
         </section>
       ) : (
@@ -939,30 +858,6 @@ function KpiCard({
   );
 }
 
-function StatusText({ status }: { status: MonitorViewStatus }) {
-  return (
-    <span
-      style={{
-        ...styles.statusText,
-        ...(status === "UP"
-          ? styles.statusGreen
-          : status === "DOWN"
-            ? styles.statusOrange
-            : styles.statusSlate),
-      }}
-    >
-      <span style={styles.statusDot}>●</span>
-      {status === "UP"
-        ? "Operativo"
-        : status === "DOWN"
-          ? "Incidencia"
-          : status === "PAUSED"
-            ? "Pausado"
-            : "Pendiente"}
-    </span>
-  );
-}
-
 function TrendingGlyph() {
   return (
     <svg
@@ -980,22 +875,6 @@ function TrendingGlyph() {
       <path d="M15 7h5v5" />
     </svg>
   );
-}
-
-function getMonitorUptime(status: MonitorViewStatus) {
-  if (status === "UP") {
-    return "99.98%";
-  }
-
-  if (status === "DOWN") {
-    return "96.40%";
-  }
-
-  if (status === "PAUSED") {
-    return "Pausado";
-  }
-
-  return "Pendiente";
 }
 
 function formatRelativeDate(value?: string | null) {

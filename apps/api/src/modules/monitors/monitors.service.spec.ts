@@ -35,6 +35,9 @@ describe('MonitorsService', () => {
       findUnique: jest.Mock;
       update: jest.Mock;
     };
+    organization: {
+      findUnique: jest.Mock;
+    };
   };
 
   let notificationsService: {
@@ -74,6 +77,12 @@ describe('MonitorsService', () => {
         findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
+      },
+      organization: {
+        findUnique: jest.fn().mockResolvedValue({
+          plan: 'FREE',
+          _count: { monitors: 0 },
+        }),
       },
     };
 
@@ -148,6 +157,32 @@ describe('MonitorsService', () => {
         createdById: user.userId,
       }),
     });
+  });
+
+  it('blocks monitor creation when organization reaches plan limit', async () => {
+    prisma.organization.findUnique.mockResolvedValue({
+      plan: 'FREE',
+      _count: { monitors: 5 },
+    });
+
+    await expect(
+      service.create(
+        {
+          name: 'API principal',
+          type: 'HTTPS' as const,
+          target: 'https://example.com/health',
+          expectedStatusCode: 200,
+          frequencySeconds: 60,
+          timeoutSeconds: 10,
+          alertEmail: true,
+          alertPush: false,
+          alertThreshold: 3,
+        },
+        user,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(prisma.monitor.create).not.toHaveBeenCalled();
   });
 
   it('updates a monitor keeping boolean values', async () => {

@@ -51,6 +51,8 @@ export default function MonitorDetailPage() {
   const [toast, setToast] = useState<MonitorStatusToast>(null);
   const [exportRange, setExportRange] = useState<ReportRange>("7d");
   const [exportingFormat, setExportingFormat] = useState<ReportFormat | null>(null);
+  const [customExportFrom, setCustomExportFrom] = useState("");
+  const [customExportTo, setCustomExportTo] = useState("");
 
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
   const loadData = async () => {
@@ -128,7 +130,11 @@ export default function MonitorDetailPage() {
   const handleExportReport = async (format: ReportFormat) => {
     try {
       setExportingFormat(format);
-      await downloadReportExport(exportRange, format, { monitorId });
+      await downloadReportExport(exportRange, format, {
+        monitorId,
+        from: customExportFrom ? new Date(customExportFrom).toISOString() : undefined,
+        to: customExportTo ? new Date(customExportTo).toISOString() : undefined,
+      });
       setToast({ text: "Informe exportado", type: "ok" });
     } catch {
       setToast({ text: "No se pudo exportar el informe", type: "error" });
@@ -395,7 +401,24 @@ export default function MonitorDetailPage() {
             <option value="24h">Últimas 24 horas</option>
             <option value="7d">Últimos 7 días</option>
             <option value="30d">Últimos 30 días</option>
+            <option value="custom">Personalizado</option>
           </select>
+          {exportRange === "custom" ? (
+            <>
+              <input
+                type="date"
+                value={customExportFrom}
+                onChange={(event) => setCustomExportFrom(event.target.value)}
+                style={styles.select}
+              />
+              <input
+                type="date"
+                value={customExportTo}
+                onChange={(event) => setCustomExportTo(event.target.value)}
+                style={styles.select}
+              />
+            </>
+          ) : null}
 
           <button
             type="button"

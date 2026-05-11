@@ -180,4 +180,76 @@ describe('UsersService', () => {
       status: 'ACTIVE',
     });
   });
+
+  it('updates current user language using normalized values', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 20,
+      name: 'Ana',
+      email: 'ana@example.com',
+      role: 'OWNER',
+      passwordHash: 'secret',
+      organizationId: 10,
+    });
+    prisma.user.update.mockResolvedValue({
+      id: 20,
+      name: 'Ana',
+      email: 'ana@example.com',
+      role: 'OWNER',
+      passwordHash: 'secret',
+      organizationId: 10,
+      language: 'en',
+      organization: { id: 10, name: 'Acme', slug: 'acme' },
+    });
+
+    await service.updateCurrentUser({ language: 'en' }, user);
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: user.userId },
+        data: { language: 'en' },
+      }),
+    );
+  });
+
+  it('updates current user avatar when data URL is valid', async () => {
+    const pngDataUrl =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
+
+    prisma.user.update.mockResolvedValue({
+      id: 20,
+      name: 'Ana',
+      email: 'ana@example.com',
+      role: 'OWNER',
+      passwordHash: 'secret',
+      organizationId: 10,
+      avatarUrl: pngDataUrl,
+      organization: { id: 10, name: 'Acme', slug: 'acme' },
+    });
+
+    const result = await service.updateCurrentUserAvatar(
+      { dataUrl: pngDataUrl },
+      user,
+    );
+
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: user.userId },
+        data: { avatarUrl: pngDataUrl },
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        avatarUrl: pngDataUrl,
+      }),
+    );
+  });
+
+  it('rejects invalid avatar payloads', async () => {
+    await expect(
+      service.updateCurrentUserAvatar(
+        { dataUrl: 'data:image/png;base64,ZmFrZQ==' },
+        user,
+      ),
+    ).rejects.toThrow('El contenido de la imagen no es válido.');
+  });
 });
