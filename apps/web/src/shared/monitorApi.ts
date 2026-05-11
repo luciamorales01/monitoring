@@ -17,12 +17,10 @@ export type Monitor = {
   nextCheckAt?: string;
   isActive: boolean;
   usesSectionSchedule?: boolean;
-  locations: string[];
   alertEmail: boolean;
   alertPush: boolean;
   alertThreshold: number;
   tcpPort?: number | null;
-  keyword?: string | null;
   sslWarningDays?: number | null;
   dnsRecordType?: string | null;
   dnsExpectedValue?: string | null;
@@ -46,7 +44,6 @@ export type MonitorCheck = {
   responseTimeMs: number | null;
   statusCode: number | null;
   errorMessage: string | null;
-  location?: string | null;
   checkedAt: string;
 };
 
@@ -68,7 +65,6 @@ export type MonitorListQuery = {
   sort?: MonitorSortOption;
   status?: MonitorViewStatusFilter;
   type?: 'ALL' | MonitorType;
-  location?: string;
 };
 
 export type CreateMonitorInput = {
@@ -78,12 +74,10 @@ export type CreateMonitorInput = {
   expectedStatusCode: number;
   frequencySeconds: number;
   timeoutSeconds: number;
-  locations: string[];
   alertEmail: boolean;
   alertPush: boolean;
   alertThreshold: number;
   tcpPort?: number | null;
-  keyword?: string | null;
   sslWarningDays?: number | null;
   dnsRecordType?: string | null;
   dnsExpectedValue?: string | null;

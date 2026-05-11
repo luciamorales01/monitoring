@@ -7,7 +7,7 @@ import {
   markNotificationsAsRead,
   type NotificationEvent,
 } from './notificationApi';
-import { BellIcon, PlusIcon, SearchIcon, SettingsIcon, UsersIcon } from './uiIcons';
+import { BellIcon, PlusIcon, SearchIcon, UsersIcon } from './uiIcons';
 import {
   avatarBase,
   iconButtonBase,
@@ -301,10 +301,6 @@ export default function AppTopbar({
               <Link to="/profile" style={styles.userMenuItem}>
                 <UsersIcon size={15} />
                 Perfil
-              </Link>
-              <Link to="/settings" style={styles.userMenuItem}>
-                <SettingsIcon size={15} />
-                Configuración
               </Link>
               <button type="button" style={styles.userMenuItem} onClick={handleLogout}>
                 Cerrar sesión

@@ -43,7 +43,6 @@ async function main() {
       frequencySeconds: 60,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'GitHub',
@@ -52,7 +51,6 @@ async function main() {
       frequencySeconds: 60,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['paris'],
     },
     {
       name: 'Cloudflare',
@@ -61,7 +59,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'OpenAI',
@@ -70,7 +67,6 @@ async function main() {
       frequencySeconds: 90,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['london'],
     },
     {
       name: 'Wikipedia',
@@ -79,7 +75,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['frankfurt'],
     },
     {
       name: 'Amazon',
@@ -88,7 +83,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'Netflix',
@@ -97,7 +91,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['paris'],
     },
     {
       name: 'YouTube',
@@ -106,7 +99,6 @@ async function main() {
       frequencySeconds: 90,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['london'],
     },
     {
       name: 'X / Twitter',
@@ -115,7 +107,6 @@ async function main() {
       frequencySeconds: 90,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'Twitch',
@@ -124,7 +115,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['frankfurt'],
     },
     {
       name: 'Reddit',
@@ -133,7 +123,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'Spotify',
@@ -142,7 +131,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['paris'],
     },
     {
       name: 'Stripe',
@@ -151,7 +139,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['london'],
     },
     {
       name: 'Vercel',
@@ -160,7 +147,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['frankfurt'],
     },
     {
       name: 'Supabase',
@@ -169,7 +155,6 @@ async function main() {
       frequencySeconds: 90,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'DigitalOcean',
@@ -178,7 +163,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['paris'],
     },
     {
       name: 'Discord',
@@ -187,7 +171,6 @@ async function main() {
       frequencySeconds: 90,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['london'],
     },
     {
       name: 'Figma',
@@ -196,7 +179,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['frankfurt'],
     },
     {
       name: 'Canva',
@@ -205,7 +187,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'LinkedIn',
@@ -214,7 +195,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['paris'],
     },
 
     // Monitores problemáticos para demo real
@@ -226,7 +206,6 @@ async function main() {
       frequencySeconds: 45,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'HTTP 404 Demo',
@@ -235,7 +214,6 @@ async function main() {
       frequencySeconds: 45,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['paris'],
     },
     {
       name: 'Slow Response Demo',
@@ -244,7 +222,6 @@ async function main() {
       frequencySeconds: 60,
       timeoutSeconds: 5,
       type: 'HTTP',
-      locations: ['london'],
     },
     {
       name: 'Random Status Demo',
@@ -253,7 +230,6 @@ async function main() {
       frequencySeconds: 30,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['frankfurt'],
     },
     {
       name: 'Temporary Redirect Demo',
@@ -262,7 +238,6 @@ async function main() {
       frequencySeconds: 45,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'Maintenance Demo',
@@ -271,7 +246,6 @@ async function main() {
       frequencySeconds: 45,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['paris'],
     },
     {
       name: 'Timeout Demo',
@@ -280,7 +254,6 @@ async function main() {
       frequencySeconds: 60,
       timeoutSeconds: 3,
       type: 'HTTP',
-      locations: ['london'],
     },
     {
       name: 'JSON API Demo',
@@ -289,7 +262,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
     {
       name: 'GitHub API',
@@ -298,7 +270,6 @@ async function main() {
       frequencySeconds: 120,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['frankfurt'],
     },
     {
       name: 'Open Meteo API',
@@ -308,7 +279,6 @@ async function main() {
       frequencySeconds: 180,
       timeoutSeconds: 10,
       type: 'HTTP',
-      locations: ['madrid'],
     },
   ];
 
@@ -329,7 +299,6 @@ async function main() {
           expectedStatusCode: monitor.expectedStatusCode,
           frequencySeconds: monitor.frequencySeconds,
           timeoutSeconds: monitor.timeoutSeconds,
-          locations: monitor.locations,
           isActive: true,
         },
       });
@@ -342,7 +311,6 @@ async function main() {
           expectedStatusCode: monitor.expectedStatusCode,
           frequencySeconds: monitor.frequencySeconds,
           timeoutSeconds: monitor.timeoutSeconds,
-          locations: monitor.locations,
           isActive: true,
           organizationId: organization.id,
           createdById: user.id,

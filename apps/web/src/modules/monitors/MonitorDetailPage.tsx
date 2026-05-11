@@ -53,8 +53,6 @@ export default function MonitorDetailPage() {
   const [exportingFormat, setExportingFormat] = useState<ReportFormat | null>(null);
 
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
-  const [locationFilter, setLocationFilter] = useState("all");
-
   const loadData = async () => {
     const [monitorData, checksData] = await Promise.all([
       getMonitor(monitorId),
@@ -144,30 +142,10 @@ export default function MonitorDetailPage() {
   const latestCheck = checks[0] ?? null;
   const latestChecks = checks.slice(0, 10);
 
-  const configuredLocations = useMemo(() => {
-    const locations = monitor?.locations ?? [];
-    return locations.length > 0 ? locations : ["default"];
-  }, [monitor]);
-
-  const locationOptions = useMemo(() => {
-    return Array.from(
-      new Set([
-        ...configuredLocations,
-        ...checks.map((check) => check.location ?? "default"),
-      ]),
-    );
-  }, [checks, configuredLocations]);
-
   const filteredChecks = useMemo(() => {
     const now = Date.now();
 
     return checks.filter((check) => {
-      const location = check.location ?? "default";
-
-      if (locationFilter !== "all" && location !== locationFilter) {
-        return false;
-      }
-
       if (periodFilter === "all") return true;
 
       const checkedAt = new Date(check.checkedAt).getTime();
@@ -175,44 +153,9 @@ export default function MonitorDetailPage() {
 
       return now - checkedAt <= periodMs;
     });
-  }, [checks, locationFilter, periodFilter]);
+  }, [checks, periodFilter]);
 
   const checksAsc = useMemo(() => [...filteredChecks].reverse(), [filteredChecks]);
-
-  const checksByLocation = useMemo(() => {
-    return checks.reduce<Record<string, MonitorCheck[]>>((acc, check) => {
-      const location = check.location ?? "default";
-
-      if (!acc[location]) {
-        acc[location] = [];
-      }
-
-      acc[location].push(check);
-      return acc;
-    }, {});
-  }, [checks]);
-
-  const locationSummaries = useMemo(() => {
-    const locations = Array.from(
-      new Set([...configuredLocations, ...Object.keys(checksByLocation)]),
-    );
-
-    return locations.map((location) => {
-      const locationChecks = checksByLocation[location] ?? [];
-      const latestLocationCheck = locationChecks[0] ?? null;
-
-      return {
-        downChecks: locationChecks.filter((check) => check.status === "DOWN")
-          .length,
-        hasData: locationChecks.length > 0,
-        latestCheck: latestLocationCheck,
-        location,
-        totalChecks: locationChecks.length,
-        upChecks: locationChecks.filter((check) => check.status === "UP")
-          .length,
-      };
-    });
-  }, [checksByLocation, configuredLocations]);
 
   const stats = useMemo(() => {
     const total = checks.length;
@@ -304,8 +247,8 @@ export default function MonitorDetailPage() {
           <div>
             <strong>Monitor caído</strong>
             <p>
-              La última comprobación ha fallado. Revisa el endpoint, el código
-              esperado o la conectividad desde las ubicaciones configuradas.
+              La última comprobación ha fallado. Revisa el endpoint y el código
+              HTTP esperado.
             </p>
           </div>
           <span style={styles.alertMeta}>
@@ -501,21 +444,18 @@ export default function MonitorDetailPage() {
             </div>
           </section>
 
-          <section style={styles.card}>
-            <LocationChecksCard locationSummaries={locationSummaries} />
-          </section>
-        </>
-      ) : (
+          </>
+        ) : (
         <>
           <section style={styles.chartToolbarCard} className="monitor-detail-toolbar">
             <div>
-              <strong style={styles.toolbarTitle}>Vista de gráficas</strong>
-              <p style={styles.cardSubtitle}>
-                Filtra el histórico por periodo y ubicación.
-              </p>
-            </div>
+                <strong style={styles.toolbarTitle}>Vista de gráficas</strong>
+                <p style={styles.cardSubtitle}>
+                  Filtra el histórico por periodo.
+                </p>
+              </div>
 
-            <div style={styles.toolbarControls} className="monitor-detail-toolbar-controls">
+              <div style={styles.toolbarControls} className="monitor-detail-toolbar-controls">
               <SegmentedControl
                 value={periodFilter}
                 onChange={setPeriodFilter}
@@ -528,18 +468,6 @@ export default function MonitorDetailPage() {
                 ]}
               />
 
-              <select
-                value={locationFilter}
-                onChange={(event) => setLocationFilter(event.target.value)}
-                style={styles.select}
-              >
-                <option value="all">Todas las ubicaciones</option>
-                {locationOptions.map((location) => (
-                  <option key={location} value={location}>
-                    {location}
-                  </option>
-                ))}
-              </select>
             </div>
           </section>
 
@@ -619,10 +547,6 @@ export default function MonitorDetailPage() {
                 value={String(monitor.expectedStatusCode)}
               />
               <InfoRow label="Timeout" value={`${monitor.timeoutSeconds}s`} />
-              <InfoRow
-                label="Ubicaciones"
-                value={configuredLocations.join(", ")}
-              />
               <InfoRow label="Último estado" value={getStatusLabel(status)} />
               <InfoRow
                 label="Último código"
@@ -631,10 +555,6 @@ export default function MonitorDetailPage() {
                 }
               />
             </div>
-          </section>
-
-          <section style={styles.card} className="monitor-detail-surface monitor-detail-card">
-            <LocationChecksCard locationSummaries={locationSummaries} />
           </section>
 
           <section style={styles.bottomGrid} className="monitor-detail-bottom-grid">
@@ -651,7 +571,6 @@ export default function MonitorDetailPage() {
 
               <div style={styles.tableHeader}>
                 <span>Hora</span>
-                <span>Ubicación</span>
                 <span>Estado</span>
                 <span>Tiempo</span>
                 <span>Código</span>
@@ -660,7 +579,6 @@ export default function MonitorDetailPage() {
               {latestChecks.map((check) => (
                 <div key={check.id} style={styles.tableRow} className="monitor-detail-table-row">
                   <span>{formatDateTime(check.checkedAt)}</span>
-                  <span>{check.location ?? "default"}</span>
                   <span style={styles.statusInline}>
                     <StatusDot status={check.status} />
                     {getStatusLabel(check.status)}
@@ -690,7 +608,6 @@ export default function MonitorDetailPage() {
 
                     <div>
                       <strong style={styles.timelineTitle}>
-                        {check.location ?? "default"} ·{" "}
                         {getStatusLabel(check.status)} ·{" "}
                         {formatDuration(check.responseTimeMs)}
                       </strong>
@@ -808,103 +725,6 @@ function InfoRow({
   );
 }
 
-function LocationChecksCard({
-  locationSummaries,
-}: {
-  locationSummaries: Array<{
-    downChecks: number;
-    hasData: boolean;
-    latestCheck: MonitorCheck | null;
-    location: string;
-    totalChecks: number;
-    upChecks: number;
-  }>;
-}) {
-  const hasCheckData = locationSummaries.some((summary) => summary.hasData);
-
-  return (
-    <>
-      <div style={styles.cardHeader}>
-        <div>
-          <h2 style={styles.cardTitle}>Comprobaciones por ubicación</h2>
-          <p style={styles.cardSubtitle}>
-            Estado distribuido según cada localización configurada.
-          </p>
-        </div>
-
-        <span style={styles.helperText}>
-          {hasCheckData ? "Datos reales por ubicación" : "Sin datos todavía"}
-        </span>
-      </div>
-
-      {!hasCheckData ? (
-        <div style={styles.locationEmpty}>
-          <strong>Sin resultados por ubicación</strong>
-          <p>
-            Este monitor todavía no tiene checks ejecutados desde ninguna
-            ubicación.
-          </p>
-        </div>
-      ) : (
-        <div style={styles.locationList}>
-          {locationSummaries.map((summary) => {
-            const latestStatus = summary.latestCheck?.status ?? "UNKNOWN";
-            const availability =
-              summary.totalChecks > 0
-                ? Math.round((summary.upChecks / summary.totalChecks) * 100)
-                : 0;
-
-            return (
-              <div
-                key={summary.location}
-                style={styles.locationRow}
-                className="monitor-detail-location-row"
-              >
-                <div>
-                  <strong style={styles.locationName}>{summary.location}</strong>
-                  <p style={styles.locationMeta}>
-                    {summary.latestCheck
-                      ? `Último check ${formatDateTime(
-                          summary.latestCheck.checkedAt,
-                        )}`
-                      : "Sin checks"}
-                  </p>
-                </div>
-
-                <div style={styles.locationProgressWrap}>
-                  <div style={styles.locationProgressTrack}>
-                    <div
-                      style={{
-                        ...styles.locationProgressFill,
-                        width: `${availability}%`,
-                        background: getStatusColor(latestStatus),
-                      }}
-                    />
-                  </div>
-                  <span style={styles.locationMeta}>
-                    {availability}% disponibilidad
-                  </span>
-                </div>
-
-                <div style={styles.locationStats}>
-                  <span style={styles.locationStat}>{summary.upChecks} ok</span>
-                  <span style={styles.locationStat}>
-                    {summary.downChecks} down
-                  </span>
-                  <span style={styles.statusInline}>
-                    <StatusDot status={latestStatus} />
-                    {getStatusLabel(latestStatus)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </>
-  );
-}
-
 function StatusHistoryChart({ checks }: { checks: MonitorCheck[] }) {
   const visibleChecks = checks.slice(-50);
 
@@ -923,7 +743,7 @@ function StatusHistoryChart({ checks }: { checks: MonitorCheck[] }) {
               key={check.id}
               title={`${formatDateTime(check.checkedAt)} · ${getStatusLabel(
                 check.status,
-              )} · ${check.location ?? "default"} · código ${
+              )} · código ${
                 check.statusCode ?? "-"
               } · ${formatDuration(check.responseTimeMs)}`}
               style={{
@@ -1133,9 +953,7 @@ function ResponseTimeChart({
             strokeWidth="2"
           >
             <title>
-              {`${formatDateTime(point.check.checkedAt)} · ${
-                point.check.location ?? "default"
-              } · ${getStatusLabel(point.check.status)} · ${formatDuration(
+              {`${formatDateTime(point.check.checkedAt)} · ${getStatusLabel(point.check.status)} · ${formatDuration(
                 point.check.responseTimeMs,
               )}`}
             </title>

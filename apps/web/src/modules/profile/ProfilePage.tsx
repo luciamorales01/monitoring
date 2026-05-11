@@ -13,6 +13,10 @@ import AppTopbar from "../../shared/AppTopbar";
 import LoadingState from "../../shared/LoadingState";
 import { tokenStorage } from "../../shared/tokenStorage";
 import {
+  useThemePreference,
+  type ThemePreference,
+} from "../../theme/themePreferences";
+import {
   badgeBase,
   inputBase,
   pageMain,
@@ -35,10 +39,9 @@ import {
   SearchIcon,
   SettingsIcon,
   ShieldIcon,
-  UsersIcon,
 } from "../../shared/uiIcons";
 
-type ProfileTab = "personal" | "security" | "notifications";
+type ProfileTab = "personal" | "security" | "notifications" | "appearance";
 
 type ProfileData = {
   name: string;
@@ -64,35 +67,51 @@ type NotificationFormState = {
   criticalOnly: boolean;
 };
 
-const tabs: Array<{ key: ProfileTab; label: string; icon: ReactNode }> = [
+const tabs: Array<{ key: ProfileTab; label: string }> = [
+  { key: "personal", label: "Informacion personal" },
+  { key: "security", label: "Seguridad" },
+  { key: "notifications", label: "Notificaciones" },
+  { key: "appearance", label: "Apariencia" },
+];
+
+const themeOptions: Array<{
+  id: ThemePreference;
+  title: string;
+  text: string;
+}> = [
   {
-    key: "personal",
-    label: "Información personal",
-    icon: <UsersIcon size={16} />,
+    id: "light",
+    title: "Claro",
+    text: "Interfaz luminosa para entornos con mucha luz.",
   },
-  { key: "security", label: "Seguridad", icon: <ShieldIcon size={16} /> },
   {
-    key: "notifications",
-    label: "Notificaciones",
-    icon: <BellIcon size={16} />,
+    id: "dark",
+    title: "Oscuro",
+    text: "Menos brillo y mejor foco en sesiones largas.",
+  },
+  {
+    id: "system",
+    title: "Segun el dispositivo",
+    text: "Respeta el modo configurado en el sistema.",
   },
 ];
 
 const emptyProfile: ProfileData = {
   name: "Usuario",
   role: "Sin rol",
-  roleDescription: "Sesión no cargada",
+  roleDescription: "Sesion no cargada",
   email: "",
   phone: "",
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Madrid",
-  language: "Español",
+  language: "Espanol",
   memberSince: "No disponible",
-  lastAccess: "Sesión actual",
+  lastAccess: "Sesion actual",
   location: "No disponible",
 };
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const { preference, resolvedTheme, setPreference } = useThemePreference();
   const [activeTab, setActiveTab] = useState<ProfileTab>("personal");
   const [profile, setProfile] = useState<ProfileData>(emptyProfile);
   const [form, setForm] = useState<ProfileFormState>(pickForm(emptyProfile));
@@ -121,8 +140,8 @@ export default function ProfilePage() {
         role: getRoleLabel(currentUser.role),
         roleDescription: getRoleDescription(currentUser.role),
         memberSince: "Cuenta activa",
-        lastAccess: "Sesión actual",
-        location: `Organización ${currentUser.organizationId}`,
+        lastAccess: "Sesion actual",
+        location: `Organizacion ${currentUser.organizationId}`,
       };
 
       setProfile(nextProfile);
@@ -132,7 +151,7 @@ export default function ProfilePage() {
       setProfile(emptyProfile);
       setForm(pickForm(emptyProfile));
       setStatusMessage(
-        "No se pudo cargar el perfil. Vuelve a iniciar sesión si el problema continúa.",
+        "No se pudo cargar el perfil. Vuelve a iniciar sesion si el problema continua.",
       );
     } finally {
       setIsLoading(false);
@@ -148,13 +167,13 @@ export default function ProfilePage() {
       {
         id: "password",
         icon: <LockIcon size={16} />,
-        label: "Cambiar contraseña",
+        label: "Cambiar contrasena",
         tone: "default" as const,
       },
       {
         id: "logout",
         icon: <LogOutIcon size={16} />,
-        label: "Cerrar sesión",
+        label: "Cerrar sesion",
         tone: "danger" as const,
       },
     ];
@@ -198,7 +217,7 @@ export default function ProfilePage() {
         try {
           await logout(refreshToken);
         } catch {
-          // Cerrar sesión local aunque el token ya estuviera caducado.
+          // Cerrar sesion local aunque el token ya estuviera caducado.
         }
       }
       tokenStorage.clear();
@@ -216,12 +235,12 @@ export default function ProfilePage() {
     setStatusMessage("");
 
     if (passwordForm.newPassword.length < 6) {
-      setStatusMessage("La nueva contraseña debe tener al menos 6 caracteres.");
+      setStatusMessage("La nueva contrasena debe tener al menos 6 caracteres.");
       return;
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setStatusMessage("Las contraseñas no coinciden.");
+      setStatusMessage("Las contrasenas no coinciden.");
       return;
     }
 
@@ -231,28 +250,30 @@ export default function ProfilePage() {
         newPassword: passwordForm.newPassword,
       });
       tokenStorage.clear();
-      setStatusMessage("Contraseña actualizada. Vuelve a iniciar sesión.");
+      setStatusMessage("Contrasena actualizada. Vuelve a iniciar sesion.");
       window.setTimeout(() => navigate("/login", { replace: true }), 900);
     } catch (err) {
       setStatusMessage(
-        err instanceof Error
-          ? err.message
-          : "No se pudo cambiar la contraseña.",
+        err instanceof Error ? err.message : "No se pudo cambiar la contrasena.",
       );
     }
   };
 
   return (
     <main style={styles.main}>
+      <style>{profileInteractionStyles}</style>
+
       <AppTopbar
         title="Mi perfil"
         breadcrumb={
           <>
-            <Link to="/settings" style={styles.breadcrumbLink}>
-              Ajustes
+            <Link to="/profile" style={styles.breadcrumbLink}>
+              Mi perfil
             </Link>
             <ChevronRightIcon size={14} />
-            <span style={styles.breadcrumbCurrent}>Mi perfil</span>
+            <span style={styles.breadcrumbCurrent}>
+              {getCurrentTabLabel(activeTab)}
+            </span>
           </>
         }
         onRefresh={loadProfile}
@@ -273,8 +294,8 @@ export default function ProfilePage() {
           <LoadingState variant="table" label="Cargando perfil" rows={4} />
         </section>
       ) : (
-        <>
-          <section style={styles.heroCard}>
+        <div style={styles.pageGrid} className="profile-page-grid">
+          <section style={styles.heroCard} className="profile-surface profile-hero">
             <div style={styles.heroLeft}>
               <div style={styles.avatarWrap}>
                 <div style={styles.avatar}>{getInitials(profile.name)}</div>
@@ -282,6 +303,7 @@ export default function ProfilePage() {
                   type="button"
                   style={styles.avatarEditButton}
                   aria-label="Editar avatar"
+                  className="profile-iconButton"
                 >
                   <SettingsIcon size={14} />
                 </button>
@@ -289,8 +311,13 @@ export default function ProfilePage() {
 
               <div style={styles.identityBlock}>
                 <div style={styles.identityHeader}>
+                  <div style={styles.identityKicker}>
+                    <span style={styles.eyebrow}>Cuenta</span>
+                    <span style={styles.statusChip}>Perfil autenticado</span>
+                  </div>
+
                   <h2 style={styles.profileName}>{profile.name}</h2>
-                  <span style={styles.roleBadge}>{profile.role}</span>
+                  <p style={styles.profileRoleDescription}>{profile.roleDescription}</p>
                 </div>
 
                 <div style={styles.identityMeta}>
@@ -316,7 +343,7 @@ export default function ProfilePage() {
               />
               <SummaryCard
                 icon={<ClockIcon size={18} />}
-                title="Último acceso"
+                title="Ultimo acceso"
                 value={profile.lastAccess}
                 note={profile.location}
                 tone="primary"
@@ -324,63 +351,68 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          <nav style={styles.tabsBar} aria-label="Secciones de perfil">
-            {tabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                style={{
-                  ...styles.tabButton,
-                  ...(activeTab === tab.key ? styles.tabButtonActive : {}),
-                }}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
+          <nav
+            style={styles.tabsBar}
+            aria-label="Secciones de perfil"
+            className="profile-tabs"
+          >
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.key;
+
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  style={{
+                    ...styles.tabButton,
+                    ...(isActive ? styles.tabButtonActive : {}),
+                  }}
+                  onClick={() => setActiveTab(tab.key)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  className={isActive ? "profile-tab profile-tab--active" : "profile-tab"}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </nav>
 
           <section style={styles.contentWrap}>
             <div style={styles.contentMain}>
               {activeTab === "personal" ? (
-                <section style={styles.formCard}>
-                  <div style={styles.cardHeader}>
-                    <div>
-                      <h3 style={styles.cardTitle}>Información personal</h3>
-                      <p style={styles.cardSubtitle}>
-                        Actualiza tu información personal y de contacto.
-                      </p>
-                    </div>
-
-                    <span style={styles.statusPill}>Perfil autenticado</span>
-                  </div>
-
+                <SectionCard
+                  title="Informacion personal"
+                  subtitle="Actualiza tu informacion personal y de contacto."
+                  badge="Lista de perfil"
+                >
                   <form onSubmit={handleSave} style={styles.profileForm}>
                     <Field label="Nombre completo">
                       <input
                         value={form.name}
                         onChange={handleFormChange("name")}
                         style={styles.input}
+                        className="profile-input"
                         placeholder="Nombre y apellidos"
                       />
                     </Field>
 
-                    <Field label="Correo electrónico">
+                    <Field label="Correo electronico">
                       <input
                         value={form.email}
                         onChange={handleFormChange("email")}
                         style={styles.input}
+                        className="profile-input"
                         placeholder="correo@ejemplo.com"
                         type="email"
                       />
                     </Field>
 
-                    <Field label="Teléfono">
+                    <Field label="Telefono">
                       <input
                         value={form.phone}
                         onChange={handleFormChange("phone")}
                         style={styles.input}
+                        className="profile-input"
                         placeholder="+34 600 000 000"
                       />
                     </Field>
@@ -390,6 +422,7 @@ export default function ProfilePage() {
                         value={form.timezone}
                         onChange={handleFormChange("timezone")}
                         style={styles.input}
+                        className="profile-input"
                       >
                         <option value="Europe/Madrid">Europe/Madrid</option>
                         <option value="Europe/Lisbon">Europe/Lisbon</option>
@@ -402,44 +435,45 @@ export default function ProfilePage() {
                         value={form.language}
                         onChange={handleFormChange("language")}
                         style={styles.input}
+                        className="profile-input"
                       >
-                        <option>Español</option>
+                        <option>Espanol</option>
                         <option>English</option>
-                        <option>Português</option>
+                        <option>Portugues</option>
                       </select>
                     </Field>
 
                     <div style={styles.formFooter}>
                       {statusMessage ? (
-                        <span style={styles.successMessage}>
-                          {statusMessage}
-                        </span>
+                        <span style={styles.successMessage}>{statusMessage}</span>
                       ) : (
-                        <span />
+                        <span style={styles.footerHint}>
+                          Los cambios se aplican solo en la vista hasta conectar el backend.
+                        </span>
                       )}
-                      <button type="submit" style={styles.primaryButton}>
+                      <button
+                        type="submit"
+                        style={styles.primaryButton}
+                        className="profile-primaryButton"
+                      >
                         Guardar cambios
                       </button>
                     </div>
                   </form>
-                </section>
+                </SectionCard>
               ) : activeTab === "security" ? (
-                <section style={styles.formCard}>
-                  <div style={styles.cardHeader}>
-                    <div>
-                      <h3 style={styles.cardTitle}>Seguridad de la cuenta</h3>
-                      <p style={styles.cardSubtitle}>
-                        Cambia tu contraseña y cierra la sesión actual.
-                      </p>
-                    </div>
-                    <span style={styles.statusPill}>Sesión protegida</span>
+                <SectionCard
+                  title="Seguridad de la cuenta"
+                  subtitle="Cambia tu contrasena y cierra la sesion actual."
+                  badge="Sesion protegida"
+                >
+                  <div style={styles.noticeBanner}>
+                    <ShieldIcon size={16} />
+                    <span>Conviene usar una clave unica y renovar el acceso tras cualquier cambio sensible.</span>
                   </div>
 
-                  <form
-                    onSubmit={handlePasswordSubmit}
-                    style={styles.profileForm}
-                  >
-                    <Field label="Contraseña actual">
+                  <form onSubmit={handlePasswordSubmit} style={styles.profileForm}>
+                    <Field label="Contrasena actual">
                       <input
                         value={passwordForm.currentPassword}
                         onChange={(event) =>
@@ -449,12 +483,13 @@ export default function ProfilePage() {
                           }))
                         }
                         style={styles.input}
+                        className="profile-input"
                         type="password"
                         autoComplete="current-password"
                       />
                     </Field>
 
-                    <Field label="Nueva contraseña">
+                    <Field label="Nueva contrasena">
                       <input
                         value={passwordForm.newPassword}
                         onChange={(event) =>
@@ -464,12 +499,13 @@ export default function ProfilePage() {
                           }))
                         }
                         style={styles.input}
+                        className="profile-input"
                         type="password"
                         autoComplete="new-password"
                       />
                     </Field>
 
-                    <Field label="Confirmar nueva contraseña" wide>
+                    <Field label="Confirmar nueva contrasena" wide>
                       <input
                         value={passwordForm.confirmPassword}
                         onChange={(event) =>
@@ -479,6 +515,7 @@ export default function ProfilePage() {
                           }))
                         }
                         style={styles.input}
+                        className="profile-input"
                         type="password"
                         autoComplete="new-password"
                       />
@@ -486,37 +523,39 @@ export default function ProfilePage() {
 
                     <div style={styles.formFooter}>
                       {statusMessage ? (
-                        <span style={styles.successMessage}>
-                          {statusMessage}
-                        </span>
+                        <span style={styles.successMessage}>{statusMessage}</span>
                       ) : (
-                        <span />
+                        <span style={styles.footerHint}>
+                          Debe tener al menos 6 caracteres y coincidir con la confirmacion.
+                        </span>
                       )}
-                      <button type="submit" style={styles.primaryButton}>
-                        Cambiar contraseña
-                      </button>
+                      <div style={styles.formActions}>
+                        <button
+                          type="button"
+                          style={styles.secondaryButton}
+                          className="profile-secondaryButton"
+                          onClick={() => setActiveTab("personal")}
+                        >
+                          Volver
+                        </button>
+                        <button
+                          type="submit"
+                          style={styles.primaryButton}
+                          className="profile-primaryButton"
+                        >
+                          Actualizar contrasena
+                        </button>
+                      </div>
                     </div>
                   </form>
-                </section>
-              ) : (
-                <section style={styles.formCard}>
-                  <div style={styles.cardHeader}>
-                    <div>
-                      <h3 style={styles.cardTitle}>Notificaciones</h3>
-                      <p style={styles.cardSubtitle}>
-                        Configura qué avisos quieres recibir desde la
-                        plataforma.
-                      </p>
-                    </div>
-                    <span style={styles.statusPill}>
-                      Preferencias personales
-                    </span>
-                  </div>
-
-                  <form
-                    onSubmit={handleNotificationSubmit}
-                    style={styles.notificationForm}
-                  >
+                </SectionCard>
+              ) : activeTab === "notifications" ? (
+                <SectionCard
+                  title="Notificaciones"
+                  subtitle="Configura que avisos quieres recibir desde la plataforma."
+                  badge="Preferencias personales"
+                >
+                  <form onSubmit={handleNotificationSubmit} style={styles.notificationForm}>
                     <SwitchRow
                       icon={<BellIcon size={16} />}
                       title="Alertas de incidencias por email"
@@ -531,7 +570,7 @@ export default function ProfilePage() {
                     />
                     <SwitchRow
                       icon={<MailIcon size={16} />}
-                      title="Informes periódicos por email"
+                      title="Informes periodicos por email"
                       description="Recibe resúmenes programados con el estado de tus monitores."
                       checked={notifications.reportEmails}
                       onChange={(checked) =>
@@ -543,7 +582,7 @@ export default function ProfilePage() {
                     />
                     <SwitchRow
                       icon={<ShieldIcon size={16} />}
-                      title="Solo incidencias críticas"
+                      title="Solo incidencias criticas"
                       description="Reduce ruido y recibe solo eventos importantes."
                       checked={notifications.criticalOnly}
                       onChange={(checked) =>
@@ -556,46 +595,107 @@ export default function ProfilePage() {
 
                     <div style={styles.formFooter}>
                       {statusMessage ? (
-                        <span style={styles.successMessage}>
-                          {statusMessage}
-                        </span>
+                        <span style={styles.successMessage}>{statusMessage}</span>
                       ) : (
-                        <span />
+                        <span style={styles.footerHint}>
+                          Los avisos se aplican solo en la vista hasta conectar el endpoint.
+                        </span>
                       )}
-                      <button type="submit" style={styles.primaryButton}>
+                      <button
+                        type="submit"
+                        style={styles.primaryButton}
+                        className="profile-primaryButton"
+                      >
                         Guardar preferencias
                       </button>
                     </div>
                   </form>
-                </section>
+                </SectionCard>
+              ) : (
+                <SectionCard
+                  title="Apariencia"
+                  subtitle="Ajusta el modo visual sin cambiar el diseño general de la aplicacion."
+                  badge="Preferencia local"
+                >
+                  <div style={styles.themeHeader}>
+                    <div style={styles.themePreview}>
+                      <span style={styles.themePreviewLabel}>Modo actual</span>
+                      <strong>{resolvedTheme === "dark" ? "oscuro" : "claro"}</strong>
+                    </div>
+                    <p style={styles.themeHint}>
+                      El cambio afecta solo a tu experiencia local y se guarda en el navegador.
+                    </p>
+                  </div>
+
+                  <div
+                    role="radiogroup"
+                    aria-label="Modo de color"
+                    style={styles.themeOptions}
+                  >
+                    {themeOptions.map((option) => {
+                      const isSelected = preference === option.id;
+
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          style={{
+                            ...styles.themeOption,
+                            ...(isSelected ? styles.themeOptionActive : {}),
+                          }}
+                          className={
+                            isSelected
+                              ? "profile-themeOption profile-themeOption--active"
+                              : "profile-themeOption"
+                          }
+                          onClick={() => setPreference(option.id)}
+                        >
+                          <strong>{option.title}</strong>
+                          <span>{option.text}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </SectionCard>
               )}
             </div>
 
             <aside style={styles.sidePanel}>
-              <section style={styles.sideCard}>
-                <h3 style={styles.sideTitle}>Resumen</h3>
+              <section style={styles.sideCard} className="profile-surface">
+                <div style={styles.sideHeader}>
+                  <div>
+                    <h3 style={styles.sideTitle}>Resumen</h3>
+                    <p style={styles.sideSubtitle}>Datos clave del perfil y contexto local.</p>
+                  </div>
+                  <span style={styles.statusChip}>Live</span>
+                </div>
+
                 <div style={styles.summaryList}>
                   <MetaRow
                     icon={<PhoneIcon size={15} />}
-                    label={profile.phone || "Teléfono no configurado"}
+                    label={profile.phone || "Telefono no configurado"}
                   />
-                  <MetaRow
-                    icon={<ClockIcon size={15} />}
-                    label={profile.timezone}
-                  />
-                  <MetaRow
-                    icon={<GlobeIcon size={15} />}
-                    label={profile.language}
-                  />
-                  <MetaRow
-                    icon={<MapPinIcon size={15} />}
-                    label={profile.location}
-                  />
+                  <MetaRow icon={<ClockIcon size={15} />} label={profile.timezone} />
+                  <MetaRow icon={<GlobeIcon size={15} />} label={profile.language} />
+                  <MetaRow icon={<MapPinIcon size={15} />} label={profile.location} />
                 </div>
               </section>
 
-              <section style={styles.sideCard}>
-                <h3 style={styles.sideTitle}>Acciones rápidas</h3>
+              <section style={styles.sideCard} className="profile-surface">
+                <div style={styles.sideHeader}>
+                  <div>
+                    <h3 style={styles.sideTitle}>Acciones rapidas</h3>
+                    <p style={styles.sideSubtitle}>
+                      Busca arriba para filtrar atajos de cuenta.
+                    </p>
+                  </div>
+                  <span style={styles.searchBadge}>
+                    <SearchIcon size={13} />
+                    {filteredQuickActions.length}
+                  </span>
+                </div>
 
                 <div style={styles.quickActions}>
                   {filteredQuickActions.map((action) => (
@@ -608,6 +708,11 @@ export default function ProfilePage() {
                           ? styles.quickActionDanger
                           : {}),
                       }}
+                      className={
+                        action.tone === "danger"
+                          ? "profile-action profile-action--danger"
+                          : "profile-action"
+                      }
                       onClick={() => handleQuickAction(action.id)}
                     >
                       <span style={styles.quickActionLabel}>
@@ -630,16 +735,43 @@ export default function ProfilePage() {
                   {filteredQuickActions.length === 0 ? (
                     <div style={styles.emptyState}>
                       <SearchIcon size={16} />
-                      No hay acciones que coincidan con la búsqueda actual.
+                      No hay acciones que coincidan con la busqueda actual.
                     </div>
                   ) : null}
                 </div>
               </section>
             </aside>
           </section>
-        </>
+        </div>
       )}
     </main>
+  );
+}
+
+function SectionCard({
+  children,
+  title,
+  subtitle,
+  badge,
+}: {
+  children: ReactNode;
+  title: string;
+  subtitle: string;
+  badge: string;
+}) {
+  return (
+    <section style={styles.formCard} className="profile-surface profile-sectionCard">
+      <div style={styles.cardHeader}>
+        <div>
+          <h3 style={styles.cardTitle}>{title}</h3>
+          <p style={styles.cardSubtitle}>{subtitle}</p>
+        </div>
+
+        <span style={styles.statusChip}>{badge}</span>
+      </div>
+
+      {children}
+    </section>
   );
 }
 
@@ -653,7 +785,10 @@ function Field({
   wide?: boolean;
 }) {
   return (
-    <label style={{ ...styles.field, ...(wide ? styles.fieldWide : {}) }}>
+    <label
+      style={{ ...styles.field, ...(wide ? styles.fieldWide : {}) }}
+      className="profile-field"
+    >
       <span>{label}</span>
       {children}
     </label>
@@ -662,7 +797,7 @@ function Field({
 
 function MetaRow({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <div style={styles.metaRow}>
+    <div style={styles.metaRow} className="profile-metaRow">
       <span style={styles.metaIcon}>{icon}</span>
       <span>{label}</span>
     </div>
@@ -683,7 +818,7 @@ function SwitchRow({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label style={styles.switchRow}>
+    <label style={styles.switchRow} className="profile-switchRow">
       <span style={styles.switchIcon}>{icon}</span>
       <span style={styles.switchText}>
         <strong>{title}</strong>
@@ -724,7 +859,7 @@ function SummaryCard({
         };
 
   return (
-    <div style={styles.summaryCard}>
+    <div style={styles.summaryCard} className="profile-summaryCard">
       <span style={{ ...styles.summaryIcon, ...iconStyle }}>{icon}</span>
       <div>
         <p style={styles.summaryTitle}>{title}</p>
@@ -767,16 +902,153 @@ function getRoleLabel(role: string) {
 function getRoleDescription(role: string) {
   const roleMap: Record<string, string> = {
     OWNER: "Acceso completo a la plataforma",
-    ADMIN: "Gestión operativa y de contenidos",
+    ADMIN: "Gestion operativa y de contenidos",
     VIEWER: "Acceso de solo lectura",
   };
 
   return roleMap[role] ?? "Permisos personalizados del usuario";
 }
 
+function getCurrentTabLabel(tab: ProfileTab) {
+  const currentTab = tabs.find((item) => item.key === tab);
+  return currentTab?.label ?? "Mi perfil";
+}
+
+const profileInteractionStyles = `
+  .profile-surface {
+    transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+
+  .profile-surface:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+    border-color: rgba(37, 99, 235, 0.18);
+  }
+
+  .profile-tab {
+    transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+
+  .profile-tab:hover {
+    color: ${uiTheme.colors.text};
+    transform: translateY(-1px);
+    background: rgba(37, 99, 235, 0.04);
+  }
+
+  .profile-tab--active {
+    box-shadow: inset 0 -1px 0 ${uiTheme.colors.primary};
+  }
+
+  .profile-input {
+    transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+
+  .profile-input:focus-visible {
+    outline: none;
+    border-color: ${uiTheme.colors.primary};
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  }
+
+  .profile-primaryButton,
+  .profile-secondaryButton,
+  .profile-iconButton,
+  .profile-action,
+  .profile-themeOption {
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+  }
+
+  .profile-primaryButton:hover,
+  .profile-secondaryButton:hover,
+  .profile-iconButton:hover,
+  .profile-action:hover,
+  .profile-themeOption:hover {
+    transform: translateY(-1px);
+  }
+
+  .profile-tab:focus-visible,
+  .profile-primaryButton:focus-visible,
+  .profile-secondaryButton:focus-visible,
+  .profile-iconButton:focus-visible,
+  .profile-action:focus-visible,
+  .profile-themeOption:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
+  }
+
+  .profile-primaryButton:hover {
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
+  }
+
+  .profile-secondaryButton:hover {
+    border-color: ${uiTheme.colors.primary};
+    color: ${uiTheme.colors.primary};
+    background: ${uiTheme.colors.primarySoft};
+  }
+
+  .profile-iconButton:hover {
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  .profile-action:hover {
+    background: rgba(37, 99, 235, 0.04);
+    border-color: rgba(37, 99, 235, 0.12);
+    color: ${uiTheme.colors.text};
+  }
+
+  .profile-action--danger:hover {
+    background: ${uiTheme.colors.dangerSoft};
+    color: ${uiTheme.colors.danger};
+    border-color: rgba(220, 38, 38, 0.18);
+  }
+
+  .profile-themeOption:hover,
+  .profile-themeOption--active {
+    border-color: ${uiTheme.colors.primary};
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.12);
+  }
+
+  .profile-field:focus-within {
+    color: ${uiTheme.colors.primary};
+  }
+
+  .profile-metaRow:hover {
+    color: ${uiTheme.colors.text};
+  }
+
+  .profile-switchRow:hover {
+    background: ${uiTheme.colors.surfaceSoft};
+  }
+
+  @media (max-width: 1120px) {
+    .profile-page-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .profile-hero {
+      grid-template-columns: 1fr;
+    }
+
+    .profile-tabs {
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+  }
+
+  @media (max-width: 760px) {
+    .profile-sectionCard {
+      padding: 20px !important;
+    }
+
+    .profile-field {
+      grid-column: 1 / -1 !important;
+    }
+  }
+`;
+
 const styles: Record<string, CSSProperties> = {
   main: {
     ...pageMain,
+    overflow: "auto",
     backgroundImage:
       "linear-gradient(135deg, rgba(37, 99, 235, 0.07), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)",
   },
@@ -793,32 +1065,38 @@ const styles: Record<string, CSSProperties> = {
     padding: 24,
     borderRadius: 20,
   },
+  pageGrid: {
+    display: "grid",
+    gap: 18,
+  },
   heroCard: {
     ...surfaceCard,
-    display: "flex",
-    flexWrap: "wrap",
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1.4fr) minmax(300px, 0.9fr)",
     gap: 22,
     padding: 28,
-    marginBottom: 18,
-    borderRadius: 22,
+    borderRadius: 24,
+    background:
+      "linear-gradient(180deg, rgba(255,255,255,0.82), rgba(248,250,252,0.94))",
+    position: "relative",
+    overflow: "hidden",
   },
   heroLeft: {
-    flex: "999 1 520px",
     display: "flex",
     flexWrap: "wrap",
     alignItems: "center",
     gap: 24,
+    minWidth: 0,
   },
   heroRight: {
-    flex: "1 1 320px",
     display: "grid",
-    gap: 16,
+    gap: 14,
     alignContent: "center",
   },
   avatarWrap: {
     position: "relative",
-    width: 160,
-    height: 160,
+    width: 156,
+    height: 156,
     flexShrink: 0,
   },
   avatar: {
@@ -827,18 +1105,20 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 999,
     display: "grid",
     placeItems: "center",
-    background: `linear-gradient(145deg, ${uiTheme.colors.surfaceSoft} 0%, ${uiTheme.colors.surface} 100%)`,
+    background:
+      "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(239,246,255,0.95) 100%)",
     border: `1px solid ${uiTheme.colors.border}`,
     color: uiTheme.colors.primary,
-    fontSize: 56,
+    fontSize: 54,
     fontWeight: 700,
-    letterSpacing: "0em",
+    letterSpacing: "-0.03em",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
   },
   avatarEditButton: {
     ...secondaryButtonBase,
     position: "absolute",
-    right: 10,
-    bottom: 10,
+    right: 8,
+    bottom: 8,
     width: 42,
     height: 42,
     borderRadius: 999,
@@ -858,18 +1138,39 @@ const styles: Record<string, CSSProperties> = {
     display: "grid",
     gap: 10,
   },
+  identityKicker: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 10,
+  },
+  eyebrow: {
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+  },
   profileName: {
     margin: 0,
-    fontSize: 40,
+    fontSize: 38,
     lineHeight: 1,
     fontWeight: 700,
-    letterSpacing: "0em",
+    letterSpacing: "-0.04em",
   },
-  roleBadge: {
+  profileRoleDescription: {
+    margin: 0,
+    color: uiTheme.colors.muted,
+    fontSize: 14,
+    lineHeight: 1.6,
+    maxWidth: 620,
+  },
+  statusChip: {
     ...badgeBase,
-    width: "fit-content",
     background: uiTheme.colors.primarySoft,
     color: uiTheme.colors.primary,
+    border: `1px solid rgba(37, 99, 235, 0.1)`,
+    boxShadow: "0 1px 0 rgba(255,255,255,0.6) inset",
   },
   identityMeta: {
     display: "grid",
@@ -882,6 +1183,7 @@ const styles: Record<string, CSSProperties> = {
     alignItems: "center",
     gap: 10,
     color: uiTheme.colors.muted,
+    width: "fit-content",
   },
   metaIcon: {
     width: 30,
@@ -898,11 +1200,16 @@ const styles: Record<string, CSSProperties> = {
     gridTemplateColumns: "52px 1fr",
     gap: 14,
     alignItems: "center",
+    padding: 16,
+    borderRadius: 20,
+    background: uiTheme.colors.surface,
+    border: `1px solid ${uiTheme.colors.border}`,
+    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.04)",
   },
   summaryIcon: {
     width: 48,
     height: 48,
-    borderRadius: 999,
+    borderRadius: 16,
     display: "grid",
     placeItems: "center",
   },
@@ -913,7 +1220,7 @@ const styles: Record<string, CSSProperties> = {
   },
   summaryValue: {
     display: "block",
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 700,
     lineHeight: 1.1,
   },
@@ -921,78 +1228,81 @@ const styles: Record<string, CSSProperties> = {
     margin: "5px 0 0",
     color: uiTheme.colors.muted,
     fontSize: 13,
+    lineHeight: 1.45,
   },
   tabsBar: {
     display: "flex",
     alignItems: "center",
-    gap: 24,
-    marginBottom: 24,
-    borderBottom: `1px solid ${uiTheme.colors.border}`,
-  },
-
-  tabButton: {
-    display: "inline-flex",
-    alignItems: "center",
     gap: 8,
-    padding: "0 0 12px",
-    background: "transparent",
+    padding: 6,
+    borderRadius: 18,
+    border: `1px solid ${uiTheme.colors.border}`,
+    background: "rgba(255,255,255,0.72)",
+    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.04)",
+    width: "fit-content",
+    maxWidth: "100%",
+  },
+  tabButton: {
     border: "none",
-    borderBottom: "2px solid transparent",
+    background: "transparent",
     color: uiTheme.colors.muted,
     fontSize: 14,
-    fontWeight: 700,
+    fontWeight: 600,
+    padding: "10px 16px",
     cursor: "pointer",
-    transition: "all 140ms ease",
+    outline: "none",
+    boxShadow: "none",
+    borderRadius: 14,
+    whiteSpace: "nowrap",
   },
-
   tabButtonActive: {
+    border: "none",
+    background: uiTheme.colors.surface,
     color: uiTheme.colors.primary,
-    borderBottomColor: uiTheme.colors.primary,
+    fontWeight: 700,
+    boxShadow: "0 6px 14px rgba(15, 23, 42, 0.06)",
   },
   contentWrap: {
-    display: "flex",
-    flexWrap: "wrap",
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1.35fr) minmax(300px, 0.7fr)",
     gap: 18,
-    alignItems: "flex-start",
+    alignItems: "start",
   },
   contentMain: {
-    flex: "999 1 720px",
+    minWidth: 0,
   },
   sidePanel: {
-    flex: "1 1 320px",
     display: "grid",
     gap: 18,
     alignContent: "start",
+    minWidth: 0,
   },
   formCard: {
     ...surfaceCard,
-    padding: 24,
-    borderRadius: 20,
+    padding: 26,
+    borderRadius: 24,
+    background: "rgba(255,255,255,0.86)",
   },
   cardHeader: {
     display: "flex",
     flexWrap: "wrap",
     justifyContent: "space-between",
     gap: 16,
-    marginBottom: 22,
+    marginBottom: 24,
     alignItems: "flex-start",
   },
   cardTitle: {
     margin: 0,
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: 700,
-    letterSpacing: "0em",
+    letterSpacing: "-0.03em",
   },
   cardSubtitle: {
     margin: "6px 0 0",
     color: uiTheme.colors.muted,
     fontSize: 14,
-    lineHeight: 1.55,
-  },
-  statusPill: {
-    ...badgeBase,
-    background: uiTheme.colors.successSoft,
-    color: uiTheme.colors.success,
+    lineHeight: 1.6,
+    maxWidth: 560,
   },
   profileForm: {
     display: "grid",
@@ -1008,7 +1318,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 8,
     color: uiTheme.colors.text,
     fontSize: 13,
-    fontWeight: 600,
+    fontWeight: 700,
   },
   fieldWide: {
     gridColumn: "1 / -1",
@@ -1018,6 +1328,8 @@ const styles: Record<string, CSSProperties> = {
     width: "100%",
     boxSizing: "border-box",
     borderRadius: 14,
+    height: 46,
+    background: uiTheme.colors.surface,
   },
   formFooter: {
     gridColumn: "1 / -1",
@@ -1028,14 +1340,82 @@ const styles: Record<string, CSSProperties> = {
     gap: 14,
     marginTop: 4,
   },
+  formActions: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
   successMessage: {
     color: uiTheme.colors.success,
     fontSize: 13,
     fontWeight: 600,
   },
+  footerHint: {
+    color: uiTheme.colors.muted,
+    fontSize: 13,
+    lineHeight: 1.5,
+  },
+  noticeBanner: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    padding: "14px 16px",
+    borderRadius: 16,
+    background: uiTheme.colors.surfaceSoft,
+    color: uiTheme.colors.text,
+    fontSize: 13,
+    marginBottom: 18,
+  },
+  themeHeader: {
+    display: "grid",
+    gap: 10,
+    marginBottom: 18,
+  },
+  themePreview: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  themePreviewLabel: {
+    color: uiTheme.colors.muted,
+    fontSize: 13,
+    fontWeight: 600,
+  },
+  themeHint: {
+    margin: 0,
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+    lineHeight: 1.55,
+  },
+  themeOptions: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: 12,
+  },
+  themeOption: {
+    display: "grid",
+    gap: 6,
+    width: "100%",
+    border: `1px solid ${uiTheme.colors.border}`,
+    borderRadius: 18,
+    background: uiTheme.colors.surface,
+    color: uiTheme.colors.text,
+    padding: 16,
+    textAlign: "left",
+    cursor: "pointer",
+    minHeight: 116,
+    alignContent: "start",
+  },
+  themeOptionActive: {
+    borderColor: uiTheme.colors.primary,
+    background: uiTheme.colors.primarySoft,
+    boxShadow: `0 0 0 1px ${uiTheme.colors.primary} inset, 0 10px 24px rgba(37, 99, 235, 0.12)`,
+  },
   primaryButton: {
     ...primaryButtonBase,
-    minHeight: 44,
+    minHeight: 46,
     padding: "0 18px",
     borderRadius: 14,
     cursor: "pointer",
@@ -1044,20 +1424,38 @@ const styles: Record<string, CSSProperties> = {
   },
   sideCard: {
     ...surfaceCard,
-    padding: 20,
-    display: "grid",
-    gap: 14,
-    borderRadius: 20,
+    padding: 22,
+    borderRadius: 24,
+    background: "rgba(255,255,255,0.86)",
+  },
+  sideHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 16,
   },
   sideTitle: {
     margin: 0,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 700,
-    letterSpacing: "0em",
+    letterSpacing: "-0.02em",
+  },
+  sideSubtitle: {
+    margin: "6px 0 0",
+    color: uiTheme.colors.muted,
+    fontSize: 13,
+    lineHeight: 1.5,
+  },
+  searchBadge: {
+    ...badgeBase,
+    background: uiTheme.colors.surfaceSoft,
+    color: uiTheme.colors.muted,
+    border: `1px solid ${uiTheme.colors.border}`,
   },
   secondaryButton: {
     ...secondaryButtonBase,
-    minHeight: 42,
+    minHeight: 46,
     borderRadius: 14,
     cursor: "pointer",
     fontWeight: 600,
@@ -1069,21 +1467,22 @@ const styles: Record<string, CSSProperties> = {
   },
   quickActions: {
     display: "grid",
-    gap: 4,
+    gap: 8,
   },
   quickActionButton: {
-    border: 0,
-    background: "transparent",
+    border: `1px solid ${uiTheme.colors.border}`,
+    background: uiTheme.colors.surface,
     color: uiTheme.colors.text,
-    minHeight: 50,
-    padding: "0 2px",
+    minHeight: 56,
+    padding: "0 16px",
     display: "grid",
     gridTemplateColumns: "1fr auto",
     alignItems: "center",
     gap: 12,
     cursor: "pointer",
     textAlign: "left",
-    borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
+    borderRadius: 16,
+    boxShadow: "0 8px 20px rgba(15, 23, 42, 0.03)",
   },
   quickActionDanger: {
     color: uiTheme.colors.danger,
@@ -1110,7 +1509,7 @@ const styles: Record<string, CSSProperties> = {
     color: uiTheme.colors.danger,
   },
   emptyState: {
-    padding: "18px 0 6px",
+    padding: "12px 2px 2px",
     display: "inline-flex",
     alignItems: "center",
     gap: 10,
@@ -1122,7 +1521,7 @@ const styles: Record<string, CSSProperties> = {
     gridTemplateColumns: "42px 1fr auto",
     gap: 14,
     alignItems: "center",
-    padding: "14px 0",
+    padding: "16px 0",
     borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
     cursor: "pointer",
   },
@@ -1138,6 +1537,7 @@ const styles: Record<string, CSSProperties> = {
   switchText: {
     display: "grid",
     gap: 4,
+    color: uiTheme.colors.text,
   },
   switchInput: {
     width: 20,

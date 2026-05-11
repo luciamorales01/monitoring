@@ -36,7 +36,6 @@ import {
 } from "../../shared/monitorQueries";
 import {
   filterMonitors,
-  getMonitorLocationOptions,
   getMonitorViewStatus,
   sortMonitorsByStatusAndLastCheck,
   type MonitorStatusFilter,
@@ -67,7 +66,6 @@ import {
 import MonitorEditModal from "./MonitorEditModal";
 
 const monitorFilterDefaults = {
-  location: "ALL",
   sort: "status",
   search: "",
   status: "ALL",
@@ -172,22 +170,15 @@ export default function MonitorsPage() {
     };
   }, [monitors]);
 
-  const locationOptions = useMemo(
-    () => getMonitorLocationOptions(monitors),
-    [monitors],
-  );
-
   const filteredMonitors = useMemo(
     () =>
       filterMonitors(monitors, {
-        location: filters.location,
         search: debouncedSearch,
         status: filters.status as MonitorStatusFilter,
         type: filters.type as MonitorTypeFilter,
       }),
     [
       debouncedSearch,
-      filters.location,
       filters.status,
       filters.type,
       monitors,
@@ -210,7 +201,7 @@ export default function MonitorsPage() {
     hasNextPage,
   } = useLocalPagination(orderedMonitors, {
     pageSize: MONITORS_PAGE_SIZE,
-    resetKey: `${debouncedSearch}|${filters.location}|${filters.sort}|${filters.status}|${filters.type}|${orderedMonitors.length}`,
+    resetKey: `${debouncedSearch}|${filters.sort}|${filters.status}|${filters.type}|${orderedMonitors.length}`,
   });
 
   const totalMonitors = orderedMonitors.length;
@@ -542,22 +533,6 @@ export default function MonitorsPage() {
                 <option value="SSL">SSL</option>
                 <option value="TCP">TCP</option>
                 <option value="DNS">DNS</option>
-              </select>
-            </label>
-
-            <label style={styles.filterGroup}>
-              <span>Ubicación</span>
-              <select
-                style={styles.select}
-                value={filters.location}
-                onChange={(event) => handleSetFilter("location", event.target.value)}
-              >
-                <option value="ALL">Todas</option>
-                {locationOptions.map((location) => (
-                  <option key={location} value={location}>
-                    {location}
-                  </option>
-                ))}
               </select>
             </label>
 

@@ -53,11 +53,9 @@ type MonitorEntity = {
   organizationId: number;
   currentStatus?: MonitorStatusValue | null;
   isActive?: boolean;
-  locations?: string[] | null;
   alertThreshold?: number | null;
   alertEmail?: boolean | null;
   tcpPort?: number | null;
-  keyword?: string | null;
   sslWarningDays?: number | null;
   dnsRecordType?: string | null;
   dnsExpectedValue?: string | null;
@@ -97,6 +95,8 @@ type MonitorCheckBatchResult = {
   results: unknown[];
 };
 
+const DEFAULT_CHECK_LOCATION = 'default';
+
 type IncidentSyncResult =
   | { type: 'created'; incidentId: number; happenedAt: Date }
   | { type: 'resolved'; incidentId: number; happenedAt: Date }
@@ -121,12 +121,10 @@ const monitorListSelect = {
   lastCheckedAt: true,
   nextCheckAt: true,
   isActive: true,
-  locations: true,
   alertEmail: true,
   alertPush: true,
   alertThreshold: true,
   tcpPort: true,
-  keyword: true,
   sslWarningDays: true,
   dnsRecordType: true,
   dnsExpectedValue: true,
@@ -153,12 +151,10 @@ export class MonitorsService {
         expectedStatusCode: dto.expectedStatusCode ?? 200,
         frequencySeconds: dto.frequencySeconds ?? 60,
         timeoutSeconds: dto.timeoutSeconds ?? 10,
-        locations: this.sanitizeConfiguredLocations(dto.locations),
         alertEmail: dto.alertEmail ?? true,
         alertPush: dto.alertPush ?? false,
         alertThreshold: dto.alertThreshold ?? 3,
         tcpPort: dto.tcpPort ?? null,
-        keyword: dto.keyword?.trim() || null,
         sslWarningDays: dto.sslWarningDays ?? 14,
         dnsRecordType: dto.dnsRecordType?.trim().toUpperCase() || 'A',
         dnsExpectedValue: dto.dnsExpectedValue?.trim() || null,
@@ -211,7 +207,7 @@ export class MonitorsService {
 
     this.ensureMonitorAccess(monitor, user);
 
-    return monitor;
+    return this.sanitizeMonitorResponse(monitor);
   }
 
   async runCheck(id: number, user: AuthenticatedUser) {
@@ -257,21 +253,12 @@ export class MonitorsService {
     if (dto.timeoutSeconds !== undefined) {
       data.timeoutSeconds = dto.timeoutSeconds;
     }
-    if (dto.locations !== undefined) {
-      data.locations = this.sanitizeConfiguredLocations(dto.locations);
-    }
     if (dto.alertEmail !== undefined) data.alertEmail = dto.alertEmail;
     if (dto.alertPush !== undefined) data.alertPush = dto.alertPush;
     if (dto.alertThreshold !== undefined) {
       data.alertThreshold = dto.alertThreshold;
     }
     if (dto.tcpPort !== undefined) data.tcpPort = dto.tcpPort;
-    if (dto.keyword !== undefined) {
-      data.keyword =
-        typeof dto.keyword === 'string' && dto.keyword.trim().length > 0
-          ? dto.keyword.trim()
-          : null;
-    }
 
     if (dto.sslWarningDays !== undefined) {
       data.sslWarningDays =
@@ -301,18 +288,16 @@ export class MonitorsService {
           dto.expectedStatusCode ?? monitor.expectedStatusCode,
         frequencySeconds: dto.frequencySeconds ?? monitor.frequencySeconds,
         timeoutSeconds: dto.timeoutSeconds ?? monitor.timeoutSeconds,
-        locations:
-          dto.locations !== undefined
-            ? this.sanitizeConfiguredLocations(dto.locations)
-            : (monitor.locations ?? []),
       });
     }
 
-    return this.prisma.monitor.update({
+    const updatedMonitor = await this.prisma.monitor.update({
       where: { id },
       data,
       include: { sections: { include: { section: { include: { members: true } } }, orderBy: { assignedAt: 'asc' } } },
     });
+
+    return this.sanitizeMonitorResponse(updatedMonitor);
   }
 
   async useSectionSchedule(id: number, user: AuthenticatedUser) {
@@ -326,14 +311,13 @@ export class MonitorsService {
 
     return this.prisma.monitor.update({
       where: { id },
-      data: {
-        expectedStatusCode: section.expectedStatusCode,
-        frequencySeconds: section.frequencySeconds,
-        timeoutSeconds: section.timeoutSeconds,
-        locations: section.locations,
-        isActive: section.isActive,
-        usesSectionSchedule: true,
-        nextCheckAt: section.isActive ? new Date() : undefined,
+        data: {
+          expectedStatusCode: section.expectedStatusCode,
+          frequencySeconds: section.frequencySeconds,
+          timeoutSeconds: section.timeoutSeconds,
+          isActive: section.isActive,
+          usesSectionSchedule: true,
+          nextCheckAt: section.isActive ? new Date() : undefined,
       },
       include: { sections: { include: { section: { include: { members: true } } }, orderBy: { assignedAt: 'asc' } } },
     });
@@ -401,7 +385,7 @@ export class MonitorsService {
     const monitor = await this.findMonitorByIdOrThrow(id);
     this.ensureMonitorAccess(monitor, user);
 
-    return this.prisma.checkResult.findMany({
+    const results = await this.prisma.checkResult.findMany({
       where: {
         monitorId: id,
       },
@@ -410,6 +394,8 @@ export class MonitorsService {
       },
       take: 50,
     });
+
+    return results.map(({ location: _location, ...result }) => result);
   }
 
   private buildMonitorListWhere(
@@ -441,13 +427,6 @@ export class MonitorsService {
       where.type = query.type;
     }
 
-    if (query.location && query.location !== 'ALL') {
-      where.locations =
-        query.location === 'default'
-          ? { isEmpty: true }
-          : { has: query.location };
-    }
-
     return where;
   }
 
@@ -477,11 +456,7 @@ export class MonitorsService {
   private async executeMonitorChecks(
     monitor: MonitorEntity,
   ): Promise<MonitorCheckOutcome[]> {
-    const locations = this.normalizeLocations(monitor.locations);
-
-    return Promise.all(
-      locations.map((location) => this.executeSingleCheck(monitor, location)),
-    );
+    return [await this.executeSingleCheck(monitor, DEFAULT_CHECK_LOCATION)];
   }
 
   private async executeSingleCheck(
@@ -518,15 +493,10 @@ export class MonitorsService {
           location,
         );
 
-        const body = monitor.keyword ? await response.text() : '';
         const statusCodeMatches = this.doesHttpStatusMatch(
           response.status,
           monitor.expectedStatusCode,
-          this.isCloudflareProtectedResponse(response),
         );
-        const keywordMatches =
-          !monitor.keyword ||
-          body.toLowerCase().includes(monitor.keyword.toLowerCase());
 
         if (redirectChain.length > 0) {
           this.logger.log(
@@ -537,19 +507,14 @@ export class MonitorsService {
         return {
           checkedAt,
           errorMessage: statusCodeMatches
-            ? keywordMatches
-              ? null
-              : `No se encontró la keyword "${monitor.keyword}"`
+            ? null
             : this.buildHttpStatusErrorMessage(
                 response.status,
                 monitor.expectedStatusCode,
               ),
           location,
           responseTimeMs: Math.round(performance.now() - startTime),
-          status:
-            statusCodeMatches && keywordMatches
-              ? MonitorStatus.UP
-              : MonitorStatus.DOWN,
+          status: statusCodeMatches ? MonitorStatus.UP : MonitorStatus.DOWN,
           statusCode: response.status,
         };
       } finally {
@@ -908,43 +873,14 @@ export class MonitorsService {
   private doesHttpStatusMatch(
     statusCode: number,
     expectedStatusCode: number,
-    isCloudflareProtected: boolean,
   ) {
-    if (isCloudflareProtected) {
-      return true;
-    }
-
-    if (expectedStatusCode === 200) {
-      return statusCode >= 200 && statusCode < 400;
-    }
-
     return statusCode === expectedStatusCode;
-  }
-
-  private isCloudflareProtectedResponse(response: Response) {
-    const server = response.headers.get('server')?.toLowerCase() ?? '';
-    const cfMitigated =
-      response.headers.get('cf-mitigated')?.toLowerCase() ?? '';
-    const hasCloudflareHeaders =
-      server.includes('cloudflare') || Boolean(response.headers.get('cf-ray'));
-
-    if (!hasCloudflareHeaders) {
-      return false;
-    }
-
-    return (
-      cfMitigated === 'challenge' || [403, 429, 503].includes(response.status)
-    );
   }
 
   private buildHttpStatusErrorMessage(
     statusCode: number,
     expectedStatusCode: number,
   ) {
-    if (expectedStatusCode === 200) {
-      return `Código HTTP ${statusCode}, esperado rango 2xx/3xx`;
-    }
-
     return `Código HTTP ${statusCode}, esperado ${expectedStatusCode}`;
   }
 
@@ -998,7 +934,6 @@ export class MonitorsService {
       | 'currentStatus'
       | 'alertThreshold'
       | 'alertEmail'
-      | 'locations'
     >,
     outcomes: MonitorCheckOutcome[],
   ): Promise<MonitorCheckBatchResult> {
@@ -1018,7 +953,7 @@ export class MonitorsService {
               responseTimeMs: outcome.responseTimeMs,
               statusCode: outcome.statusCode,
               errorMessage: outcome.errorMessage,
-              location: outcome.location,
+              location: DEFAULT_CHECK_LOCATION,
               checkedAt: outcome.checkedAt,
             },
           }),
@@ -1177,23 +1112,9 @@ export class MonitorsService {
         (outcome) =>
           outcome.status === MonitorStatus.DOWN && outcome.errorMessage,
       )
-      .map((outcome) => `${outcome.location}: ${outcome.errorMessage}`);
+      .map((outcome) => outcome.errorMessage);
 
     return errors.length > 0 ? errors.join(' | ') : null;
-  }
-
-  private normalizeLocations(locations?: string[] | null) {
-    const normalized = this.sanitizeConfiguredLocations(locations);
-
-    return normalized.length > 0 ? normalized : ['default'];
-  }
-
-  private sanitizeConfiguredLocations(locations?: string[] | null) {
-    const normalized = (locations ?? [])
-      .map((location) => location.trim())
-      .filter((location) => location.length > 0);
-
-    return Array.from(new Set(normalized));
   }
 
   private getAlertThreshold(alertThreshold?: number | null) {
@@ -1267,35 +1188,8 @@ export class MonitorsService {
     );
   }
 
-  private formatLocationName(location: string) {
-    return location
-      .replace(/[-_]+/g, ' ')
-      .split(/\s+/)
-      .filter((token) => token.length > 0)
-      .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
-      .join(' ');
-  }
-
-  private buildIncidentTitle(outcomes: MonitorCheckOutcome[]) {
-    const failingLocations = Array.from(
-      new Set(
-        outcomes
-          .filter((outcome) => outcome.status === MonitorStatus.DOWN)
-          .map((outcome) => outcome.location)
-          .filter(
-            (location): location is string =>
-              Boolean(location) && location !== 'default',
-          ),
-      ),
-    );
-
-    if (failingLocations.length === 0) {
-      return 'Monitor caído';
-    }
-
-    return `Monitor caído en ${failingLocations
-      .map((location) => this.formatLocationName(location))
-      .join(', ')}`;
+  private buildIncidentTitle(_outcomes: MonitorCheckOutcome[]) {
+    return 'Monitor caído';
   }
 
   private async syncIncidentForCheck(
@@ -1308,7 +1202,6 @@ export class MonitorsService {
       | 'organizationId'
       | 'alertThreshold'
       | 'alertEmail'
-      | 'locations'
     >,
     outcome: MonitorCheckOutcome,
     outcomes: MonitorCheckOutcome[],
@@ -1328,7 +1221,7 @@ export class MonitorsService {
         return null;
       }
 
-      const batchSize = this.normalizeLocations(monitor.locations).length;
+      const batchSize = 1;
       const alertThreshold = this.getAlertThreshold(monitor.alertThreshold);
 
       const recentResults = await tx.checkResult.findMany({
@@ -1488,8 +1381,7 @@ export class MonitorsService {
     return (
       dto.expectedStatusCode !== undefined ||
       dto.frequencySeconds !== undefined ||
-      dto.timeoutSeconds !== undefined ||
-      dto.locations !== undefined
+      dto.timeoutSeconds !== undefined
     );
   }
 
@@ -1499,18 +1391,27 @@ export class MonitorsService {
     return (
       monitor.expectedStatusCode === section.expectedStatusCode &&
       monitor.frequencySeconds === section.frequencySeconds &&
-      monitor.timeoutSeconds === section.timeoutSeconds &&
-      this.haveSameLocations(monitor.locations ?? [], section.locations)
+      monitor.timeoutSeconds === section.timeoutSeconds
     );
   }
 
-  private haveSameLocations(left: string[], right: string[]) {
-    const normalizedLeft = this.sanitizeConfiguredLocations(left).sort();
-    const normalizedRight = this.sanitizeConfiguredLocations(right).sort();
-    return (
-      normalizedLeft.length === normalizedRight.length &&
-      normalizedLeft.every((location, index) => location === normalizedRight[index])
-    );
+  private sanitizeMonitorResponse<TMonitor extends object>(
+    monitor: TMonitor,
+  ): TMonitor {
+    const monitorWithChecks = monitor as TMonitor & {
+      checkResults?: Array<Record<string, unknown> & { location?: string | null }>;
+    };
+
+    if (!monitorWithChecks.checkResults) {
+      return monitor;
+    }
+
+    return {
+      ...monitor,
+      checkResults: monitorWithChecks.checkResults.map(
+        ({ location: _location, ...check }) => check,
+      ),
+    };
   }
 
   private getMonitorCheckErrorMessage(

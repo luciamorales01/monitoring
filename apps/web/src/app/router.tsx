@@ -14,7 +14,6 @@ import MonitorsPage from "../modules/monitors/MonitorsPage";
 import SectionDetailPage from "../modules/sections/SectionDetailPage";
 import SectionsPage from "../modules/sections/SectionsPage";
 import UsersPage from "../modules/users/UsersPage";
-import SettingsPage from "../modules/settings/SettingsPage";
 import ReportsPage from "../modules/reports/ReportsPage";
 import ProfilePage from "../modules/profile/ProfilePage";
 import NotificationsPage from "../modules/notifications/NotificationsPage";
@@ -105,7 +104,6 @@ export const router = createBrowserRouter([
     </OwnerRoute>
   ),
 },
-      { path: "settings", element: <SettingsPage /> },
       { path: "profile", element: <ProfilePage /> },
       { path: "*", element: <NotFoundPage /> },
     ],

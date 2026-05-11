@@ -97,7 +97,6 @@ class CheckResult {
     this.responseTimeMs,
     this.statusCode,
     this.errorMessage,
-    this.location,
     this.checkedAt,
   });
 
@@ -106,7 +105,6 @@ class CheckResult {
   final int? responseTimeMs;
   final int? statusCode;
   final String? errorMessage;
-  final String? location;
   final DateTime? checkedAt;
 
   factory CheckResult.fromJson(Map<String, dynamic> json) {
@@ -116,7 +114,6 @@ class CheckResult {
       responseTimeMs: _asNullableInt(json['responseTimeMs']),
       statusCode: _asNullableInt(json['statusCode']),
       errorMessage: json['errorMessage']?.toString(),
-      location: json['location']?.toString(),
       checkedAt: _asDateTime(json['checkedAt']),
     );
   }

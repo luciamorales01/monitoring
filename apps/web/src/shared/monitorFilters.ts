@@ -1,5 +1,5 @@
 import type { Monitor, MonitorType } from './monitorApi';
-import { getUniqueOptions, matchesSearchTerm, normalizeSearchTerm } from './filterUtils';
+import { matchesSearchTerm, normalizeSearchTerm } from './filterUtils';
 
 export type MonitorViewStatus = 'UP' | 'DOWN' | 'PAUSED' | 'UNKNOWN';
 export type MonitorStatusFilter = 'ALL' | MonitorViewStatus;
@@ -7,7 +7,6 @@ export type MonitorTypeFilter = 'ALL' | MonitorType;
 export type MonitorSortOption = 'status' | 'name' | 'latest-check';
 
 export type MonitorListFilters = {
-  location: string;
   search: string;
   status: MonitorStatusFilter;
   type: MonitorTypeFilter;
@@ -135,16 +134,6 @@ export function getMonitorViewStatus(monitor: Monitor): MonitorViewStatus {
   return monitor.currentStatus ?? 'UNKNOWN';
 }
 
-export function getMonitorLocations(monitor: Monitor) {
-  return monitor.locations.length > 0 ? monitor.locations : ['default'];
-}
-
-export function getMonitorLocationOptions(monitors: Monitor[]) {
-  return getUniqueOptions(
-    monitors.flatMap((monitor) => getMonitorLocations(monitor)),
-  );
-}
-
 export function filterMonitors(
   monitors: Monitor[],
   filters: MonitorListFilters,
@@ -157,15 +146,11 @@ export function filterMonitors(
     const matchesStatus =
       filters.status === 'ALL' || viewStatus === filters.status;
     const matchesType = filters.type === 'ALL' || monitor.type === filters.type;
-    const matchesLocation =
-      filters.location === 'ALL' ||
-      getMonitorLocations(monitor).includes(filters.location);
 
     return (
       matchesSearchTerm(searchTerm, monitor.name, monitor.target) &&
       matchesStatus &&
-      matchesType &&
-      matchesLocation
+      matchesType
     );
   });
 }

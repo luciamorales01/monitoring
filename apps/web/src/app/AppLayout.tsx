@@ -17,7 +17,6 @@ import {
   HomeIcon,
   MonitorIcon,
   ReportIcon,
-  SettingsIcon,
   UserGroupIcon,
   UsersIcon,
 } from "../shared/uiIcons";
@@ -49,11 +48,6 @@ export default function AppLayout() {
         icon: <BellIcon size={16} />,
         label: "Notificaciones",
         to: "/notifications",
-      },
-      {
-        icon: <SettingsIcon size={16} />,
-        label: "Configuración",
-        to: "/settings",
       },
       { icon: <UsersIcon size={16} />, label: "Mi perfil", to: "/profile" },
     ];

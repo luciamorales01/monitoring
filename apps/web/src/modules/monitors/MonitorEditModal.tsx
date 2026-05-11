@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useState,
   type ChangeEvent,
   type CSSProperties,
@@ -20,7 +19,6 @@ import {
 import LoadingState from '../../shared/LoadingState';
 import { CloseIcon } from '../../shared/uiIcons';
 
-const baseLocationOptions = ['Madrid', 'Frankfurt', 'Virginia'] as const;
 const dnsRecordTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as const;
 
 const typeLabels: Record<MonitorType, string> = {
@@ -52,7 +50,6 @@ type MonitorEditModalProps = {
     | 'expectedStatusCode'
     | 'frequencySeconds'
     | 'timeoutSeconds'
-    | 'locations'
     | 'isActive'
   > | null;
 };
@@ -64,12 +61,10 @@ const emptyForm: UpdateMonitorInput = {
   expectedStatusCode: 200,
   frequencySeconds: 60,
   timeoutSeconds: 10,
-  locations: [],
   alertEmail: true,
   alertPush: false,
   alertThreshold: 3,
   tcpPort: null,
-  keyword: '',
   sslWarningDays: 14,
   dnsRecordType: 'A',
   dnsExpectedValue: '',
@@ -98,12 +93,10 @@ export default function MonitorEditModal({
       expectedStatusCode: monitor.expectedStatusCode ?? 200,
       frequencySeconds: monitor.frequencySeconds,
       timeoutSeconds: monitor.timeoutSeconds,
-      locations: monitor.locations ?? [],
       alertEmail: monitor.alertEmail,
       alertPush: monitor.alertPush,
       alertThreshold: monitor.alertThreshold,
       tcpPort: monitor.tcpPort ?? null,
-      keyword: monitor.keyword ?? '',
       sslWarningDays: monitor.sslWarningDays ?? 14,
       dnsRecordType: monitor.dnsRecordType ?? 'A',
       dnsExpectedValue: monitor.dnsExpectedValue ?? '',
@@ -111,7 +104,6 @@ export default function MonitorEditModal({
     setLocalError('');
   }, [isOpen, monitor]);
 
-  const locationOptions = useMemo(() => Array.from(new Set([...baseLocationOptions, ...(monitor?.locations ?? [])])), [monitor]);
   const showSectionScheduleButton =
     Boolean(onUseSectionSchedule && sectionSchedule && monitor?.usesSectionSchedule === false);
 
@@ -124,7 +116,7 @@ export default function MonitorEditModal({
   const setNumberField = (field: 'expectedStatusCode' | 'frequencySeconds' | 'timeoutSeconds' | 'alertThreshold' | 'tcpPort' | 'sslWarningDays') =>
     (event: ChangeEvent<HTMLInputElement>) => updateForm(field, Number(event.target.value) as never);
 
-  const setTextField = (field: 'name' | 'target' | 'keyword' | 'dnsExpectedValue') =>
+  const setTextField = (field: 'name' | 'target' | 'dnsExpectedValue') =>
     (event: ChangeEvent<HTMLInputElement>) => updateForm(field, event.target.value as never);
 
   const setTypeField = (event: ChangeEvent<HTMLSelectElement>) => {
@@ -140,15 +132,6 @@ export default function MonitorEditModal({
 
   const setBooleanField = (field: 'alertEmail' | 'alertPush') =>
     (event: ChangeEvent<HTMLInputElement>) => updateForm(field, event.target.checked as never);
-
-  const toggleLocation = (location: string) => {
-    setForm((current) => ({
-      ...current,
-      locations: current.locations.includes(location)
-        ? current.locations.filter((item) => item !== location)
-        : [...current.locations, location],
-    }));
-  };
 
   const validate = () => {
     if (!form.name.trim() || !form.target.trim()) return 'Completa nombre y destino.';
@@ -188,7 +171,6 @@ export default function MonitorEditModal({
       ...form,
       name: form.name.trim(),
       target: form.target.trim(),
-      keyword: form.keyword?.trim() || null,
       dnsExpectedValue: form.dnsExpectedValue?.trim() || null,
       tcpPort: form.type === 'TCP' ? Number(form.tcpPort) : null,
       sslWarningDays: form.type === 'SSL' ? Number(form.sslWarningDays ?? 14) : form.sslWarningDays ?? 14,
@@ -244,10 +226,7 @@ export default function MonitorEditModal({
             <h3 style={styles.sectionTitle}>Validación avanzada</h3>
             <div style={styles.grid}>
               {(form.type === 'HTTP' || form.type === 'HTTPS') && (
-                <>
-                  <Field label="Código esperado"><input type="number" min={100} max={599} style={styles.input} value={form.expectedStatusCode} onChange={setNumberField('expectedStatusCode')} /></Field>
-                  <Field label="Keyword opcional"><input style={styles.input} value={form.keyword ?? ''} onChange={setTextField('keyword')} placeholder="healthy" /></Field>
-                </>
+                <Field label="Código esperado"><input type="number" min={100} max={599} style={styles.input} value={form.expectedStatusCode} onChange={setNumberField('expectedStatusCode')} /></Field>
               )}
 
               {form.type === 'TCP' && <Field label="Puerto TCP"><input type="number" min={1} max={65535} style={styles.input} value={form.tcpPort ?? ''} onChange={setNumberField('tcpPort')} placeholder="443" /></Field>}
@@ -264,18 +243,6 @@ export default function MonitorEditModal({
                   <Field label="Valor esperado opcional"><input style={styles.input} value={form.dnsExpectedValue ?? ''} onChange={setTextField('dnsExpectedValue')} placeholder="mail.proveedor.com" /></Field>
                 </>
               )}
-            </div>
-          </section>
-
-          <section style={styles.section}>
-            <h3 style={styles.sectionTitle}>Ubicaciones</h3>
-            <div style={styles.locationGrid}>
-              {locationOptions.map((location) => (
-                <label key={location} style={styles.locationCard}>
-                  <input type="checkbox" checked={form.locations.includes(location)} onChange={() => toggleLocation(location)} />
-                  <span>{location}</span>
-                </label>
-              ))}
             </div>
           </section>
 
@@ -319,8 +286,6 @@ const styles: Record<string, CSSProperties> = {
   section: { display: 'grid', gap: 14 },
   sectionHeader: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' },
   sectionTitle: { margin: 0, fontSize: 16 },
-  locationGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 },
-  locationCard: { ...surfaceCard, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' },
   toggleGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 },
   toggleCard: { ...surfaceCard, display: 'flex', alignItems: 'flex-start', gap: 10, padding: '14px 16px' },
   toggleCopy: { margin: '4px 0 0', color: uiTheme.colors.muted, fontSize: 12 },

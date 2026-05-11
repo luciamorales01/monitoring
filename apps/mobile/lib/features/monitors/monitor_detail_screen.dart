@@ -470,7 +470,7 @@ class _ChecksTab extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        check.location ?? 'Ubicacion por defecto',
+                        'Resultado del check',
                         style: AppTextStyles.caption,
                       ),
                       const SizedBox(height: 4),

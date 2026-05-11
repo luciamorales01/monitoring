@@ -106,14 +106,12 @@ model Monitor {
 
   @@index([isActive, nextCheckAt])
 
-  locations      String[] @default([])
   alertEmail     Boolean  @default(true)
   alertPush      Boolean  @default(false)
   alertThreshold Int      @default(3)
 
   // Fase 9: checks avanzados
   tcpPort        Int?
-  keyword        String?
   sslWarningDays Int      @default(14)
   dnsRecordType  String   @default("A")
   dnsExpectedValue String?

@@ -90,11 +90,4 @@ export class ListMonitorsQueryDto {
   @IsEnum(MonitorType)
   type?: MonitorType;
 
-  @ApiPropertyOptional({
-    example: 'eu-west-1',
-    description: 'Filtro por ubicacion configurada.',
-  })
-  @IsOptional()
-  @IsString()
-  location?: string;
 }

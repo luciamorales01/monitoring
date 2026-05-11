@@ -109,11 +109,10 @@ describe('MonitorsService', () => {
     expect(service).toBeDefined();
   });
 
-  it('stores configured locations and alert settings on monitor creation', async () => {
+  it('stores alert settings on monitor creation', async () => {
     prisma.monitor.create.mockResolvedValue({
       id: 50,
       name: 'API principal',
-      locations: ['madrid', 'paris'],
       alertEmail: false,
       alertPush: true,
       alertThreshold: 5,
@@ -127,7 +126,6 @@ describe('MonitorsService', () => {
         expectedStatusCode: 200,
         frequencySeconds: 60,
         timeoutSeconds: 10,
-        locations: [' madrid ', 'paris', 'madrid'],
         alertEmail: false,
         alertPush: true,
         alertThreshold: 5,
@@ -143,7 +141,6 @@ describe('MonitorsService', () => {
         expectedStatusCode: 200,
         frequencySeconds: 60,
         timeoutSeconds: 10,
-        locations: ['madrid', 'paris'],
         alertEmail: false,
         alertPush: true,
         alertThreshold: 5,
@@ -153,7 +150,7 @@ describe('MonitorsService', () => {
     });
   });
 
-  it('updates a monitor keeping boolean values and sanitizing locations', async () => {
+  it('updates a monitor keeping boolean values', async () => {
     prisma.monitor.findUnique.mockResolvedValue({
       id: 7,
       organizationId: user.organizationId,
@@ -165,7 +162,6 @@ describe('MonitorsService', () => {
       name: 'API editada',
       alertEmail: false,
       alertPush: true,
-      locations: ['madrid', 'frankfurt'],
     });
 
     await service.update(
@@ -174,7 +170,6 @@ describe('MonitorsService', () => {
         name: 'API editada',
         alertEmail: false,
         alertPush: true,
-        locations: [' madrid ', 'frankfurt', 'madrid'],
       },
       user,
     );
@@ -186,7 +181,6 @@ describe('MonitorsService', () => {
           name: 'API editada',
           alertEmail: false,
           alertPush: true,
-          locations: ['madrid', 'frankfurt'],
         },
       }),
     );
@@ -393,7 +387,7 @@ describe('MonitorsService', () => {
     });
   });
 
-  it('creates one check result per location and marks the monitor DOWN when any location fails', async () => {
+  it('creates one check result and marks the monitor DOWN when it fails', async () => {
     prisma.monitor.findUnique.mockResolvedValue({
       id: 12,
       name: 'API regional',
@@ -402,25 +396,19 @@ describe('MonitorsService', () => {
       expectedStatusCode: 200,
       frequencySeconds: 60,
       alertThreshold: 1,
-      locations: ['madrid', 'paris'],
       organizationId: user.organizationId,
     });
 
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({ status: 200, headers: new Headers() })
-      .mockResolvedValueOnce({ status: 503, headers: new Headers() });
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      status: 503,
+      headers: new Headers(),
+    });
 
-    prisma.checkResult.create
-      .mockResolvedValueOnce({
-        id: 201,
-        status: MonitorStatus.UP,
-        location: 'madrid',
-      })
-      .mockResolvedValueOnce({
-        id: 202,
-        status: MonitorStatus.DOWN,
-        location: 'paris',
-      });
+    prisma.checkResult.create.mockResolvedValueOnce({
+      id: 202,
+      status: MonitorStatus.DOWN,
+      location: 'default',
+    });
 
     prisma.monitor.update.mockResolvedValue({
       id: 12,
@@ -435,14 +423,7 @@ describe('MonitorsService', () => {
         monitorId: 12,
         status: MonitorStatus.DOWN,
         checkedAt: new Date('2026-04-26T09:00:01.000Z'),
-        location: 'paris',
-      },
-      {
-        id: 201,
-        monitorId: 12,
-        status: MonitorStatus.UP,
-        checkedAt: new Date('2026-04-26T09:00:00.000Z'),
-        location: 'madrid',
+        location: 'default',
       },
     ]);
 
@@ -454,13 +435,13 @@ describe('MonitorsService', () => {
 
     const result = await service.runCheck(12, user);
 
-    expect(prisma.checkResult.create).toHaveBeenCalledTimes(2);
+    expect(prisma.checkResult.create).toHaveBeenCalledTimes(1);
 
     expect(prisma.checkResult.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         monitorId: 12,
-        location: expect.any(String),
-        status: expect.stringMatching(/UP|DOWN/),
+        location: 'default',
+        status: MonitorStatus.DOWN,
         statusCode: expect.any(Number),
       }),
     });
@@ -486,8 +467,7 @@ describe('MonitorsService', () => {
     expect(result).toEqual({
       overallStatus: MonitorStatus.DOWN,
       results: [
-        { id: 201, status: MonitorStatus.UP, location: 'madrid' },
-        { id: 202, status: MonitorStatus.DOWN, location: 'paris' },
+        { id: 202, status: MonitorStatus.DOWN, location: 'default' },
       ],
     });
   });
@@ -558,49 +538,56 @@ describe('MonitorsService', () => {
     });
   });
 
-  it('marks Cloudflare challenge responses as UP by default', async () => {
+  it('marks monitor as DOWN when the response status does not match the expected code', async () => {
     prisma.monitor.findUnique.mockResolvedValue({
       id: 14,
       target: 'https://example.com',
       timeoutSeconds: 5,
       expectedStatusCode: 200,
       frequencySeconds: 60,
-      locations: [],
+      alertThreshold: 3,
       organizationId: user.organizationId,
       checkResults: [],
     });
 
     (global.fetch as jest.Mock).mockResolvedValue({
       status: 403,
-      headers: new Headers({
-        server: 'cloudflare',
-        'cf-mitigated': 'challenge',
-        'cf-ray': 'abc123',
-      }),
+      headers: new Headers(),
     });
 
     prisma.checkResult.create.mockResolvedValue({
       id: 204,
-      status: MonitorStatus.UP,
+      status: MonitorStatus.DOWN,
     });
 
     prisma.monitor.update.mockResolvedValue({
       id: 14,
-      currentStatus: MonitorStatus.UP,
+      currentStatus: MonitorStatus.DOWN,
     });
 
     prisma.incident.findFirst.mockResolvedValue(null);
+    prisma.checkResult.findMany.mockResolvedValue([
+      {
+        id: 204,
+        monitorId: 14,
+        status: MonitorStatus.DOWN,
+        checkedAt: new Date('2026-04-26T10:00:00.000Z'),
+        location: 'default',
+      },
+    ]);
 
     await service.runCheck(14, user);
 
     expect(prisma.checkResult.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         monitorId: 14,
-        status: MonitorStatus.UP,
+        status: MonitorStatus.DOWN,
         statusCode: 403,
-        errorMessage: null,
+        errorMessage: 'Código HTTP 403, esperado 200',
       }),
     });
+
+    expect(prisma.incident.create).not.toHaveBeenCalled();
   });
 
   it('finds only active monitors due by nextCheckAt', async () => {

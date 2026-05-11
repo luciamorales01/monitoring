@@ -40,7 +40,7 @@ const monitorTypeConfig: Record<MonitorType, MonitorKindConfig> = {
     shortLabel: 'HTTP(s)',
     targetLabel: 'URL o endpoint',
     targetPlaceholder: 'https://tienda.ejemplo.com',
-    helper: 'Comprueba código HTTP, latencia y keyword opcional.',
+    helper: 'Comprueba código HTTP y latencia.',
   },
   HTTP: {
     label: 'HTTP',
@@ -75,11 +75,10 @@ const monitorTypeConfig: Record<MonitorType, MonitorKindConfig> = {
 const stepItems = [
   { step: 1 as WizardStep, title: 'General', text: 'Tipo y destino' },
   { step: 2 as WizardStep, title: 'Validación', text: 'Reglas del check' },
-  { step: 3 as WizardStep, title: 'Alertas', text: 'Ubicaciones y avisos' },
+  { step: 3 as WizardStep, title: 'Alertas', text: 'Canales y avisos' },
   { step: 4 as WizardStep, title: 'Revisión', text: 'Confirmar monitor' },
 ] as const;
 
-const locationOptions = ['Madrid', 'Frankfurt', 'Virginia'] as const;
 const dnsRecordTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as const;
 
 const defaultForm: CreateMonitorInput = {
@@ -89,12 +88,10 @@ const defaultForm: CreateMonitorInput = {
   expectedStatusCode: 200,
   frequencySeconds: 60,
   timeoutSeconds: 10,
-  locations: [],
   alertEmail: true,
   alertPush: false,
   alertThreshold: 3,
   tcpPort: null,
-  keyword: '',
   sslWarningDays: 14,
   dnsRecordType: 'A',
   dnsExpectedValue: '',
@@ -117,7 +114,6 @@ export default function CreateMonitorPage() {
     return `Cada ${minutes} minuto${minutes === 1 ? '' : 's'}`;
   }, [form.frequencySeconds]);
 
-  const selectedLocationsLabel = form.locations.length > 0 ? form.locations.join(', ') : 'Default';
   const alertLabel = form.alertEmail || form.alertPush
     ? `${[form.alertEmail ? 'Email' : '', form.alertPush ? 'Push' : ''].filter(Boolean).join(' y ')} tras ${form.alertThreshold} fallo${form.alertThreshold === 1 ? '' : 's'}`
     : 'Sin alertas';
@@ -134,15 +130,6 @@ export default function CreateMonitorPage() {
       tcpPort: type === 'TCP' ? current.tcpPort ?? 443 : null,
       sslWarningDays: type === 'SSL' ? current.sslWarningDays ?? 14 : current.sslWarningDays ?? 14,
       dnsRecordType: type === 'DNS' ? current.dnsRecordType ?? 'A' : current.dnsRecordType ?? 'A',
-    }));
-  };
-
-  const toggleLocation = (location: string) => {
-    setForm((current) => ({
-      ...current,
-      locations: current.locations.includes(location)
-        ? current.locations.filter((item) => item !== location)
-        : [...current.locations, location],
     }));
   };
 
@@ -204,7 +191,6 @@ export default function CreateMonitorPage() {
     ...form,
     name: form.name.trim(),
     target: form.target.trim(),
-    keyword: form.keyword?.trim() || null,
     dnsExpectedValue: form.dnsExpectedValue?.trim() || null,
     tcpPort: form.type === 'TCP' ? Number(form.tcpPort) : null,
     sslWarningDays: form.type === 'SSL' ? Number(form.sslWarningDays ?? 14) : form.sslWarningDays ?? 14,
@@ -282,15 +268,9 @@ export default function CreateMonitorPage() {
             </Field>
 
             {(form.type === 'HTTP' || form.type === 'HTTPS') && (
-              <>
-                <Field label="Código esperado" helper="Código HTTP considerado correcto." required>
-                  <input min={100} max={599} type="number" style={styles.input} value={form.expectedStatusCode} onChange={(event) => updateForm('expectedStatusCode', Number(event.target.value))} />
-                </Field>
-
-                <Field label="Keyword opcional" helper="Si se indica, el body debe contener este texto.">
-                  <input style={styles.input} value={form.keyword ?? ''} onChange={(event) => updateForm('keyword', event.target.value)} placeholder="healthy" />
-                </Field>
-              </>
+              <Field label="Código esperado" helper="Código HTTP considerado correcto." required>
+                <input min={100} max={599} type="number" style={styles.input} value={form.expectedStatusCode} onChange={(event) => updateForm('expectedStatusCode', Number(event.target.value))} />
+              </Field>
             )}
 
             {form.type === 'TCP' && (
@@ -326,21 +306,6 @@ export default function CreateMonitorPage() {
     if (currentStep === 3) {
       return (
         <>
-          <section style={styles.sectionBlock}>
-            <div style={styles.sectionHeader}>
-              <h3 style={styles.sectionTitle}>Ubicaciones</h3>
-              <p style={styles.sectionCopy}>Selecciona desde qué regiones se lanzarán los checks.</p>
-            </div>
-            <div style={styles.locationGrid}>
-              {locationOptions.map((location) => (
-                <label key={location} style={styles.locationCard}>
-                  <input type="checkbox" checked={form.locations.includes(location)} onChange={() => toggleLocation(location)} />
-                  <div><strong>{location}</strong><p style={styles.locationCopy}>Punto de monitorización</p></div>
-                </label>
-              ))}
-            </div>
-          </section>
-
           <section style={styles.sectionBlock}>
             <div style={styles.sectionHeader}>
               <h3 style={styles.sectionTitle}>Alertas</h3>
@@ -380,11 +345,9 @@ export default function CreateMonitorPage() {
           <h3 style={styles.reviewTitle}>Validación avanzada</h3>
           <div style={styles.reviewList}>
             <ReviewRow label="HTTP esperado" value={form.type === 'HTTP' || form.type === 'HTTPS' ? String(form.expectedStatusCode) : 'No aplica'} />
-            <ReviewRow label="Keyword" value={form.keyword?.trim() || 'No configurada'} />
             <ReviewRow label="Puerto TCP" value={form.type === 'TCP' ? String(form.tcpPort) : 'No aplica'} />
             <ReviewRow label="SSL warning" value={form.type === 'SSL' ? `${form.sslWarningDays} días` : 'No aplica'} />
             <ReviewRow label="DNS" value={form.type === 'DNS' ? `${form.dnsRecordType}${form.dnsExpectedValue ? ` · ${form.dnsExpectedValue}` : ''}` : 'No aplica'} />
-            <ReviewRow label="Ubicaciones" value={selectedLocationsLabel} />
             <ReviewRow label="Alertas" value={alertLabel} />
           </div>
         </section>
@@ -428,7 +391,6 @@ export default function CreateMonitorPage() {
               <InfoRow icon={<MonitorIcon size={15} />} label="Tipo" value={typeConfig.label} />
               <InfoRow icon={<ActivityIcon size={15} />} label="Validación" value={getValidationSummary(form)} />
               <InfoRow icon={<ClockIcon size={15} />} label="Frecuencia" value={frequencyLabel} />
-              <InfoRow icon={<GlobeIcon size={15} />} label="Ubicaciones" value={selectedLocationsLabel} />
               <InfoRow icon={<BellIcon size={15} />} label="Alertas" value={alertLabel} />
               <InfoRow icon={<CheckCircleIcon size={15} />} label="Estado" value="Activo al crear" highlighted />
             </div>
@@ -455,7 +417,7 @@ function getValidationSummary(form: CreateMonitorInput) {
   if (form.type === 'TCP') return `Puerto ${form.tcpPort ?? '-'}`;
   if (form.type === 'SSL') return `Caducidad < ${form.sslWarningDays ?? 14} días`;
   if (form.type === 'DNS') return `${form.dnsRecordType ?? 'A'}${form.dnsExpectedValue ? ` contiene ${form.dnsExpectedValue}` : ''}`;
-  return `HTTP ${form.expectedStatusCode}${form.keyword ? ` + keyword` : ''}`;
+  return `HTTP ${form.expectedStatusCode}`;
 }
 
 function Step({ number, title, text, active, completed, onClick }: { number: string; title: string; text: string; active?: boolean; completed?: boolean; onClick: () => void }) {
@@ -507,9 +469,6 @@ const styles: Record<string, CSSProperties> = {
   sectionHeader: { display: 'grid', gap: 4 },
   sectionTitle: { margin: 0, fontSize: 16, fontWeight: 800, color: uiTheme.colors.text },
   sectionCopy: { margin: 0, color: uiTheme.colors.muted, fontSize: 13 },
-  locationGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 },
-  locationCard: { ...surfaceCard, display: 'grid', gridTemplateColumns: '18px 1fr', gap: 12, padding: 14 },
-  locationCopy: { margin: '4px 0 0', color: uiTheme.colors.muted, fontSize: 12 },
   alertGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 },
   toggleRowCard: { display: 'grid', gridTemplateColumns: '18px 1fr', gap: 14, alignItems: 'start', padding: 16, border: `1px solid ${uiTheme.colors.border}`, borderRadius: uiTheme.radii.sm, background: uiTheme.colors.surface },
   toggleTitle: { color: uiTheme.colors.text, fontSize: 14 },

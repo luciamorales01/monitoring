@@ -6,12 +6,12 @@ import {
   pageActiveButtonBase,
   pageArrowBase,
   pageMain,
-  primaryButtonBase,
   secondaryButtonBase,
   surfaceCard,
   uiTheme,
 } from '../../theme/commonStyles';
 import {
+  getMonitors,
   updateMonitor,
   useSectionSchedule,
   type Monitor,
@@ -27,8 +27,10 @@ import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
 import { useCurrentUserPermissions } from '../../shared/permissions';
 import {
+  getSections,
   getSection,
   runSectionChecks,
+  updateSection,
   updateSectionMembers,
   type ApiSection,
 } from '../../shared/sectionsApi';
@@ -38,18 +40,22 @@ import {
   CheckCircleIcon,
   ChevronRightIcon,
   ClockIcon,
+  EditIcon,
   FilterIcon,
   GlobeIcon,
   MonitorIcon,
   MoreHorizontalIcon,
-  PlusIcon,
   SearchIcon,
-  SettingsIcon,
 } from '../../shared/uiIcons';
 import {
   SectionIconGlyph,
   getSectionIconWrapStyle,
 } from './sectionVisuals';
+import SectionEditorModal, {
+  type SectionEditorMode,
+  type SectionEditorSubmitPayload,
+} from './SectionEditorModal';
+import type { MonitorSection } from '../../shared/sectionsStore';
 
 const statusOptions = [
   { label: 'Todos', value: 'ALL' },
@@ -72,10 +78,7 @@ type ActiveTab = 'monitors' | 'members';
 export default function SectionDetailPage() {
   const { sectionId } = useParams();
   const navigate = useNavigate();
-  const {
-    canManageUsers,
-    canWrite: canWriteActions,
-  } = useCurrentUserPermissions();
+  const { canWrite: canWriteActions } = useCurrentUserPermissions();
   const [section, setSection] = useState<ApiSection | null>(null);
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,12 +89,14 @@ export default function SectionDetailPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('monitors');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [allMonitors, setAllMonitors] = useState<Monitor[]>([]);
+  const [allSections, setAllSections] = useState<MonitorSection[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [memberIds, setMemberIds] = useState<number[]>([]);
-  const [isSavingMembers, setIsSavingMembers] = useState(false);
   const [editingMonitor, setEditingMonitor] = useState<Monitor | null>(null);
   const [isSavingMonitor, setIsSavingMonitor] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+  const [sectionEditorMode, setSectionEditorMode] = useState<SectionEditorMode | null>(null);
 
   const loadData = async () => {
     if (!sectionId) {
@@ -103,20 +108,26 @@ export default function SectionDetailPage() {
     setLoading(true);
 
     try {
-      const [nextSection, nextUsers] = await Promise.all([
+      const [nextSection, nextMonitors, nextSections, nextUsers] = await Promise.all([
         getSection(sectionId),
-        canManageUsers ? getUsers() : Promise.resolve([]),
+        canWriteActions ? getMonitors() : Promise.resolve([]),
+        canWriteActions ? getSections() : Promise.resolve([]),
+        canWriteActions ? getUsers() : Promise.resolve([]),
       ]);
 
       setSection(nextSection);
       setMonitors(nextSection.monitors ?? []);
+      setAllMonitors(nextMonitors);
+      setAllSections(nextSections);
       setUsers(nextUsers);
-      setMemberIds(nextSection.memberIds ?? []);
       setError(null);
     } catch (currentError) {
       console.error('Error loading section detail', currentError);
       setError(currentError instanceof Error ? currentError.message : 'No se pudo cargar la seccion.');
       setMonitors([]);
+      setAllMonitors([]);
+      setAllSections([]);
+      setUsers([]);
       setSection(null);
     } finally {
       setLoading(false);
@@ -125,7 +136,20 @@ export default function SectionDetailPage() {
 
   useEffect(() => {
     void loadData();
-  }, [canManageUsers, sectionId]);
+  }, [canWriteActions, sectionId]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+
+      if (!target?.closest('[data-section-detail-menu-root="true"]')) {
+        setIsActionsMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, []);
 
 
   const handleRunSectionChecks = async () => {
@@ -156,29 +180,39 @@ export default function SectionDetailPage() {
     }
   };
 
-  const handleToggleMember = (userId: number) => {
-    setMemberIds((currentIds) =>
-      currentIds.includes(userId)
-        ? currentIds.filter((id) => id !== userId)
-        : [...currentIds, userId],
-    );
+  const handleOpenSectionEditor = (mode: SectionEditorMode) => {
+    setSectionEditorMode(mode);
+    setIsActionsMenuOpen(false);
   };
 
-  const handleSaveMembers = async () => {
-    if (!sectionId) return;
-    setIsSavingMembers(true);
+  const handleCloseSectionEditor = () => {
+    setSectionEditorMode(null);
+  };
+
+  const handleSaveSection = async (payload: SectionEditorSubmitPayload) => {
+    if (!sectionId || !section) {
+      return;
+    }
+
     setFeedback(null);
 
     try {
-      const updatedSection = await updateSectionMembers(sectionId, memberIds);
-      setSection(updatedSection);
-      setMemberIds(updatedSection.memberIds ?? []);
-      setFeedback('Miembros actualizados correctamente.');
+      const { memberIds, ...sectionPayload } = payload;
+      await updateSection(sectionId, sectionPayload);
+      await updateSectionMembers(sectionId, memberIds);
+
+      setFeedback(
+        sectionEditorMode === 'members'
+          ? 'Miembros actualizados correctamente.'
+          : sectionEditorMode === 'monitors'
+            ? 'Monitores actualizados correctamente.'
+            : 'Seccion actualizada correctamente.',
+      );
+      handleCloseSectionEditor();
+      await loadData();
     } catch (currentError) {
-      console.error('Error saving section members', currentError);
-      setFeedback(currentError instanceof Error ? currentError.message : 'No se pudieron actualizar los miembros.');
-    } finally {
-      setIsSavingMembers(false);
+      console.error('Error saving section detail', currentError);
+      setFeedback(currentError instanceof Error ? currentError.message : 'No se pudo guardar la seccion.');
     }
   };
 
@@ -278,10 +312,9 @@ export default function SectionDetailPage() {
     return sortMonitorsByStatusAndLastCheck(nextMonitors);
   }, [search, sectionMonitors, statusFilter, typeFilter]);
 
-  const sectionUsers = useMemo(
-    () => (canManageUsers ? users : section?.members ?? []),
-    [canManageUsers, section?.members, users],
-  );
+  const sectionUsers = useMemo(() => section?.members ?? [], [section?.members]);
+
+  const canShowActionsMenu = canWriteActions;
 
   const {
     page,
@@ -327,15 +360,6 @@ export default function SectionDetailPage() {
         title="Detalle de seccion"
         subtitle={section.name}
         onRefresh={loadData}
-        cta={
-          canManageUsers
-            ? {
-                icon: <PlusIcon size={16} />,
-                label: "Nuevo monitor",
-                to: "/monitors/create",
-              }
-            : undefined
-        }
       />
 
       <div style={styles.breadcrumb}>
@@ -373,30 +397,65 @@ export default function SectionDetailPage() {
           </div>
         </div>
 
-        {canWriteActions ? (
-          <div style={styles.heroActions}>
-            <Link to="/sections" style={styles.secondaryButton}>
-              <SettingsIcon size={16} />
-              Configurar seccion
-            </Link>
+        {canShowActionsMenu ? (
+          <div
+            style={styles.heroActions}
+            data-section-detail-menu-root="true"
+          >
             <button
               type="button"
-              style={styles.primaryButton}
-              onClick={handleRunSectionChecks}
-              disabled={isChecking || sectionMonitors.length === 0}
+              style={styles.moreButton}
+              aria-label="Abrir acciones de la seccion"
+              onClick={() => setIsActionsMenuOpen((currentValue) => !currentValue)}
             >
-              <CheckCircleIcon size={16} />
-              {isChecking ? 'Comprobando...' : 'Comprobar todos'}
-            </button>
-            {canManageUsers ? (
-              <Link to="/monitors/create" style={styles.secondaryButton}>
-                <PlusIcon size={16} />
-                Anadir monitor
-              </Link>
-            ) : null}
-            <button type="button" style={styles.moreButton}>
               <MoreHorizontalIcon size={18} />
             </button>
+
+            {isActionsMenuOpen ? (
+              <div style={styles.menu}>
+                <button
+                  type="button"
+                  style={styles.menuItem}
+                  onClick={() => handleOpenSectionEditor('full')}
+                >
+                  <EditIcon size={14} />
+                  Editar seccion
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.menuItem,
+                    ...(isChecking || sectionMonitors.length === 0
+                      ? styles.menuItemDisabled
+                      : {}),
+                  }}
+                  onClick={() => {
+                    setIsActionsMenuOpen(false);
+                    void handleRunSectionChecks();
+                  }}
+                  disabled={isChecking || sectionMonitors.length === 0}
+                >
+                  <CheckCircleIcon size={14} />
+                  {isChecking ? 'Comprobando...' : 'Comprobar todos'}
+                </button>
+                <button
+                  type="button"
+                  style={styles.menuItem}
+                  onClick={() => handleOpenSectionEditor('monitors')}
+                >
+                  <MonitorIcon size={14} />
+                  Anadir monitor a seccion
+                </button>
+                <button
+                  type="button"
+                  style={styles.menuItem}
+                  onClick={() => handleOpenSectionEditor('members')}
+                >
+                  <GlobeIcon size={14} />
+                  Anadir miembros a seccion
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </header>
@@ -653,36 +712,29 @@ export default function SectionDetailPage() {
           ) : (
             <div style={styles.memberList}>
               {sectionUsers.map((user) => (
-                <label key={user.id} style={styles.memberRow}>
-                  <input
-                    type="checkbox"
-                    checked={memberIds.includes(user.id)}
-                    disabled={!canManageUsers || isSavingMembers}
-                    onChange={() => handleToggleMember(user.id)}
-                  />
-                  <span style={styles.memberCopy}>
-                    <strong>{user.name}</strong>
-                    <span>{user.email}</span>
-                  </span>
-                  <span style={styles.typeBadge}>{user.role}</span>
-                </label>
-              ))}
-            </div>
-          )}
-          {canManageUsers ? (
-            <div style={styles.memberActions}>
-              <button
-                type="button"
-                style={styles.primaryButton}
-                onClick={handleSaveMembers}
-                disabled={isSavingMembers}
-              >
-                {isSavingMembers ? 'Guardando...' : 'Guardar miembros'}
-              </button>
-            </div>
-          ) : null}
+                  <div key={user.id} style={styles.memberRow}>
+                    <span style={styles.memberCopy}>
+                      <strong>{user.name}</strong>
+                      <span>{user.email}</span>
+                    </span>
+                    <span style={styles.typeBadge}>{user.role}</span>
+                  </div>
+                ))}
+              </div>
+            )}
         </section>
       )}
+      <SectionEditorModal
+        isOpen={canWriteActions && sectionEditorMode !== null}
+        monitors={allMonitors}
+        canManageMembers={canWriteActions}
+        users={users.filter((user) => user.status === 'ACTIVE')}
+        section={section}
+        sections={allSections}
+        mode={sectionEditorMode ?? 'full'}
+        onClose={handleCloseSectionEditor}
+        onSubmit={handleSaveSection}
+      />
       <MonitorEditModal
         error={editError}
         isOpen={Boolean(editingMonitor)}
@@ -933,37 +985,9 @@ const styles: Record<string, CSSProperties> = {
     background: uiTheme.colors.borderStrong,
   },
   heroActions: {
+    position: 'relative',
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 10,
-    flexWrap: 'wrap',
-  },
-  primaryButton: {
-    ...primaryButtonBase,
-    minHeight: 42,
-    padding: '0 18px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    cursor: 'pointer',
-    fontWeight: 600,
-    textDecoration: 'none',
-    borderRadius: 14,
-  },
-  secondaryButton: {
-    ...secondaryButtonBase,
-    minHeight: 42,
-    padding: '0 16px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    cursor: 'pointer',
-    fontWeight: 500,
-    textDecoration: 'none',
-    borderRadius: 14,
   },
   secondaryLink: {
     ...secondaryButtonBase,
@@ -976,6 +1000,19 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 500,
     borderRadius: 14,
   },
+  secondaryButton: {
+    ...secondaryButtonBase,
+    minHeight: 38,
+    padding: '0 14px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    cursor: 'pointer',
+    fontWeight: 500,
+    textDecoration: 'none',
+    borderRadius: 12,
+  },
   moreButton: {
     ...controlBase,
     width: 42,
@@ -985,6 +1022,36 @@ const styles: Record<string, CSSProperties> = {
     cursor: 'pointer',
     background: uiTheme.colors.surface,
     borderRadius: 14,
+  },
+  menu: {
+    ...surfaceCard,
+    position: 'absolute',
+    top: 48,
+    right: 0,
+    minWidth: 220,
+    zIndex: 10,
+    padding: 8,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    borderRadius: 18,
+  },
+  menuItem: {
+    border: 'none',
+    background: 'transparent',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 10,
+    padding: '10px 12px',
+    color: uiTheme.colors.text,
+    cursor: 'pointer',
+    fontWeight: 600,
+    textAlign: 'left',
+  },
+  menuItemDisabled: {
+    color: uiTheme.colors.muted,
+    cursor: 'not-allowed',
   },
   kpiGrid: {
     display: 'grid',
@@ -1310,7 +1377,7 @@ const styles: Record<string, CSSProperties> = {
   },
   memberRow: {
     display: 'grid',
-    gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+    gridTemplateColumns: 'minmax(0, 1fr) auto',
     alignItems: 'center',
     gap: 14,
     padding: '14px 16px',
@@ -1319,10 +1386,5 @@ const styles: Record<string, CSSProperties> = {
   memberCopy: {
     display: 'grid',
     gap: 4,
-  },
-  memberActions: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    padding: 16,
   },
 };

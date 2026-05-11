@@ -70,7 +70,7 @@ export class SectionsController {
   }
 
   @Patch(':id/members')
-  @Roles('OWNER')
+  @Roles('OWNER', 'ADMIN')
   updateMembers(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateSectionMembersDto,

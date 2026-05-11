@@ -136,7 +136,7 @@ export class SectionsService {
   async remove(id: number, user: AuthenticatedUser) {
     const section = await this.prisma.section.findUnique({
       where: { id },
-      include: { members: true },
+      include: this.sectionInclude,
     });
     if (!section) throw new NotFoundException('Sección no encontrada');
     this.ensureManageAccess(section, user);
@@ -165,7 +165,7 @@ export class SectionsService {
       include: { members: true },
     });
     if (!section) throw new NotFoundException('Sección no encontrada');
-    this.ensureOwnerAccess(section.organizationId, user);
+    this.ensureManageAccess(section, user);
     const memberIds = await this.validateUserIds(dto.userIds, user);
 
     const updated = await this.prisma.$transaction(async (tx) => {

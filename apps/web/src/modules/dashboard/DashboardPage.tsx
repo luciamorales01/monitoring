@@ -130,7 +130,6 @@ export default function DashboardPage() {
   const filteredMonitors = useMemo(() => {
     return sortMonitors(
       filterMonitors(monitors, {
-        location: "ALL",
         search: filters.search,
         status: filters.status as MonitorStatusFilter,
         type: "ALL",
@@ -581,36 +580,6 @@ export default function DashboardPage() {
             </>
           )}
         </div>
-
-        <div style={styles.regionCard}>
-          <h2 style={styles.cardTitle}>Estado por región</h2>
-
-          <div style={styles.mapMock}>
-            <span style={{ ...styles.mapDot, top: "42%", left: "25%" }} />
-            <span style={{ ...styles.mapDot, top: "58%", left: "40%" }} />
-            <span style={{ ...styles.mapDot, top: "37%", left: "55%" }} />
-            <span style={{ ...styles.mapDot, top: "50%", left: "73%" }} />
-            <span style={{ ...styles.mapDot, top: "65%", left: "82%" }} />
-          </div>
-
-          {[
-            "Europa (Frankfurt)",
-            "América (Norte)",
-            "América (Sur)",
-            "Asia (Singapur)",
-            "Oceanía (Sídney)",
-          ].map((region, index) => (
-            <div key={region} style={styles.regionRow}>
-              <span>{region}</span>
-              <div style={styles.regionBar}>
-                <span
-                  style={{ ...styles.regionProgress, width: `${96 + index}%` }}
-                />
-              </div>
-              <strong>{(99.8 - index * 0.15).toFixed(1)}%</strong>
-            </div>
-          ))}
-        </div>
       </section>
 
       {toast && (
@@ -809,7 +778,7 @@ const styles: Record<string, CSSProperties> = {
   },
   bottomGrid: {
     display: "grid",
-    gridTemplateColumns: "1.7fr 0.85fr",
+    gridTemplateColumns: "minmax(0, 1fr)",
     gap: 14,
   },
   cardLarge: {
@@ -1064,50 +1033,4 @@ const styles: Record<string, CSSProperties> = {
   },
   alertMeta: { fontSize: 11, whiteSpace: "nowrap" },
   empty: { color: uiTheme.colors.muted, fontSize: 13, padding: 20 },
-
-  regionCard: {
-    ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
-    padding: 20,
-    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.05)",
-  },
-  mapMock: {
-    height: 140,
-    borderRadius: 18,
-    background: `linear-gradient(135deg, ${uiTheme.colors.primarySoft} 0%, ${uiTheme.colors.surface} 44%), ${uiTheme.colors.surface}`,
-    margin: "14px 0",
-    position: "relative",
-    overflow: "hidden",
-    border: `1px solid ${uiTheme.colors.border}`,
-    boxShadow: "var(--control-shadow)",
-  },
-  mapDot: {
-    position: "absolute",
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    background: uiTheme.colors.primary,
-    boxShadow: "0 0 0 4px rgba(37, 99, 235, 0.12)",
-  },
-  regionRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr 74px 44px",
-    gap: 8,
-    alignItems: "center",
-    fontSize: 11,
-    padding: "8px 0",
-    borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
-  },
-  regionBar: {
-    height: 4,
-    background: uiTheme.colors.borderStrong,
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-  regionProgress: {
-    display: "block",
-    height: "100%",
-    background: uiTheme.colors.primary,
-    borderRadius: 999,
-  },
 };

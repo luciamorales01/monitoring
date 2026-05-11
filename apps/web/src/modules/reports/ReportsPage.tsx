@@ -67,8 +67,6 @@ type ReportRow = {
   latestCheckAt: string | null;
   slaMet: boolean;
   incidentIds: number[];
-  locations: string[];
-  topLocation: string;
 };
 
 type ComparisonMetric = {
@@ -84,12 +82,6 @@ type Insight = {
   tone: InsightTone;
   label: string;
   icon: ReactNode;
-};
-
-type LocationMetric = {
-  label: string;
-  availability: number;
-  checks: number;
 };
 
 type ReportPayload = {
@@ -396,10 +388,6 @@ export default function ReportsPage() {
     return buildAvailabilitySeries(filteredRows, checksByMonitor, period);
   }, [checksByMonitor, filteredRows, period]);
 
-  const locationMetrics = useMemo(() => {
-    return buildLocationMetrics(filteredRows, checksByMonitor, period);
-  }, [checksByMonitor, filteredRows, period]);
-
   const operationalDistribution = useMemo(() => {
     const healthy = filteredRows.filter(
       (row) => row.status === "UP" && row.slaMet && row.healthScore >= 85,
@@ -628,8 +616,6 @@ export default function ReportsPage() {
         "Checks actuales",
         "Checks anteriores",
         "Última caída",
-        "Ubicaciones",
-        "Ubicación más crítica",
       ],
       ...filteredRows.map((row) => [
         String(row.monitor.id),
@@ -652,8 +638,6 @@ export default function ReportsPage() {
         String(row.checks),
         String(row.previousChecks),
         row.lastDowntimeLabel,
-        row.locations.join(" | "),
-        row.topLocation,
       ]),
     ]);
   }
@@ -680,8 +664,6 @@ export default function ReportsPage() {
         ["Checks actuales", String(row.checks)],
         ["Checks anteriores", String(row.previousChecks)],
         ["Última caída", row.lastDowntimeLabel],
-        ["Ubicaciones", row.locations.join(", ")],
-        ["Ubicación más crítica", row.topLocation],
         ["IDs de incidencias", row.incidentIds.join(", ") || "-"],
       ],
     );
@@ -1159,33 +1141,6 @@ export default function ReportsPage() {
           )}
         </article>
 
-        <article style={styles.chartCard}>
-          <div style={styles.cardTop}>
-            <div>
-              <h2 style={styles.sectionTitle}>Disponibilidad por ubicación</h2>
-              <p style={styles.sectionCopy}>
-                Lectura combinada desde checks reales por localización.
-              </p>
-            </div>
-          </div>
-
-          {loading ? (
-            <SkeletonBlock height={252} />
-          ) : locationMetrics.length > 0 ? (
-            <div style={styles.regionList}>
-              {locationMetrics.map((metric) => (
-                <RegionRow
-                  key={metric.label}
-                  label={metric.label}
-                  value={metric.availability}
-                  note={`${metric.checks} checks`}
-                />
-              ))}
-            </div>
-          ) : (
-            <div style={styles.emptyPanel}>Sin checks con ubicación en este periodo.</div>
-          )}
-        </article>
       </section>
 
       <section style={styles.tableCard}>
@@ -1458,12 +1413,6 @@ function buildReportRow({
     null;
   const status = getMonitorReportStatus(monitor);
   const latestCheckAt = getLatestMonitorCheckAt(checks) ?? monitor.lastCheckedAt ?? null;
-  const locations = monitor.locations.length > 0 ? monitor.locations : ["default"];
-  const topLocation =
-    currentSummary.topLocation ??
-    previousSummary.topLocation ??
-    locations[0] ??
-    "default";
   const healthScore = calculateHealthScore(
     currentUptime,
     currentIncidents.length,
@@ -1493,7 +1442,6 @@ function buildReportRow({
     lastDowntimeAt,
     lastDowntimeLabel: lastDowntimeAt ? formatRelativeTime(lastDowntimeAt) : "Sin caídas recientes",
     latestCheckAt,
-    locations,
     monitor,
     previousAvgResponse: safeInteger(previousAvgResponse),
     previousChecks: previousSummary.total,
@@ -1506,7 +1454,6 @@ function buildReportRow({
     sectionName,
     slaMet: currentUptime >= SLA_TARGET,
     status,
-    topLocation,
     upChecks: currentSummary.upChecks,
     uptime: currentUptime,
     uptimeSampleChecks,
@@ -1520,7 +1467,6 @@ function summarizeChecks(checks: MonitorCheck[]) {
     return {
       avgResponse: null as number | null,
       latestDownAt: null as string | null,
-      topLocation: null as string | null,
       total: 0,
       upChecks: 0,
       uptime: null as number | null,
@@ -1533,29 +1479,6 @@ function summarizeChecks(checks: MonitorCheck[]) {
     .filter((value): value is number => typeof value === "number");
   const latestDownAt =
     checks.find((check) => check.status === "DOWN")?.checkedAt ?? null;
-  const locationScore = new Map<string, { total: number; down: number }>();
-
-  for (const check of checks) {
-    const key = check.location ?? "default";
-    const current = locationScore.get(key) ?? { down: 0, total: 0 };
-    current.total += 1;
-    current.down += check.status === "DOWN" ? 1 : 0;
-    locationScore.set(key, current);
-  }
-
-  const topLocation =
-    [...locationScore.entries()].sort((firstEntry, secondEntry) => {
-      const firstRatio =
-        firstEntry[1].total === 0 ? 0 : firstEntry[1].down / firstEntry[1].total;
-      const secondRatio =
-        secondEntry[1].total === 0 ? 0 : secondEntry[1].down / secondEntry[1].total;
-
-      if (firstRatio !== secondRatio) {
-        return secondRatio - firstRatio;
-      }
-
-      return secondEntry[1].total - firstEntry[1].total;
-    })[0]?.[0] ?? null;
 
   return {
     avgResponse:
@@ -1566,7 +1489,6 @@ function summarizeChecks(checks: MonitorCheck[]) {
           )
         : null,
     latestDownAt,
-    topLocation,
     total: checks.length,
     upChecks,
     uptime: safePercentageFromCounts(upChecks, checks.length),
@@ -1621,37 +1543,6 @@ function buildAvailabilitySeries(
     const upChecks = bucketChecks.filter((check) => check.status === "UP").length;
     return Number(((upChecks / bucketChecks.length) * 100).toFixed(2));
   });
-}
-
-function buildLocationMetrics(
-  rows: ReportRow[],
-  checksByMonitor: Record<number, MonitorCheck[]>,
-  period: ReturnType<typeof getPeriodWindow>,
-): LocationMetric[] {
-  const locations = new Map<string, { total: number; up: number }>();
-
-  for (const row of rows) {
-    for (const check of checksByMonitor[row.monitor.id] ?? []) {
-      if (!isDateWithinRange(check.checkedAt, period.currentStart, period.currentEnd)) {
-        continue;
-      }
-
-      const key = check.location ?? "default";
-      const current = locations.get(key) ?? { total: 0, up: 0 };
-      current.total += 1;
-      current.up += check.status === "UP" ? 1 : 0;
-      locations.set(key, current);
-    }
-  }
-
-  return [...locations.entries()]
-    .map(([label, value]) => ({
-      availability: Number(((value.up / Math.max(value.total, 1)) * 100).toFixed(2)),
-      checks: value.total,
-      label,
-    }))
-    .sort((firstMetric, secondMetric) => secondMetric.availability - firstMetric.availability)
-    .slice(0, 5);
 }
 
 function createComparisonMetric(
@@ -2570,32 +2461,6 @@ function buildConicGradient(
   }
 
   return `conic-gradient(${parts.join(", ")})`;
-}
-
-function RegionRow({
-  label,
-  note,
-  value,
-}: {
-  label: string;
-  note: string;
-  value: number;
-}) {
-  return (
-    <div style={styles.regionRow}>
-      <div style={styles.regionTop}>
-        <div>
-          <strong>{label}</strong>
-          <span style={styles.regionNote}>{note}</span>
-        </div>
-        <strong>{value.toFixed(2)}%</strong>
-      </div>
-
-      <div style={styles.regionBar}>
-        <div style={{ ...styles.regionFill, width: `${value}%` }} />
-      </div>
-    </div>
-  );
 }
 
 function SkeletonBlock({ height }: { height: number }) {

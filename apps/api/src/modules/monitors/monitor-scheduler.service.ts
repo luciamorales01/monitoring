@@ -1,19 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { MonitorsService } from './monitors.service';
-import { MonitorChecksQueueService } from './monitor-checks-queue.service';
 
 @Injectable()
 export class MonitorSchedulerService {
   private readonly logger = new Logger(MonitorSchedulerService.name);
   private isRunning = false;
 
-  constructor(
-    private readonly monitorsService: MonitorsService,
-    private readonly monitorChecksQueue: MonitorChecksQueueService,
-  ) {}
+  constructor(private readonly monitorsService: MonitorsService) {}
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_MINUTE)
   async runDueMonitorChecks() {
     if (this.isRunning) {
       this.logger.warn(
@@ -36,15 +32,42 @@ export class MonitorSchedulerService {
         return;
       }
 
-      const summary =
-        await this.monitorChecksQueue.enqueueDueChecks(dueMonitorIds);
+      const settledRuns = await Promise.allSettled(
+        dueMonitorIds.map(async (monitorId) => {
+          await this.monitorsService.runAutomatedCheck(monitorId);
+          return monitorId;
+        }),
+      );
+
+      const failedChecks = settledRuns.filter(
+        (result) => result.status === 'rejected',
+      );
+
+      for (const [index, result] of settledRuns.entries()) {
+        if (result.status === 'fulfilled') {
+          continue;
+        }
+
+        this.logger.error(
+          JSON.stringify({
+            event: 'monitor_check_scheduler_failed',
+            monitorId: dueMonitorIds[index],
+            message:
+              result.reason instanceof Error
+                ? result.reason.message
+                : 'Unknown error',
+            stack:
+              result.reason instanceof Error ? result.reason.stack : undefined,
+          }),
+        );
+      }
 
       this.logger.log(
         JSON.stringify({
-          enqueued: summary.enqueued,
-          event: 'monitor_checks_enqueued',
-          failed: summary.failed,
-          total: summary.total,
+          event: 'monitor_checks_processed',
+          failed: failedChecks.length,
+          processed: settledRuns.length - failedChecks.length,
+          total: settledRuns.length,
         }),
       );
     } finally {

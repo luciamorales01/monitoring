@@ -221,7 +221,6 @@ export class MonitorsController {
           status: 'UP',
           responseTimeMs: 182,
           checkedAt: '2026-05-10T09:00:00.000Z',
-          location: 'eu-west-1',
         },
       ],
     },
@@ -260,7 +259,6 @@ export class MonitorsController {
           {
             checkedAt: '2026-05-10T09:05:00.000Z',
             errorMessage: null,
-            location: 'eu-west-1',
             responseTimeMs: 178,
             status: 'UP',
             statusCode: 200,

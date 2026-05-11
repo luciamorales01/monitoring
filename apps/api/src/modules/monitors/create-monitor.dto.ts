@@ -1,7 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  ArrayMaxSize,
-  IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -83,19 +81,6 @@ export class CreateMonitorDto {
   timeoutSeconds?: number;
 
   @ApiPropertyOptional({
-    example: ['eu-west-1', 'us-east-1'],
-    description: 'Ubicaciones desde las que se ejecutaran los chequeos.',
-    type: [String],
-    maxItems: 10,
-  })
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(10)
-  @IsString({ each: true })
-  @MaxLength(64, { each: true })
-  locations?: string[];
-
-  @ApiPropertyOptional({
     example: true,
     description: 'Activa alertas por email.',
   })
@@ -134,16 +119,6 @@ export class CreateMonitorDto {
   @Min(1)
   @Max(65535)
   tcpPort?: number;
-
-  @ApiPropertyOptional({
-    example: 'healthy',
-    description: 'Texto esperado dentro de la respuesta.',
-    maxLength: 240,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(240)
-  keyword?: string;
 
   @ApiPropertyOptional({
     example: 14,
