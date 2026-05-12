@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getUniqueOptions, matchesSearchTerm, normalizeSearchTerm } from '../../shared/filterUtils';
+import { matchesSearchTerm, normalizeSearchTerm } from '../../shared/filterUtils';
 import { getIncidents, type Incident } from '../../shared/incidentApi';
 import {
   getNotifications,
@@ -119,10 +119,6 @@ export default function IncidentsPage() {
     ? `${Math.round((resolvedCount / incidents.length) * 100)}%`
     : '0%';
   const meanResolutionTime = formatAverageResolution(historyIncidents);
-
-  const monitorOptions = useMemo(() => {
-    return getUniqueOptions(incidents.map((incident) => incident.monitor?.name));
-  }, [incidents]);
 
   const scopedIncidents =
     filters.tab === 'active' ? activeIncidents : historyIncidents;
@@ -269,6 +265,8 @@ export default function IncidentsPage() {
 
       <section style={styles.contentGrid}>
         <div style={styles.tableCard}>
+          
+           
           <div style={styles.toolbar}>
               <input
                 style={styles.search}
@@ -277,20 +275,7 @@ export default function IncidentsPage() {
                 onChange={(event) => setFilter('search', event.target.value)}
               />
 
-            <label style={styles.filterGroup}>
-              <span>Estado</span>
-              <select
-                style={styles.select}
-                value={filters.status}
-                onChange={(event) => setFilter('status', event.target.value)}
-              >
-                <option value="ALL">Todos</option>
-                <option value="OPEN">Abiertas</option>
-                <option value="ACKNOWLEDGED">Reconocidas</option>
-                <option value="INVESTIGATING">En investigación</option>
-                <option value="RESOLVED">Resueltas</option>
-              </select>
-            </label>
+    
 
             <label style={styles.filterGroup}>
               <span>Severidad</span>
@@ -304,22 +289,6 @@ export default function IncidentsPage() {
                 <option value="MEDIUM">Media</option>
                 <option value="HIGH">Alta</option>
                 <option value="CRITICAL">Crítica</option>
-              </select>
-            </label>
-
-            <label style={styles.filterGroup}>
-              <span>Web</span>
-              <select
-                style={styles.select}
-                value={filters.monitor}
-                onChange={(event) => setFilter('monitor', event.target.value)}
-              >
-                <option value="ALL">Todas</option>
-                {monitorOptions.map((monitorName) => (
-                  <option key={monitorName} value={monitorName}>
-                    {monitorName}
-                  </option>
-                ))}
               </select>
             </label>
 
@@ -360,7 +329,6 @@ export default function IncidentsPage() {
                   <th style={styles.th}>Web</th>
                   <th style={styles.th}>Estado</th>
                   <th style={styles.th}>Creación</th>
-                  <th style={styles.th}>Resolución</th>
                   <th style={styles.th}>Duración</th>
                 </tr>
               </thead>
@@ -394,7 +362,6 @@ export default function IncidentsPage() {
                     </td>
 
                     <td style={styles.td}>{formatDate(incident.startedAt)}</td>
-                    <td style={styles.td}>{incident.resolvedAt ? formatDate(incident.resolvedAt) : '-'}</td>
                     <td style={styles.td}>{formatDuration(getIncidentDurationSeconds(incident))}</td>
                   </tr>
                 ))}
@@ -684,19 +651,33 @@ const styles: Record<string, React.CSSProperties> = {
   kpiTitle: { margin: 0, color: uiTheme.colors.text, fontWeight: 600, fontSize: 13 },
   kpiValue: { display: 'block', marginTop: 6, fontSize: 24, lineHeight: 1 },
 
-  contentGrid: { display: 'grid', gridTemplateColumns: '1fr 300px', gap: 14 },
-  tableCard: { ...tableCardBase, borderRadius: 20, padding: 20 },
-  toolbar: { display: 'grid', gridTemplateColumns: 'minmax(220px, 1.4fr) repeat(3, minmax(120px, 0.7fr)) auto', alignItems: 'end', gap: 12, marginBottom: 18 },
-  search: { ...inputBase, borderRadius: 14 },
-  select: { ...inputBase, borderRadius: 14 },
-  filterGroup: filterGroupBase,
-  tabs: { display: 'flex', gap: 8, alignItems: 'center' },
+  contentGrid: { display: 'grid', gridTemplateColumns: '1fr 300px', gap: 14, alignItems: 'start' },
+  tableCard: {
+    ...tableCardBase,
+    borderRadius: 20,
+    padding: 20,
+    alignSelf: 'start',
+    height: 'fit-content',
+    background: '#ffffff',
+  },
+  toolbar: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(260px, 2fr) minmax(180px, 1fr) minmax(220px, 1fr)',
+    alignItems: 'end',
+    gap: 12,
+    marginBottom: 18,
+    width: '100%',
+  },
+  search: { ...inputBase, borderRadius: 14, width: '100%' },
+  select: { ...inputBase, borderRadius: 14, width: '100%' },
+  filterGroup: { ...filterGroupBase, width: '100%' },
+  tabs: { display: 'flex', gap: 8, alignItems: 'center', width: '100%' },
   tabButton: { ...controlBase, borderRadius: 14, padding: '0 14px', cursor: 'pointer', fontWeight: 600, fontSize: 13, height: 40, display: 'inline-flex', alignItems: 'center' },
   tabActive: { background: uiTheme.colors.primarySoft, borderColor: uiTheme.colors.primaryLight, color: uiTheme.colors.primary },
   table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0 },
   th: { textAlign: 'left', padding: '13px 10px', color: uiTheme.colors.muted, fontSize: 12, borderBottom: `1px solid ${uiTheme.colors.border}`, fontWeight: 700 },
-  tr: { borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, background: uiTheme.colors.surface, cursor: 'pointer' },
-  trHover: { background: uiTheme.colors.surfaceSoft },
+  tr: { borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, background: '#ffffff', cursor: 'pointer' },
+  trHover: { background: '#f8fafc' },
   td: { padding: '14px 10px', fontSize: 12, color: uiTheme.colors.text },
   url: { marginTop: 3, color: uiTheme.colors.muted, fontSize: 11 },
   badge: { padding: '5px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 },

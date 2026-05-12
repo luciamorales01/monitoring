@@ -185,7 +185,6 @@ export default function DashboardPage() {
         <div style={styles.card}>
           <div style={styles.cardHeader}>
             <h2 style={styles.cardTitle}>Alertas recientes</h2>
-            <span style={styles.linkFake}>Ver todas</span>
           </div>
 
           {downMonitors.length === 0 ? (

@@ -11,7 +11,6 @@ import {
   type User,
   type UserInvitation,
   type UserRole,
-  type UserStatus,
 } from '../../shared/userApi';
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
@@ -41,6 +40,7 @@ export default function UsersPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [inviteResult, setInviteResult] = useState<UserInvitation | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [openMenuUserId, setOpenMenuUserId] = useState<number | null>(null);
 
   const pendingInvitations = useMemo(
     () => invitations.filter((invitation) => invitation.status === 'PENDING'),
@@ -56,6 +56,19 @@ export default function UsersPage() {
       pending: pendingInvitations.length,
     };
   }, [pendingInvitations.length, users]);
+
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+
+      if (!target?.closest('[data-user-menu-root="true"]')) {
+        setOpenMenuUserId(null);
+      }
+    };
+
+    window.addEventListener('mousedown', handlePointerDown);
+    return () => window.removeEventListener('mousedown', handlePointerDown);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -135,7 +148,7 @@ export default function UsersPage() {
     <main style={styles.main}>
       <AppTopbar
         title="Usuarios"
-        subtitle="Gestiona miembros, roles, estados e invitaciones del equipo."
+        subtitle="Gestiona miembros, roles e invitaciones del equipo."
         onRefresh={loadData}
         cta={
           canWriteActions
@@ -190,8 +203,6 @@ export default function UsersPage() {
                 <tr>
                   <th style={styles.th}>Usuario</th>
                   <th style={styles.th}>Rol</th>
-                  <th style={styles.th}>Estado</th>
-                  <th style={styles.th}>Última actividad</th>
                   {canWriteActions ? <th style={styles.thActions}>Acciones</th> : null}
                 </tr>
               </thead>
@@ -208,17 +219,48 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td style={styles.td}><RoleBadge role={getRoleLabel(user.role)} /></td>
-                    <td style={styles.td}><StatusBadge status={user.status} /></td>
-                    <td style={styles.td}>{formatDate(user.updatedAt)}</td>
                     {canWriteActions ? (
                       <td style={styles.tdActions}>
-                        <div style={styles.actionsInline}>
-                          <button type="button" style={styles.actionButton} onClick={() => setEditingUser(user)}>
-                            <EditIcon size={14} /> Editar
+                        <div style={styles.actionsWrap} data-user-menu-root="true">
+                          <button
+                            type="button"
+                            style={styles.moreButton}
+                            title="Acciones"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setOpenMenuUserId((current) => (current === user.id ? null : user.id));
+                            }}
+                          >
+                            <MoreHorizontalIcon size={16} />
                           </button>
-                          <button type="button" style={styles.actionButton} onClick={() => handleToggleStatus(user)}>
-                            {user.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
-                          </button>
+
+                          {openMenuUserId === user.id ? (
+                            <div style={styles.actionMenu}>
+                              <button
+                                type="button"
+                                style={styles.actionMenuItem}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setOpenMenuUserId(null);
+                                  setEditingUser(user);
+                                }}
+                              >
+                                <EditIcon size={14} />
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                style={styles.actionMenuItem}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setOpenMenuUserId(null);
+                                  void handleToggleStatus(user);
+                                }}
+                              >
+                                {user.status === 'ACTIVE' ? 'Desactivar' : 'Activar'}
+                              </button>
+                            </div>
+                          ) : null}
                         </div>
                       </td>
                     ) : null}
@@ -420,11 +462,6 @@ function RoleBadge({ role }: { role: UserRoleLabel }) {
   return <span style={styles.roleBadge}>{role}</span>;
 }
 
-function StatusBadge({ status }: { status: UserStatus }) {
-  const isActive = status === 'ACTIVE';
-  return <span style={{ ...styles.statusBadge, color: isActive ? uiTheme.colors.success : uiTheme.colors.muted }}>{isActive ? 'Activo' : 'Inactivo'}</span>;
-}
-
 function getRoleLabel(role: UserRole): UserRoleLabel {
   const roleMap: Record<UserRole, UserRoleLabel> = {
     OWNER: 'Administrador',
@@ -454,8 +491,8 @@ const styles: Record<string, CSSProperties> = {
   kpiTitle: { margin: 0, fontSize: 12, fontWeight: 600, color: uiTheme.colors.text },
   kpiValue: { display: 'block', marginTop: 6, fontSize: 24, color: uiTheme.colors.primary },
   kpiNote: { margin: '6px 0 0', fontSize: 11, color: uiTheme.colors.muted },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 360px', gap: 18, alignItems: 'start' },
-  card: { ...tableCardBase, borderRadius: 20, overflow: 'hidden' },
+   grid: { display: 'grid', gridTemplateColumns: '1fr 360px', gap: 18, alignItems: 'stretch' },
+   card: { ...tableCardBase, borderRadius: 20, overflow: 'visible', minHeight: 'calc(100vh - 360px)' },
   sideCard: { ...surfaceCard, borderRadius: 20, padding: 18 },
   cardHeader: { display: 'flex', justifyContent: 'space-between', padding: 20, borderBottom: `1px solid ${uiTheme.colors.border}` },
   cardHeaderCompact: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
@@ -471,9 +508,35 @@ const styles: Record<string, CSSProperties> = {
   avatar: { width: 34, height: 34, borderRadius: 999, display: 'grid', placeItems: 'center', background: uiTheme.colors.primary, color: '#fff', fontWeight: 700, fontSize: 12 },
   muted: { margin: '4px 0 0', color: uiTheme.colors.muted, fontSize: 11 },
   roleBadge: { padding: '5px 9px', borderRadius: 8, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary, fontSize: 11, fontWeight: 700 },
-  statusBadge: { fontWeight: 700, fontSize: 12 },
-  actionsInline: { display: 'inline-flex', gap: 8, justifyContent: 'flex-end' },
-  actionButton: { ...secondaryButtonBase, minHeight: 34, padding: '0 10px', borderRadius: 12, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' },
+  actionsWrap: { position: 'relative', display: 'inline-flex', justifyContent: 'flex-end' },
+  moreButton: { ...secondaryButtonBase, width: 34, height: 34, display: 'grid', placeItems: 'center', cursor: 'pointer' },
+  actionMenu: {
+    position: 'absolute',
+    top: 'calc(100% + 8px)',
+    right: 0,
+    zIndex: 5,
+    minWidth: 180,
+    display: 'grid',
+    gap: 4,
+    padding: 8,
+    borderRadius: 12,
+    border: `1px solid ${uiTheme.colors.border}`,
+    background: uiTheme.colors.surface,
+    boxShadow: '0 18px 38px rgba(15, 23, 42, 0.12)',
+  },
+  actionMenuItem: {
+    ...secondaryButtonBase,
+    width: '100%',
+    justifyContent: 'flex-start',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 40,
+    padding: '0 12px',
+    cursor: 'pointer',
+    background: 'transparent',
+    borderColor: 'transparent',
+  },
   smallButton: { ...secondaryButtonBase, minHeight: 32, padding: '0 10px', borderRadius: 12, fontSize: 12, cursor: 'pointer', width: 'fit-content' },
   dangerButton: { ...secondaryButtonBase, color: uiTheme.colors.danger, minHeight: 32, padding: '0 10px', borderRadius: 12, fontSize: 12, cursor: 'pointer' },
   inviteList: { display: 'grid', gap: 10 },

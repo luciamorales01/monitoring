@@ -27,7 +27,6 @@ import {
 } from "../../theme/commonStyles";
 import {
   BellIcon,
-  CalendarIcon,
   ChevronRightIcon,
   ClockIcon,
   GlobeIcon,
@@ -37,7 +36,6 @@ import {
   MapPinIcon,
   PhoneIcon,
   SearchIcon,
-  SettingsIcon,
   ShieldIcon,
 } from "../../shared/uiIcons";
 import { getCurrentUser, updateCurrentUser } from "../../shared/userApi";
@@ -332,14 +330,6 @@ export default function ProfilePage() {
             <div style={styles.heroLeft}>
               <div style={styles.avatarWrap}>
                 <div style={styles.avatar}>{getInitials(profile.name)}</div>
-                <button
-                  type="button"
-                  style={styles.avatarEditButton}
-                  aria-label="Editar avatar"
-                  className="profile-iconButton"
-                >
-                  <SettingsIcon size={14} />
-                </button>
               </div>
 
               <div style={styles.identityBlock}>
@@ -360,29 +350,8 @@ export default function ProfilePage() {
                     icon={<MailIcon size={15} />}
                     label={profile.email || "Email no disponible"}
                   />
-                  <MetaRow
-                    icon={<CalendarIcon size={15} />}
-                    label={`Miembro desde ${profile.memberSince}`}
-                  />
                 </div>
               </div>
-            </div>
-
-            <div style={styles.heroRight}>
-              <SummaryCard
-                icon={<ShieldIcon size={18} />}
-                title="Rol"
-                value={profile.role}
-                note={profile.roleDescription}
-                tone="success"
-              />
-              <SummaryCard
-                icon={<ClockIcon size={18} />}
-                title="Ultimo acceso"
-                value={profile.lastAccess}
-                note={profile.location}
-                tone="primary"
-              />
             </div>
           </section>
 
@@ -729,7 +698,6 @@ export default function ProfilePage() {
                       Datos clave del perfil y contexto local.
                     </p>
                   </div>
-                  <span style={styles.statusChip}>Live</span>
                 </div>
 
                 <div style={styles.summaryList}>
@@ -906,41 +874,6 @@ function SwitchRow({
   );
 }
 
-function SummaryCard({
-  icon,
-  title,
-  value,
-  note,
-  tone,
-}: {
-  icon: ReactNode;
-  title: string;
-  value: string;
-  note: string;
-  tone: "primary" | "success";
-}) {
-  const iconStyle =
-    tone === "success"
-      ? {
-          background: uiTheme.colors.successSoft,
-          color: uiTheme.colors.success,
-        }
-      : {
-          background: uiTheme.colors.primarySoft,
-          color: uiTheme.colors.primary,
-        };
-
-  return (
-    <div style={styles.summaryCard} className="profile-summaryCard">
-      <span style={{ ...styles.summaryIcon, ...iconStyle }}>{icon}</span>
-      <div>
-        <p style={styles.summaryTitle}>{title}</p>
-        <strong style={styles.summaryValue}>{value}</strong>
-        <p style={styles.summaryNote}>{note}</p>
-      </div>
-    </div>
-  );
-}
 
 function pickForm(profile: ProfileData): ProfileFormState {
   return {
@@ -1165,7 +1098,6 @@ const styles: Record<string, CSSProperties> = {
     alignContent: "center",
   },
   avatarWrap: {
-    position: "relative",
     width: 156,
     height: 156,
     flexShrink: 0,
@@ -1183,21 +1115,6 @@ const styles: Record<string, CSSProperties> = {
     fontWeight: 700,
     letterSpacing: "-0.03em",
     boxShadow: `inset 0 1px 0 ${uiTheme.colors.border}`,
-  },
-  avatarEditButton: {
-    ...secondaryButtonBase,
-    position: "absolute",
-    right: 8,
-    bottom: 8,
-    width: 42,
-    height: 42,
-    borderRadius: 999,
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    color: uiTheme.colors.primary,
-    background: uiTheme.colors.surface,
-    boxShadow: uiTheme.shadows.card,
   },
   identityBlock: {
     display: "grid",

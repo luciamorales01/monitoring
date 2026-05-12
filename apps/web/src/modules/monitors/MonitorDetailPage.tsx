@@ -18,11 +18,13 @@ import {
   type Monitor,
   type MonitorCheck,
   type MonitorStatus,
+  type UpdateMonitorInput,
 } from "../../shared/monitorApi";
 import {
   getMonitorStatusToast,
   type MonitorStatusToast,
 } from "../../shared/monitorStatusToast";
+import { useUpdateMonitorMutation } from "../../shared/monitorQueries";
 import { downloadReportExport, type ReportFormat, type ReportRange } from "../../shared/reportsApi";
 import { useCurrentUserPermissions } from "../../shared/permissions";
 import AppTopbar from "../../shared/AppTopbar";
@@ -30,11 +32,14 @@ import LoadingState from "../../shared/LoadingState";
 import {
   ActivityIcon,
   ClockIcon,
+  EditIcon,
   GlobeIcon,
+  MoreHorizontalIcon,
   PauseIcon,
   PlayIcon,
   PlusIcon,
 } from "../../shared/uiIcons";
+import MonitorEditModal from "./MonitorEditModal";
 
 type PeriodFilter = "1h" | "24h" | "7d" | "30d" | "all";
 
@@ -49,10 +54,15 @@ export default function MonitorDetailPage() {
   const [checking, setChecking] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [toast, setToast] = useState<MonitorStatusToast>(null);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [exportRange, setExportRange] = useState<ReportRange>("7d");
   const [exportingFormat, setExportingFormat] = useState<ReportFormat | null>(null);
 
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
+  const updateMonitorMutation = useUpdateMonitorMutation();
   const loadData = async () => {
     const [monitorData, checksData] = await Promise.all([
       getMonitor(monitorId),
@@ -96,9 +106,24 @@ export default function MonitorDetailPage() {
     return () => window.clearInterval(intervalId);
   }, [monitor?.frequencySeconds, monitor?.isActive, monitorId]);
 
+  useEffect(() => {
+    const closeMenu = () => setIsActionMenuOpen(false);
+
+    window.addEventListener("click", closeMenu);
+
+    return () => window.removeEventListener("click", closeMenu);
+  }, []);
+
+  useEffect(() => {
+    if (!canWriteActions) {
+      setIsActionMenuOpen(false);
+    }
+  }, [canWriteActions]);
+
   const handleRunCheck = async () => {
     try {
       setChecking(true);
+      setIsActionMenuOpen(false);
       await runMonitorCheck(monitorId);
 
       const { monitor: updatedMonitor } = await loadData();
@@ -114,6 +139,7 @@ export default function MonitorDetailPage() {
   const handleToggleActive = async () => {
     try {
       setToggling(true);
+      setIsActionMenuOpen(false);
       await toggleMonitorActive(monitorId);
       await loadData();
     } catch {
@@ -121,6 +147,43 @@ export default function MonitorDetailPage() {
       setTimeout(() => setToast(null), 2500);
     } finally {
       setToggling(false);
+    }
+  };
+
+  const handleOpenEdit = () => {
+    setIsActionMenuOpen(false);
+    setEditError(null);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEdit = () => {
+    if (isSavingEdit) {
+      return;
+    }
+
+    setIsEditModalOpen(false);
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async (data: UpdateMonitorInput) => {
+    if (!monitor) {
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      setEditError(null);
+      await updateMonitorMutation.mutateAsync({ id: monitor.id, data });
+      await loadData();
+      setIsEditModalOpen(false);
+      setToast({ text: "Monitor actualizado correctamente", type: "ok" });
+    } catch (error) {
+      setEditError(
+        error instanceof Error ? error.message : "No se pudo guardar el monitor.",
+      );
+    } finally {
+      setIsSavingEdit(false);
+      window.setTimeout(() => setToast(null), 2500);
     }
   };
 
@@ -302,43 +365,81 @@ export default function MonitorDetailPage() {
           </div>
 
           {canWriteActions ? (
-            <div style={styles.heroActions} className="monitor-detail-actions">
+            <div
+              style={styles.heroActions}
+              className="monitor-detail-actions"
+              onClick={(event) => event.stopPropagation()}
+            >
               <button
                 type="button"
-                style={styles.primaryButton}
-                className="monitor-detail-button monitor-detail-button-primary"
-                onClick={handleRunCheck}
-                disabled={checking}
+                style={styles.actionButton}
+                className="monitor-detail-button monitor-detail-button-menu"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setIsActionMenuOpen((current) => !current);
+                }}
+                aria-haspopup="menu"
+                aria-expanded={isActionMenuOpen}
+                aria-label="Acciones del monitor"
+                title="Acciones"
               >
-                {!checking && <ActivityIcon size={15} />}
-                {checking ? (
-                  <LoadingState variant="button" label="Comprobando monitor" />
-                ) : (
-                  "Comprobar ahora"
-                )}
+                <MoreHorizontalIcon size={18} />
               </button>
 
-              <button
-                type="button"
-                style={styles.secondaryButton}
-                className="monitor-detail-button monitor-detail-button-secondary"
-                onClick={handleToggleActive}
-                disabled={toggling}
-              >
-                {!toggling &&
-                  (monitor.isActive ? (
-                    <PauseIcon size={15} />
-                  ) : (
-                    <PlayIcon size={15} />
-                  ))}
-                {toggling ? (
-                  <LoadingState variant="button" label="Actualizando monitor" />
-                ) : monitor.isActive ? (
-                  "Pausar"
-                ) : (
-                  "Reanudar"
-                )}
-              </button>
+              {isActionMenuOpen ? (
+                <div
+                  style={styles.actionMenu}
+                  className="monitor-detail-action-menu"
+                  role="menu"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    style={styles.actionMenuItem}
+                    onClick={() => void handleRunCheck()}
+                    disabled={checking}
+                  >
+                    {checking ? (
+                      <LoadingState variant="button" label="Comprobando monitor" />
+                    ) : (
+                      <>
+                        <ActivityIcon size={15} />
+                        Comprobar ahora
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    style={styles.actionMenuItem}
+                    onClick={() => void handleToggleActive()}
+                    disabled={toggling}
+                  >
+                    {toggling ? (
+                      <LoadingState variant="button" label="Actualizando monitor" />
+                    ) : monitor.isActive ? (
+                      <>
+                        <PauseIcon size={15} />
+                        Pausar monitor
+                      </>
+                    ) : (
+                      <>
+                        <PlayIcon size={15} />
+                        Reanudar monitor
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    style={styles.actionMenuItem}
+                    onClick={handleOpenEdit}
+                  >
+                    <EditIcon size={15} />
+                    Editar monitor
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -588,44 +689,6 @@ export default function MonitorDetailPage() {
                 </div>
               ))}
             </div>
-
-            <div style={styles.card} className="monitor-detail-surface monitor-detail-card">
-              <div style={styles.cardHeader}>
-                <div>
-                  <h2 style={styles.cardTitle}>Timeline</h2>
-                  <p style={styles.cardSubtitle}>
-                    Últimos eventos técnicos registrados.
-                  </p>
-                </div>
-              </div>
-
-              <div style={styles.timeline}>
-                {latestChecks.map((check) => (
-                  <div key={check.id} style={styles.timelineItem} className="monitor-detail-timeline-item">
-                    <div style={styles.timelineMarkerWrap}>
-                      <StatusDot status={check.status} />
-                    </div>
-
-                    <div>
-                      <strong style={styles.timelineTitle}>
-                        {getStatusLabel(check.status)} ·{" "}
-                        {formatDuration(check.responseTimeMs)}
-                      </strong>
-
-                      <p style={styles.timelineMeta}>
-                        {formatDateTime(check.checkedAt)}
-                      </p>
-
-                      {check.errorMessage ? (
-                        <p style={styles.timelineError}>
-                          {check.errorMessage}
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </section>
         </>
       )}
@@ -640,6 +703,15 @@ export default function MonitorDetailPage() {
           {toast.text}
         </div>
       )}
+
+      <MonitorEditModal
+        isOpen={isEditModalOpen}
+        monitor={monitor}
+        isSubmitting={isSavingEdit}
+        error={editError}
+        onClose={handleCloseEdit}
+        onSubmit={handleSaveEdit}
+      />
     </main>
   );
 }
@@ -1190,6 +1262,9 @@ const styles: Record<string, CSSProperties> = {
     marginBottom: 18,
     border: `1px solid ${uiTheme.colors.border}`,
     boxShadow: "0 16px 40px rgba(15, 23, 42, 0.06)",
+    position: "relative",
+    overflow: "visible",
+    zIndex: 3,
   },
 
   heroLeft: {
@@ -1266,9 +1341,53 @@ const styles: Record<string, CSSProperties> = {
   },
 
   heroActions: {
-    display: "flex",
-    gap: 10,
+    position: "relative",
+    display: "inline-flex",
     alignItems: "center",
+    zIndex: 4,
+  },
+
+  actionButton: {
+    ...secondaryButtonBase,
+    width: 42,
+    height: 42,
+    padding: 0,
+    borderRadius: 13,
+    cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
+    fontWeight: 700,
+  },
+
+  actionMenu: {
+    position: "absolute",
+    top: "calc(100% + 10px)",
+    right: 0,
+    zIndex: 50,
+    minWidth: 232,
+    display: "grid",
+    gap: 6,
+    padding: 8,
+    borderRadius: 18,
+    border: `1px solid ${uiTheme.colors.border}`,
+    background: uiTheme.colors.surface,
+    boxShadow: "0 22px 48px rgba(15, 23, 42, 0.16)",
+  },
+
+  actionMenuItem: {
+    ...secondaryButtonBase,
+    width: "100%",
+    justifyContent: "flex-start",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 42,
+    padding: "0 14px",
+    cursor: "pointer",
+    borderRadius: 14,
+    background: "transparent",
+    borderColor: "transparent",
+    fontWeight: 700,
   },
 
   primaryButton: {
@@ -1438,9 +1557,10 @@ const styles: Record<string, CSSProperties> = {
 
   bottomGrid: {
     display: "grid",
-    gridTemplateColumns: "1.25fr 1fr",
+    gridTemplateColumns: "1fr",
     gap: 14,
     marginTop: 14,
+    alignItems: "start",
   },
 
   cardLarge: {
