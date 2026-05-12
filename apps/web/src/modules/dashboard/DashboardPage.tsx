@@ -13,11 +13,9 @@ import {
   secondaryButtonBase,
   surfaceCard,
   tableCardBase,
-  toneStyles,
   uiTheme,
 } from "../../theme/commonStyles";
 import AppTopbar from "../../shared/AppTopbar";
-import LoadingState from "../../shared/LoadingState";
 import type { Monitor } from "../../shared/monitorApi";
 import {
   useAllMonitorsQuery,
@@ -41,12 +39,12 @@ import {
   AlertTriangleIcon,
   CheckCircleIcon,
   ClockIcon,
-  GlobeIcon,
   MonitorIcon,
-  MoreHorizontalIcon,
   PauseIcon,
   PlusIcon,
 } from "../../shared/uiIcons";
+import MonitorTable from "../monitors/MonitorTable";
+import type { ActionMenuItem } from "../../shared/ui";
 
 const dashboardFilterDefaults = {
   search: "",
@@ -64,8 +62,6 @@ const EMPTY_MONITORS: Monitor[] = [];
 export default function DashboardPage() {
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
-  const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
-  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
   const [toast, setToast] = useState<{
     text: string;
     type: "ok" | "error";
@@ -167,6 +163,38 @@ export default function DashboardPage() {
       response: `${responseMs} ms`,
     };
   }, [summary]);
+
+  const buildMonitorActions = (monitor: Monitor): ActionMenuItem[] => [
+    {
+      id: "detail",
+      icon: <MonitorIcon size={14} />,
+      label: "Ver detalle",
+      onSelect: () => navigate(`/monitors/${monitor.id}`),
+    },
+    {
+      id: "run-check",
+      icon: <ActivityIcon size={14} />,
+      label: checkingId === monitor.id ? "Comprobando..." : "Comprobar ahora",
+      disabled: checkingId === monitor.id,
+      onSelect: () => void handleRunCheck(monitor.id),
+    },
+    {
+      id: "toggle",
+      icon: monitor.isActive ? (
+        <PauseIcon size={14} />
+      ) : (
+        <CheckCircleIcon size={14} />
+      ),
+      label:
+        togglingId === monitor.id
+          ? "Actualizando..."
+          : monitor.isActive
+            ? "Pausar"
+            : "Reanudar",
+      disabled: togglingId === monitor.id,
+      onSelect: () => void handleToggleActive(monitor.id),
+    },
+  ];
 
   return (
     <main style={styles.main}>
@@ -369,228 +397,25 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {loading ? (
-            <LoadingState variant="table" label="Cargando monitores" rows={6} />
-          ) : filteredMonitors.length === 0 ? (
-            <p style={styles.empty}>
-              No hay monitores que coincidan con los filtros.
-            </p>
-          ) : (
-            <>
-              <table style={styles.table}>
-                <colgroup>
-                  <col style={{ width: "32%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "10%" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Web</th>
-                    <th style={styles.th}>Estado</th>
-                    <th style={styles.th}>Uptime</th>
-                    <th style={styles.th}>Tipo</th>
-                    <th style={styles.th}>Última comprobación</th>
-                    {canWriteActions ? (
-                      <th style={styles.th}>Acciones</th>
-                    ) : null}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {pageItems.map((monitor) => {
-                    const viewStatus = getMonitorViewStatus(monitor);
-
-                    return (
-                      <tr
-                        key={monitor.id}
-                        style={{
-                          ...styles.tr,
-                          ...(hoveredMonitorId === monitor.id
-                            ? styles.trHover
-                            : {}),
-                        }}
-                        onClick={() => navigate(`/monitors/${monitor.id}`)}
-                        onMouseEnter={() => setHoveredMonitorId(monitor.id)}
-                        onMouseLeave={() => setHoveredMonitorId(null)}
-                      >
-                        <td style={styles.td}>
-                          <div style={styles.webCell}>
-                            <span style={styles.webIcon}>
-                              <GlobeIcon size={18} />
-                            </span>
-                            <div>
-                              <strong>{monitor.name}</strong>
-                              <div style={styles.url}>{monitor.target}</div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td style={styles.td}>
-                          <StatusBadge
-                            status={monitor.currentStatus ?? "UNKNOWN"}
-                          />
-                        </td>
-
-                        <td style={styles.td}>
-                          {viewStatus === "UP"
-                            ? "99.9%"
-                            : viewStatus === "DOWN"
-                              ? "94.1%"
-                              : "-"}
-                        </td>
-
-                        <td style={styles.td}>{monitor.type}</td>
-                        <td style={styles.td}>Hace 1 min</td>
-
-                        {canWriteActions ? (
-                          <td style={styles.td}>
-                            <div style={styles.actionMenuWrap}>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setOpenActionMenuId((currentId) =>
-                                    currentId === monitor.id
-                                      ? null
-                                      : monitor.id,
-                                  );
-                                }}
-                                aria-label={`Abrir acciones de ${monitor.name}`}
-                                aria-expanded={openActionMenuId === monitor.id}
-                                style={{
-                                  ...styles.iconActionButton,
-                                  ...(openActionMenuId === monitor.id
-                                    ? styles.iconActionButtonActive
-                                    : {}),
-                                }}
-                              >
-                                <MoreHorizontalIcon size={16} />
-                              </button>
-
-                              {openActionMenuId === monitor.id ? (
-                                <div
-                                  style={styles.actionMenu}
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <button
-                                    type="button"
-                                    style={styles.actionMenuItem}
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      navigate(`/monitors/${monitor.id}`);
-                                    }}
-                                  >
-                                    <GlobeIcon size={14} />
-                                    Ver detalle
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={checkingId === monitor.id}
-                                    style={{
-                                      ...styles.actionMenuItem,
-                                      ...(checkingId === monitor.id
-                                        ? styles.actionMenuItemDisabled
-                                        : {}),
-                                    }}
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      void handleRunCheck(monitor.id);
-                                    }}
-                                  >
-                                    <ActivityIcon size={14} />
-                                    {checkingId === monitor.id
-                                      ? "Comprobando..."
-                                      : "Comprobar ahora"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={togglingId === monitor.id}
-                                    style={{
-                                      ...styles.actionMenuItem,
-                                      ...(togglingId === monitor.id
-                                        ? styles.actionMenuItemDisabled
-                                        : {}),
-                                    }}
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      void handleToggleActive(monitor.id);
-                                    }}
-                                  >
-                                    {monitor.isActive ? (
-                                      <PauseIcon size={14} />
-                                    ) : (
-                                      <CheckCircleIcon size={14} />
-                                    )}
-                                    {togglingId === monitor.id
-                                      ? "Actualizando..."
-                                      : monitor.isActive
-                                        ? "Pausar"
-                                        : "Reanudar"}
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
-                          </td>
-                        ) : null}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              <div style={styles.pagination}>
-                <span>
-                  Mostrando {rangeStart} a {rangeEnd} de{" "}
-                  {filteredMonitors.length} monitores
-                </span>
-
-                <div style={styles.pages}>
-                  <button
-                    type="button"
-                    style={styles.pageArrow}
-                    onClick={() => setPage(page - 1)}
-                    disabled={!hasPreviousPage}
-                    aria-label="Página anterior"
-                  >
-                    ‹
-                  </button>
-
-                  {Array.from(
-                    { length: totalPages },
-                    (_, index) => index + 1,
-                  ).map((pageNumber) => (
-                    <button
-                      key={pageNumber}
-                      type="button"
-                      style={
-                        pageNumber === page
-                          ? styles.pageActiveButton
-                          : styles.pageNumberButton
-                      }
-                      onClick={() => setPage(pageNumber)}
-                    >
-                      {pageNumber}
-                    </button>
-                  ))}
-
-                  <button
-                    type="button"
-                    style={styles.pageArrow}
-                    onClick={() => setPage(page + 1)}
-                    disabled={!hasNextPage}
-                    aria-label="Página siguiente"
-                  >
-                    ›
-                  </button>
-                </div>
-
-                <span style={styles.selectFake}>10 por página</span>
-              </div>
-            </>
-          )}
+          <MonitorTable
+            emptyLabel="No hay monitores que coincidan con los filtros."
+            getActions={canWriteActions ? buildMonitorActions : undefined}
+            loading={loading}
+            monitors={pageItems}
+            onRowClick={(monitor) => navigate(`/monitors/${monitor.id}`)}
+            pagination={{
+              hasNextPage,
+              hasPreviousPage,
+              onPageChange: setPage,
+              page,
+              rangeEnd,
+              rangeStart,
+              totalItems: filteredMonitors.length,
+              totalPages,
+            }}
+            showActions={canWriteActions}
+            showType
+          />
         </div>
       </section>
 
@@ -656,32 +481,6 @@ function KpiCard({
         <p style={styles.kpiNote}>{note}</p>
       </div>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const isUp = status === "UP";
-  const isDown = status === "DOWN";
-
-  return (
-    <span
-      style={{
-        ...styles.badge,
-        background: isUp
-          ? toneStyles.green.background
-          : isDown
-            ? toneStyles.red.background
-            : toneStyles.slate.background,
-        color: isUp
-          ? toneStyles.green.color
-          : isDown
-            ? toneStyles.red.color
-            : toneStyles.slate.color,
-      }}
-    >
-      <span style={styles.badgeDot} />
-      {isUp ? "Operativo" : isDown ? "Problema" : "Pendiente"}
-    </span>
   );
 }
 
