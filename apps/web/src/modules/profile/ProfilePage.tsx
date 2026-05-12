@@ -1148,8 +1148,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 22,
     padding: 28,
     borderRadius: 24,
-    background:
-      "linear-gradient(180deg, rgba(255,255,255,0.82), rgba(248,250,252,0.94))",
+    background: "var(--surface-card)",
     position: "relative",
     overflow: "hidden",
   },
@@ -1177,14 +1176,13 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 999,
     display: "grid",
     placeItems: "center",
-    background:
-      "linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(239,246,255,0.95) 100%)",
+    background: "linear-gradient(145deg, var(--surface) 0%, var(--surface-soft) 100%)",
     border: `1px solid ${uiTheme.colors.border}`,
     color: uiTheme.colors.primary,
     fontSize: 54,
     fontWeight: 700,
     letterSpacing: "-0.03em",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
+    boxShadow: `inset 0 1px 0 ${uiTheme.colors.border}`,
   },
   avatarEditButton: {
     ...secondaryButtonBase,
@@ -1242,7 +1240,7 @@ const styles: Record<string, CSSProperties> = {
     background: uiTheme.colors.primarySoft,
     color: uiTheme.colors.primary,
     border: `1px solid rgba(37, 99, 235, 0.1)`,
-    boxShadow: "0 1px 0 rgba(255,255,255,0.6) inset",
+    boxShadow: `inset 0 1px 0 ${uiTheme.colors.border}`,
   },
   identityMeta: {
     display: "grid",
@@ -1309,7 +1307,7 @@ const styles: Record<string, CSSProperties> = {
     padding: 6,
     borderRadius: 18,
     border: `1px solid ${uiTheme.colors.border}`,
-    background: "rgba(255,255,255,0.72)",
+    background: "var(--control-bg)",
     boxShadow: "0 10px 24px rgba(15, 23, 42, 0.04)",
     width: "fit-content",
     maxWidth: "100%",
@@ -1353,7 +1351,7 @@ const styles: Record<string, CSSProperties> = {
     ...surfaceCard,
     padding: 26,
     borderRadius: 24,
-    background: "rgba(255,255,255,0.86)",
+    background: "var(--surface-card)",
   },
   cardHeader: {
     display: "flex",
@@ -1498,7 +1496,7 @@ const styles: Record<string, CSSProperties> = {
     ...surfaceCard,
     padding: 22,
     borderRadius: 24,
-    background: "rgba(255,255,255,0.86)",
+    background: "var(--surface-card)",
   },
   sideHeader: {
     display: "flex",

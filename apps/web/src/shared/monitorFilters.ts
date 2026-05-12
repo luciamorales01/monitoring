@@ -4,7 +4,7 @@ import { matchesSearchTerm, normalizeSearchTerm } from "./filterUtils";
 export type MonitorViewStatus = "UP" | "DOWN" | "PAUSED" | "UNKNOWN";
 export type MonitorStatusFilter = "ALL" | MonitorViewStatus;
 export type MonitorTypeFilter = "ALL" | MonitorType;
-export type MonitorSortOption = "status" | "name" | "latest-check";
+export type MonitorSortOption = "status" | "name" | "latest-check" | "created-at";
 
 export type MonitorListFilters = {
   search: string;
@@ -25,6 +25,7 @@ type MonitorSortableFields = {
   currentStatus?: MonitorSortStatus | null;
   status?: MonitorSortStatus | null;
   isActive?: boolean | null;
+  createdAt?: string | null;
   lastCheckAt?: string | null;
   lastCheckedAt?: string | null;
   checkedAt?: string | null;
@@ -33,6 +34,7 @@ type MonitorSortableFields = {
 
 type MonitorSortAccessors<TItem> = {
   getId?: (item: TItem) => number | string | null | undefined;
+  getCreatedAt?: (item: TItem) => string | null | undefined;
   getLastCheckAt?: (item: TItem) => string | null | undefined;
   getName?: (item: TItem) => string | null | undefined;
   getStatus?: (item: TItem) => MonitorSortStatus | null | undefined;
@@ -115,6 +117,21 @@ function getMonitorSortTimestamp<TItem>(
   return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
 }
 
+function getMonitorCreatedTimestamp<TItem>(
+  item: TItem,
+  accessors: MonitorSortAccessors<TItem>,
+) {
+  const fields = getSortableFields(item);
+  const dateValue = accessors.getCreatedAt?.(item) ?? fields.createdAt;
+
+  if (!dateValue) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const timestamp = new Date(dateValue).getTime();
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
+
 function getMonitorSortName<TItem>(
   item: TItem,
   accessors: MonitorSortAccessors<TItem>,
@@ -182,6 +199,19 @@ export function sortMonitors<TItem>(
     if (sortBy === "latest-check") {
       const firstTimestamp = getMonitorSortTimestamp(firstItem, accessors);
       const secondTimestamp = getMonitorSortTimestamp(secondItem, accessors);
+
+      if (firstTimestamp !== secondTimestamp) {
+        return secondTimestamp - firstTimestamp;
+      }
+
+      return getMonitorSortName(firstItem, accessors).localeCompare(
+        getMonitorSortName(secondItem, accessors),
+      );
+    }
+
+    if (sortBy === "created-at") {
+      const firstTimestamp = getMonitorCreatedTimestamp(firstItem, accessors);
+      const secondTimestamp = getMonitorCreatedTimestamp(secondItem, accessors);
 
       if (firstTimestamp !== secondTimestamp) {
         return secondTimestamp - firstTimestamp;

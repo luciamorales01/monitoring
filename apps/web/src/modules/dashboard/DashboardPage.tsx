@@ -1,90 +1,45 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   controlBase,
-  filterGroupBase,
-  inputBase,
   kpiCardBase,
-  pageActiveButtonBase,
-  pageArrowBase,
   pageMain,
-  paginationBase,
-  selectFakeBase,
   secondaryButtonBase,
   surfaceCard,
-  tableCardBase,
   toneStyles,
   uiTheme,
 } from "../../theme/commonStyles";
 import AppTopbar from "../../shared/AppTopbar";
-import LoadingState from "../../shared/LoadingState";
 import type { Monitor } from "../../shared/monitorApi";
 import {
   useAllMonitorsQuery,
   useDashboardSummaryQuery,
-  useRunMonitorCheckMutation,
-  useToggleMonitorActiveMutation,
 } from "../../shared/monitorQueries";
-import {
-  filterMonitors,
-  getMonitorViewStatus,
-  sortMonitors,
-  type MonitorSortOption,
-  type MonitorStatusFilter,
-} from "../../shared/monitorFilters";
-import { getMonitorStatusToast } from "../../shared/monitorStatusToast";
-import { useLocalPagination } from "../../shared/useLocalPagination";
-import { useUrlFilterState } from "../../shared/useUrlFilterState";
+import { getMonitorViewStatus } from "../../shared/monitorFilters";
 import { useCurrentUserPermissions } from "../../shared/permissions";
 import {
   ActivityIcon,
   AlertTriangleIcon,
   CheckCircleIcon,
   ClockIcon,
-  GlobeIcon,
   MonitorIcon,
-  MoreHorizontalIcon,
-  PauseIcon,
   PlusIcon,
 } from "../../shared/uiIcons";
-
-const dashboardFilterDefaults = {
-  search: "",
-  sort: "name",
-  status: "ALL",
-};
-
-const dashboardAllowedValues = {
-  sort: ["status", "name", "latest-check"],
-  status: ["ALL", "UP", "DOWN", "PAUSED", "UNKNOWN"],
-} as const;
+import MonitorListCard from "../monitors/MonitorListCard";
 
 const EMPTY_MONITORS: Monitor[] = [];
 
 export default function DashboardPage() {
-  const [checkingId, setCheckingId] = useState<number | null>(null);
-  const [togglingId, setTogglingId] = useState<number | null>(null);
-  const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
-  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
-  const [toast, setToast] = useState<{
-    text: string;
-    type: "ok" | "error";
-  } | null>(null);
-
   const navigate = useNavigate();
   const { canWrite: canWriteActions } = useCurrentUserPermissions();
-  const { filters, setFilter } = useUrlFilterState(
-    dashboardFilterDefaults,
-    dashboardAllowedValues,
-  );
-
   const monitorsQuery = useAllMonitorsQuery({ adaptiveRefetchInterval: true });
   const summaryQuery = useDashboardSummaryQuery();
-  const runCheckMutation = useRunMonitorCheckMutation();
-  const toggleActiveMutation = useToggleMonitorActiveMutation();
   const monitors = monitorsQuery.data ?? EMPTY_MONITORS;
   const summary = summaryQuery.data ?? null;
   const loading = monitorsQuery.isPending || summaryQuery.isPending;
+  const listError = monitorsQuery.isError
+    ? "No se pudieron cargar los monitores del dashboard."
+    : null;
 
   const refreshMonitors = async () => {
     const [monitorsResult] = await Promise.all([
@@ -94,63 +49,6 @@ export default function DashboardPage() {
 
     return monitorsResult.data ?? [];
   };
-
-  const handleRunCheck = async (id: number) => {
-    try {
-      setCheckingId(id);
-      await runCheckMutation.mutateAsync(id);
-
-      const updatedMonitors = await refreshMonitors();
-      const updatedMonitor = updatedMonitors.find(
-        (monitor) => monitor.id === id,
-      );
-
-      setToast(getMonitorStatusToast(updatedMonitor?.currentStatus));
-    } catch {
-      setToast({ text: "Error al comprobar", type: "error" });
-    } finally {
-      setCheckingId(null);
-      setTimeout(() => setToast(null), 2500);
-    }
-  };
-
-  const handleToggleActive = async (id: number) => {
-    try {
-      setTogglingId(id);
-      await toggleActiveMutation.mutateAsync(id);
-      await refreshMonitors();
-    } catch {
-      setToast({ text: "Error al actualizar", type: "error" });
-      setTimeout(() => setToast(null), 2500);
-    } finally {
-      setTogglingId(null);
-    }
-  };
-
-  const filteredMonitors = useMemo(() => {
-    return sortMonitors(
-      filterMonitors(monitors, {
-        search: filters.search,
-        status: filters.status as MonitorStatusFilter,
-        type: "ALL",
-      }),
-      filters.sort as MonitorSortOption,
-    );
-  }, [filters.search, filters.sort, filters.status, monitors]);
-
-  const {
-    page,
-    setPage,
-    pageItems,
-    totalPages,
-    rangeStart,
-    rangeEnd,
-    hasPreviousPage,
-    hasNextPage,
-  } = useLocalPagination(filteredMonitors, {
-    pageSize: 10,
-    resetKey: `${filters.search}|${filters.status}|${filters.sort}|${filteredMonitors.length}`,
-  });
 
   const stats = useMemo(() => {
     const total = summary?.totalMonitors ?? 0;
@@ -167,6 +65,11 @@ export default function DashboardPage() {
       response: `${responseMs} ms`,
     };
   }, [summary]);
+
+  const downMonitors = useMemo(
+    () => monitors.filter((monitor) => getMonitorViewStatus(monitor) === "DOWN").slice(0, 3),
+    [monitors],
+  );
 
   return (
     <main style={styles.main}>
@@ -253,38 +156,17 @@ export default function DashboardPage() {
                 rx="16"
                 fill={uiTheme.colors.surface}
               />
-              <line
-                x1="0"
-                y1="25"
-                x2="720"
-                y2="25"
-                stroke={uiTheme.colors.borderStrong}
-                strokeDasharray="4 6"
-              />
-              <line
-                x1="0"
-                y1="70"
-                x2="720"
-                y2="70"
-                stroke={uiTheme.colors.borderStrong}
-                strokeDasharray="4 6"
-              />
-              <line
-                x1="0"
-                y1="115"
-                x2="720"
-                y2="115"
-                stroke={uiTheme.colors.borderStrong}
-                strokeDasharray="4 6"
-              />
-              <line
-                x1="0"
-                y1="160"
-                x2="720"
-                y2="160"
-                stroke={uiTheme.colors.borderStrong}
-                strokeDasharray="4 6"
-              />
+              {[25, 70, 115, 160].map((y) => (
+                <line
+                  key={y}
+                  x1="0"
+                  y1={y}
+                  x2="720"
+                  y2={y}
+                  stroke={uiTheme.colors.borderStrong}
+                  strokeDasharray="4 6"
+                />
+              ))}
               <path
                 d="M0 68 C45 62, 70 72, 110 60 C160 45, 230 60, 285 54 C335 48, 390 60, 430 95 C455 125, 485 70, 535 54 C590 40, 640 55, 680 60 C700 62, 690 118, 720 82"
                 fill="none"
@@ -306,312 +188,37 @@ export default function DashboardPage() {
             <span style={styles.linkFake}>Ver todas</span>
           </div>
 
-          {stats.alerts === 0 ? (
+          {downMonitors.length === 0 ? (
             <p style={styles.empty}>No hay alertas activas.</p>
           ) : (
-            monitors
-              .filter((monitor) => getMonitorViewStatus(monitor) === "DOWN")
-              .slice(0, 3)
-              .map((monitor) => (
-                <AlertRow
-                  key={monitor.id}
-                  title={monitor.name}
-                  text={monitor.target}
-                  tone="red"
-                  meta="Ahora"
-                  onClick={() => navigate(`/monitors/${monitor.id}`)}
-                />
-              ))
-          )}
-        </div>
-      </section>
-
-      <section style={styles.bottomGrid}>
-        <div style={styles.tableCard}>
-          <div style={styles.tableTop}>
-            <h2 style={styles.cardTitle}>Todas las webs monitorizadas</h2>
-
-            <div style={styles.tableControls}>
-              <input
-                style={styles.search}
-                placeholder="Buscar web..."
-                value={filters.search}
-                onChange={(event) => setFilter("search", event.target.value)}
+            downMonitors.map((monitor) => (
+              <AlertRow
+                key={monitor.id}
+                title={monitor.name}
+                text={monitor.target}
+                tone="red"
+                meta="Ahora"
+                onClick={() => navigate(`/monitors/${monitor.id}`)}
               />
-
-              <label style={styles.filterGroup}>
-                <span>Estado</span>
-                <select
-                  style={styles.selectInput}
-                  value={filters.status}
-                  onChange={(event) => setFilter("status", event.target.value)}
-                >
-                  <option value="ALL">Todos</option>
-                  <option value="UP">Operativos</option>
-                  <option value="DOWN">Caídos</option>
-                  <option value="PAUSED">Pausados</option>
-                  <option value="UNKNOWN">Pendientes</option>
-                </select>
-              </label>
-
-              <label style={styles.filterGroup}>
-                <span>Ordenar</span>
-                <select
-                  style={styles.selectInput}
-                  value={filters.sort}
-                  onChange={(event) => setFilter("sort", event.target.value)}
-                >
-                  <option value="status">Estado</option>
-                  <option value="name">Nombre</option>
-                  <option value="latest-check">Último check</option>
-                </select>
-              </label>
-            </div>
-          </div>
-
-          {loading ? (
-            <LoadingState variant="table" label="Cargando monitores" rows={6} />
-          ) : filteredMonitors.length === 0 ? (
-            <p style={styles.empty}>
-              No hay monitores que coincidan con los filtros.
-            </p>
-          ) : (
-            <>
-              <table style={styles.table}>
-                <colgroup>
-                  <col style={{ width: "32%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "10%" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Web</th>
-                    <th style={styles.th}>Estado</th>
-                    <th style={styles.th}>Uptime</th>
-                    <th style={styles.th}>Tipo</th>
-                    <th style={styles.th}>Última comprobación</th>
-                    {canWriteActions ? (
-                      <th style={styles.th}>Acciones</th>
-                    ) : null}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {pageItems.map((monitor) => {
-                    const viewStatus = getMonitorViewStatus(monitor);
-
-                    return (
-                      <tr
-                        key={monitor.id}
-                        style={{
-                          ...styles.tr,
-                          ...(hoveredMonitorId === monitor.id
-                            ? styles.trHover
-                            : {}),
-                        }}
-                        onClick={() => navigate(`/monitors/${monitor.id}`)}
-                        onMouseEnter={() => setHoveredMonitorId(monitor.id)}
-                        onMouseLeave={() => setHoveredMonitorId(null)}
-                      >
-                        <td style={styles.td}>
-                          <div style={styles.webCell}>
-                            <span style={styles.webIcon}>
-                              <GlobeIcon size={18} />
-                            </span>
-                            <div>
-                              <strong>{monitor.name}</strong>
-                              <div style={styles.url}>{monitor.target}</div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td style={styles.td}>
-                          <StatusBadge
-                            status={monitor.currentStatus ?? "UNKNOWN"}
-                          />
-                        </td>
-
-                        <td style={styles.td}>
-                          {viewStatus === "UP"
-                            ? "99.9%"
-                            : viewStatus === "DOWN"
-                              ? "94.1%"
-                              : "-"}
-                        </td>
-
-                        <td style={styles.td}>{monitor.type}</td>
-                        <td style={styles.td}>Hace 1 min</td>
-
-                        {canWriteActions ? (
-                          <td style={styles.td}>
-                            <div style={styles.actionMenuWrap}>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setOpenActionMenuId((currentId) =>
-                                    currentId === monitor.id
-                                      ? null
-                                      : monitor.id,
-                                  );
-                                }}
-                                aria-label={`Abrir acciones de ${monitor.name}`}
-                                aria-expanded={openActionMenuId === monitor.id}
-                                style={{
-                                  ...styles.iconActionButton,
-                                  ...(openActionMenuId === monitor.id
-                                    ? styles.iconActionButtonActive
-                                    : {}),
-                                }}
-                              >
-                                <MoreHorizontalIcon size={16} />
-                              </button>
-
-                              {openActionMenuId === monitor.id ? (
-                                <div
-                                  style={styles.actionMenu}
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  <button
-                                    type="button"
-                                    style={styles.actionMenuItem}
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      navigate(`/monitors/${monitor.id}`);
-                                    }}
-                                  >
-                                    <GlobeIcon size={14} />
-                                    Ver detalle
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={checkingId === monitor.id}
-                                    style={{
-                                      ...styles.actionMenuItem,
-                                      ...(checkingId === monitor.id
-                                        ? styles.actionMenuItemDisabled
-                                        : {}),
-                                    }}
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      void handleRunCheck(monitor.id);
-                                    }}
-                                  >
-                                    <ActivityIcon size={14} />
-                                    {checkingId === monitor.id
-                                      ? "Comprobando..."
-                                      : "Comprobar ahora"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={togglingId === monitor.id}
-                                    style={{
-                                      ...styles.actionMenuItem,
-                                      ...(togglingId === monitor.id
-                                        ? styles.actionMenuItemDisabled
-                                        : {}),
-                                    }}
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      void handleToggleActive(monitor.id);
-                                    }}
-                                  >
-                                    {monitor.isActive ? (
-                                      <PauseIcon size={14} />
-                                    ) : (
-                                      <CheckCircleIcon size={14} />
-                                    )}
-                                    {togglingId === monitor.id
-                                      ? "Actualizando..."
-                                      : monitor.isActive
-                                        ? "Pausar"
-                                        : "Reanudar"}
-                                  </button>
-                                </div>
-                              ) : null}
-                            </div>
-                          </td>
-                        ) : null}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              <div style={styles.pagination}>
-                <span>
-                  Mostrando {rangeStart} a {rangeEnd} de{" "}
-                  {filteredMonitors.length} monitores
-                </span>
-
-                <div style={styles.pages}>
-                  <button
-                    type="button"
-                    style={styles.pageArrow}
-                    onClick={() => setPage(page - 1)}
-                    disabled={!hasPreviousPage}
-                    aria-label="Página anterior"
-                  >
-                    ‹
-                  </button>
-
-                  {Array.from(
-                    { length: totalPages },
-                    (_, index) => index + 1,
-                  ).map((pageNumber) => (
-                    <button
-                      key={pageNumber}
-                      type="button"
-                      style={
-                        pageNumber === page
-                          ? styles.pageActiveButton
-                          : styles.pageNumberButton
-                      }
-                      onClick={() => setPage(pageNumber)}
-                    >
-                      {pageNumber}
-                    </button>
-                  ))}
-
-                  <button
-                    type="button"
-                    style={styles.pageArrow}
-                    onClick={() => setPage(page + 1)}
-                    disabled={!hasNextPage}
-                    aria-label="Página siguiente"
-                  >
-                    ›
-                  </button>
-                </div>
-
-                <span style={styles.selectFake}>10 por página</span>
-              </div>
-            </>
+            ))
           )}
         </div>
       </section>
 
-      {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            padding: "12px 16px",
-            borderRadius: 8,
-            color: "#fff",
-            fontWeight: 600,
-            background: toast.type === "ok" ? "#16a34a" : "#dc2626",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-            zIndex: 999,
-          }}
-        >
-          {toast.text}
+      <section style={styles.listSection}>
+        <div style={styles.cardHeader}>
+          <h2 style={styles.cardTitle}>Todas las webs monitorizadas</h2>
         </div>
-      )}
+        <MonitorListCard
+          monitors={monitors}
+          loading={loading}
+          error={listError}
+          loadingLabel="Cargando monitores del dashboard"
+          emptyStateMessage="No hay monitores disponibles en el dashboard."
+          emptyFilteredMessage="No hay monitores del dashboard que coincidan con los filtros."
+          onRefresh={refreshMonitors}
+        />
+      </section>
     </main>
   );
 }
@@ -623,7 +230,7 @@ function KpiCard({
   note,
   tone,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   value: string | number;
   note: string;
@@ -650,411 +257,182 @@ function KpiCard({
 
       <div>
         <p style={styles.kpiTitle}>{title}</p>
-        <strong style={{ ...styles.kpiValue, color: colors[tone] }}>
-          {value}
-        </strong>
+        <strong style={{ ...styles.kpiValue, color: colors[tone] }}>{value}</strong>
         <p style={styles.kpiNote}>{note}</p>
       </div>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const isUp = status === "UP";
-  const isDown = status === "DOWN";
-
-  return (
-    <span
-      style={{
-        ...styles.badge,
-        background: isUp
-          ? toneStyles.green.background
-          : isDown
-            ? toneStyles.red.background
-            : toneStyles.slate.background,
-        color: isUp
-          ? toneStyles.green.color
-          : isDown
-            ? toneStyles.red.color
-            : toneStyles.slate.color,
-      }}
-    >
-      <span style={styles.badgeDot} />
-      {isUp ? "Operativo" : isDown ? "Problema" : "Pendiente"}
-    </span>
-  );
-}
-
 function AlertRow({
-  title,
-  text,
-  tone,
   meta,
   onClick,
+  text,
+  title,
+  tone,
 }: {
-  title: string;
-  text: string;
-  tone: "red" | "orange" | "blue";
   meta: string;
-  onClick?: () => void;
+  onClick: () => void;
+  text: string;
+  title: string;
+  tone: "red" | "blue";
 }) {
-  const color =
-    tone === "red"
-      ? uiTheme.colors.danger
-      : tone === "orange"
-        ? uiTheme.colors.warning
-        : uiTheme.colors.primary;
-
   return (
-    <div
-      style={{
-        ...styles.alertRow,
-        ...(onClick ? styles.alertRowInteractive : {}),
-      }}
+    <button
+      type="button"
+      style={styles.alertRow}
       onClick={onClick}
-      onMouseEnter={(event) => {
-        if (!onClick) return;
-        event.currentTarget.style.backgroundColor = uiTheme.colors.background;
-      }}
-      onMouseLeave={(event) => {
-        if (!onClick) return;
-        event.currentTarget.style.backgroundColor = "transparent";
-      }}
     >
       <span
         style={{
-          ...styles.alertIcon,
-          color,
-          borderColor: `${color}30`,
-          background: `${color}12`,
+          ...styles.alertRowIcon,
+          background: tone === "red" ? toneStyles.red.background : uiTheme.colors.primarySoft,
+          color: tone === "red" ? toneStyles.red.color : uiTheme.colors.primary,
         }}
       >
-        <AlertTriangleIcon size={14} />
+        <AlertTriangleIcon size={16} />
       </span>
-      <div style={{ flex: 1 }}>
+      <span style={styles.alertRowCopy}>
         <strong>{title}</strong>
-        <p style={styles.alertText}>{text}</p>
-      </div>
-      <span style={{ ...styles.alertMeta, color }}>{meta}</span>
-    </div>
+        <span>{text}</span>
+      </span>
+      <span style={styles.alertRowMeta}>{meta}</span>
+    </button>
   );
 }
 
 const styles: Record<string, CSSProperties> = {
   main: {
     ...pageMain,
-    overflow: "auto",
-    backgroundImage:
-      "linear-gradient(135deg, rgba(37, 99, 235, 0.08), transparent 30%), linear-gradient(225deg, rgba(15, 23, 42, 0.045), transparent 28%)",
+    display: "grid",
+    gap: 24,
   },
-
   kpiGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-    gap: 14,
-    marginBottom: 14,
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: 16,
   },
   kpiCard: {
     ...kpiCardBase,
-    padding: 18,
     display: "flex",
-    gap: 14,
     alignItems: "center",
-    minHeight: 94,
-    borderRadius: 20,
-    border: `1px solid ${uiTheme.colors.border}`,
-    boxShadow: "0 14px 30px rgba(15, 23, 42, 0.045)",
+    gap: 16,
   },
   kpiIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: uiTheme.radii.md,
     display: "grid",
     placeItems: "center",
     flexShrink: 0,
   },
   kpiTitle: {
     margin: 0,
-    color: uiTheme.colors.text,
-    fontWeight: 600,
+    color: uiTheme.colors.muted,
     fontSize: 13,
   },
-  kpiValue: { display: "block", marginTop: 6, fontSize: 24, lineHeight: 1 },
-  kpiNote: { margin: "7px 0 0", color: uiTheme.colors.muted, fontSize: 11 },
-
+  kpiValue: {
+    display: "block",
+    marginTop: 4,
+    fontSize: 24,
+    lineHeight: 1.1,
+  },
+  kpiNote: {
+    margin: "6px 0 0",
+    color: toneStyles.slate.color,
+    fontSize: 12,
+  },
   contentGrid: {
     display: "grid",
-    gridTemplateColumns: "1.35fr 1fr",
-    gap: 14,
-    marginBottom: 14,
-  },
-  bottomGrid: {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr)",
-    gap: 14,
+    gap: 16,
+    gridTemplateColumns: "minmax(0, 2fr) minmax(320px, 1fr)",
+    alignItems: "stretch",
   },
   cardLarge: {
     ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
-    padding: 20,
-    boxShadow: "0 16px 34px rgba(15, 23, 42, 0.045)",
+    display: "grid",
+    gap: 18,
+    padding: 22,
   },
   card: {
     ...surfaceCard,
-    borderRadius: uiTheme.radii.md,
-    padding: 20,
-    boxShadow: "0 16px 34px rgba(15, 23, 42, 0.045)",
+    display: "grid",
+    gap: 18,
+    padding: 22,
   },
   cardHeader: {
     display: "flex",
     justifyContent: "space-between",
+    gap: 12,
     alignItems: "center",
-    gap: 14,
-    marginBottom: 14,
+    flexWrap: "wrap",
   },
-  cardTitle: { margin: 0, fontSize: 16, fontWeight: 800 },
+  cardTitle: {
+    margin: 0,
+    fontSize: 18,
+  },
   selectFake: {
-    ...selectFakeBase,
-    justifySelf: "end",
+    ...secondaryButtonBase,
+    minHeight: 36,
+    padding: "0 12px",
+    display: "inline-flex",
+    alignItems: "center",
   },
   linkFake: {
     color: uiTheme.colors.primary,
-    fontSize: 12,
-    fontWeight: 500,
+    fontSize: 13,
+    fontWeight: 600,
   },
   chartBox: {
-    borderTop: `1px solid ${uiTheme.colors.border}`,
-    paddingTop: 14,
     display: "grid",
-    gridTemplateColumns: "38px 1fr",
+    gridTemplateColumns: "auto minmax(0, 1fr)",
+    gap: 12,
     alignItems: "stretch",
-    gap: 10,
   },
   yAxis: {
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    color: uiTheme.colors.muted,
-    fontSize: 11,
-    padding: "0 6px 0 0",
-  },
-
-  tableCard: {
-    ...tableCardBase,
-    borderRadius: uiTheme.radii.md,
-    padding: 20,
-    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.05)",
-  },
-  tableTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "end",
-    gap: 14,
-    marginBottom: 14,
-  },
-  tableControls: {
     display: "grid",
-    gridTemplateColumns:
-      "minmax(280px, 1.8fr) minmax(160px, 0.8fr) minmax(150px, 0.7fr)",
-    alignItems: "end",
-    gap: 12,
-    width: "100%",
-    maxWidth: 720,
-  },
-  search: inputBase,
-  filterGroup: filterGroupBase,
-  selectInput: {
-    ...inputBase,
-    borderRadius: 14,
-    background: "var(--control-bg)",
-    border: `1px solid ${uiTheme.colors.borderStrong}`,
-    boxShadow: "var(--control-shadow)",
-  },
-  filterSelectFake: {
-    ...controlBase,
-    borderRadius: uiTheme.radii.sm,
-    padding: "0 12px",
-    fontSize: 13,
-    minHeight: 40,
-    display: "flex",
-    alignItems: "center",
-  },
-  table: {
-    width: "100%",
-    minWidth: 980,
-    tableLayout: "fixed",
-    borderCollapse: "separate",
-    borderSpacing: 0,
-  },
-  th: {
-    textAlign: "left",
-    padding: "12px 10px",
+    alignContent: "space-between",
     color: uiTheme.colors.muted,
     fontSize: 12,
-    borderBottom: `1px solid ${uiTheme.colors.border}`,
-    fontWeight: 600,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
+    padding: "8px 0",
   },
-  tr: {
-    borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
-    background: uiTheme.colors.surface,
+  empty: {
+    margin: 0,
+    color: uiTheme.colors.muted,
   },
-  trHover: {
+  alertRow: {
+    ...controlBase,
+    width: "100%",
+    padding: "12px 14px",
+    display: "grid",
+    gridTemplateColumns: "auto minmax(0, 1fr) auto",
+    gap: 12,
+    alignItems: "center",
+    textAlign: "left",
+    cursor: "pointer",
     background: uiTheme.colors.surfaceSoft,
   },
-  td: {
-    padding: "14px 10px",
-    fontSize: 12,
-    color: uiTheme.colors.text,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  },
-  actionMenuWrap: {
-    display: "flex",
-    justifyContent: "flex-end",
-    position: "relative",
-  },
-  webCell: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-  },
-  webIcon: {
+  alertRowIcon: {
     width: 36,
     height: 36,
-    borderRadius: 12,
-    background: uiTheme.colors.primarySoft,
+    borderRadius: uiTheme.radii.md,
     display: "grid",
     placeItems: "center",
-    color: uiTheme.colors.primary,
-    flexShrink: 0,
-    border: `1px solid ${uiTheme.colors.border}`,
   },
-  url: {
-    marginTop: 3,
-    color: uiTheme.colors.muted,
-    fontSize: 11,
-  },
-  badge: {
-    padding: "4px 8px",
-    borderRadius: 999,
-    fontSize: 10,
-    fontWeight: 600,
-    whiteSpace: "nowrap",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-  },
-  badgeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    background: "currentColor",
-    display: "inline-block",
-  },
-  iconActionButton: {
-    ...secondaryButtonBase,
-    borderRadius: 14,
-    padding: 0,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontSize: 12,
-    height: 40,
-    width: 40,
-    justifyContent: "center",
-    display: "inline-flex",
-    alignItems: "center",
-    color: uiTheme.colors.text,
-    background: "var(--control-bg)",
-    border: `1px solid ${uiTheme.colors.borderStrong}`,
-    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.06)",
-  },
-  iconActionButtonActive: {
-    background: uiTheme.colors.primarySoft,
-    color: uiTheme.colors.primary,
-    border: `1px solid ${uiTheme.colors.primary}25`,
-  },
-  actionMenu: {
-    position: "absolute",
-    top: "calc(100% + 8px)",
-    right: 0,
-    minWidth: 190,
-    padding: 8,
-    borderRadius: 16,
-    background: uiTheme.colors.surface,
-    border: `1px solid ${uiTheme.colors.border}`,
-    boxShadow: "0 18px 38px rgba(15, 23, 42, 0.14)",
+  alertRowCopy: {
     display: "grid",
     gap: 4,
-    zIndex: 20,
-    backdropFilter: "blur(12px)",
-  },
-  actionMenuItem: {
-    ...secondaryButtonBase,
-    borderRadius: 14,
-    padding: "0 12px",
-    justifyContent: "flex-start",
-    fontWeight: 500,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-    fontSize: 12,
-    height: 38,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 6,
-    background: "transparent",
-    border: "none",
-    boxShadow: "none",
+    minWidth: 0,
     color: uiTheme.colors.text,
   },
-  actionMenuItemDisabled: { opacity: 0.6, cursor: "not-allowed" },
-
-  pagination: {
-    ...paginationBase,
-    gap: 18,
-    padding: "16px 20px 4px",
-    borderTop: `1px solid ${uiTheme.colors.surfaceSoft}`,
-    marginTop: 6,
-  },
-  pages: {
-    display: "flex",
-    gap: 10,
-    alignItems: "center",
-    justifySelf: "center",
-    color: uiTheme.colors.text,
-  },
-  pageActiveButton: pageActiveButtonBase,
-  pageArrow: pageArrowBase,
-
-  alertRow: {
-    display: "flex",
-    gap: 12,
-    alignItems: "center",
-    padding: "13px 0",
-    borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`,
-    borderRadius: 14,
-  },
-  alertRowInteractive: {
-    cursor: "pointer",
-    transition: "background-color 0.15s ease",
-  },
-  alertIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 999,
-    border: "1px solid",
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0,
-  },
-  alertText: {
-    margin: "3px 0 0",
+  alertRowMeta: {
     color: uiTheme.colors.muted,
     fontSize: 12,
+    fontWeight: 600,
   },
-  alertMeta: { fontSize: 11, whiteSpace: "nowrap" },
-  empty: { color: uiTheme.colors.muted, fontSize: 13, padding: 20 },
+  listSection: {
+    display: "grid",
+    gap: 12,
+    minWidth: 0,
+  },
 };
