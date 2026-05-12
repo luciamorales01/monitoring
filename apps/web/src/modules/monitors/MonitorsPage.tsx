@@ -21,6 +21,7 @@ import {
   selectFakeBase,
   surfaceCard,
   tableCardBase,
+  toneStyles,
   uiTheme,
 } from "../../theme/commonStyles";
 import AppTopbar from "../../shared/AppTopbar";
@@ -39,6 +40,7 @@ import {
   sortMonitors,
   type MonitorStatusFilter,
   type MonitorTypeFilter,
+  type MonitorViewStatus,
   type MonitorSortOption,
 } from "../../shared/monitorFilters";
 import { useLocalPagination } from "../../shared/useLocalPagination";
@@ -48,11 +50,14 @@ import { useCurrentUserPermissions } from "../../shared/permissions";
 import {
   ActivityIcon,
   AlertTriangleIcon,
+  ChevronRightIcon,
   CheckCircleIcon,
   ClockIcon,
   EditIcon,
   FilterIcon,
+  GlobeIcon,
   MonitorIcon,
+  MoreHorizontalIcon,
   PauseIcon,
   PlayIcon,
   PlusIcon,
@@ -60,8 +65,6 @@ import {
   TrashIcon,
 } from "../../shared/uiIcons";
 import MonitorEditModal from "./MonitorEditModal";
-import MonitorTable from "./MonitorTable";
-import type { ActionMenuItem } from "../../shared/ui";
 
 const monitorFilterDefaults = {
   sort: "status",
@@ -92,9 +95,14 @@ export default function MonitorsPage() {
   const navigate = useNavigate();
   const { canManageUsers, canWrite: canWriteActions } =
     useCurrentUserPermissions();
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
   const lastSelectedMonitorIdRef = useRef<number | null>(null);
 
   const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const [hoveredMonitorId, setHoveredMonitorId] = useState<number | null>(null);
+  const [openMenuMonitorId, setOpenMenuMonitorId] = useState<number | null>(
+    null,
+  );
   const [selectedMonitorIds, setSelectedMonitorIds] = useState<number[]>([]);
   const [checkingId, setCheckingId] = useState<number | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -129,6 +137,14 @@ export default function MonitorsPage() {
   const error = monitorsQuery.isError
     ? "No se pudieron cargar las webs monitorizadas."
     : null;
+
+  useEffect(() => {
+    const closeMenu = () => setOpenMenuMonitorId(null);
+
+    window.addEventListener("click", closeMenu);
+
+    return () => window.removeEventListener("click", closeMenu);
+  }, []);
 
   const stats = useMemo(() => {
     const total = monitors.length;
@@ -210,6 +226,15 @@ export default function MonitorsPage() {
   const areAllCurrentPageSelected =
     currentPageIds.length > 0 &&
     currentPageIds.every((id) => selectedMonitorIds.includes(id));
+
+  const hasSomeCurrentPageSelected =
+    !areAllCurrentPageSelected &&
+    currentPageIds.some((id) => selectedMonitorIds.includes(id));
+
+  useEffect(() => {
+    if (!selectAllRef.current) return;
+    selectAllRef.current.indeterminate = hasSomeCurrentPageSelected;
+  }, [hasSomeCurrentPageSelected]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -349,6 +374,7 @@ export default function MonitorsPage() {
   };
 
   const handleOpenEdit = (monitor: Monitor) => {
+    setOpenMenuMonitorId(null);
     setEditingMonitor(monitor);
     setEditError(null);
   };
@@ -417,45 +443,6 @@ export default function MonitorsPage() {
       setIsDeleting(false);
     }
   };
-
-  const buildMonitorActions = (monitor: Monitor): ActionMenuItem[] => [
-    {
-      id: "run-check",
-      icon: checkingId === monitor.id ? undefined : <ActivityIcon size={15} />,
-      label: checkingId === monitor.id ? "Comprobando..." : "Comprobar ahora",
-      disabled: checkingId === monitor.id,
-      onSelect: () => void handleRunCheck(monitor.id),
-    },
-    {
-      id: "edit",
-      icon: <EditIcon size={15} />,
-      label: "Editar monitor",
-      onSelect: () => handleOpenEdit(monitor),
-    },
-    {
-      id: "detail",
-      icon: <MonitorIcon size={15} />,
-      label: "Ver detalle",
-      onSelect: () => navigate(`/monitors/${monitor.id}`),
-    },
-    {
-      id: "toggle",
-      icon:
-        togglingId === monitor.id ? undefined : monitor.isActive ? (
-          <PauseIcon size={15} />
-        ) : (
-          <PlayIcon size={15} />
-        ),
-      label:
-        togglingId === monitor.id
-          ? "Actualizando..."
-          : monitor.isActive
-            ? "Pausar monitor"
-            : "Reanudar monitor",
-      disabled: togglingId === monitor.id,
-      onSelect: () => void handleToggleActive(monitor.id),
-    },
-  ];
 
   return (
     <>
@@ -641,38 +628,298 @@ export default function MonitorsPage() {
             </div>
           )}
 
-          <MonitorTable
-            emptyLabel="No hay webs que coincidan con los filtros."
-            error={error}
-            getActions={canWriteActions ? buildMonitorActions : undefined}
-            loading={loading}
-            monitors={pageItems}
-            onRowClick={(monitor) => navigate(`/monitors/${monitor.id}`)}
-            pagination={{
-              hasNextPage,
-              hasPreviousPage,
-              onPageChange: handleSetPage,
-              page,
-              rangeEnd,
-              rangeStart,
-              totalItems: totalMonitors,
-              totalPages,
-            }}
-            selection={
-              canWriteActions
-                ? {
-                    onToggle: (id, event) =>
-                      toggleMonitorSelection(id, {
-                        additive: event.metaKey || event.ctrlKey,
-                        range: event.shiftKey,
-                      }),
-                    onToggleCurrentPage: toggleCurrentPageSelection,
-                    selectedIds: selectedMonitorIds,
+          {loading ? (
+            <LoadingState
+              variant="table"
+              label="Cargando webs monitorizadas"
+              rows={7}
+            />
+          ) : error ? (
+            <p style={styles.empty}>{error}</p>
+          ) : monitors.length === 0 ? (
+            <p style={styles.empty}>
+              No hay webs que coincidan con los filtros.
+            </p>
+          ) : (
+            <table style={styles.table}>
+              <colgroup>
+                {canWriteActions ? <col style={{ width: 52 }} /> : null}
+                <col style={{ width: "30%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "17%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "13%" }} />
+                <col style={{ width: 80 }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  {canWriteActions ? (
+                    <th style={styles.checkboxHeader}>
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        checked={areAllCurrentPageSelected}
+                        onChange={toggleCurrentPageSelection}
+                        aria-label="Seleccionar webs visibles"
+                      />
+                    </th>
+                  ) : null}
+                  <th style={styles.th}>Web</th>
+                  <th style={styles.th}>Estado</th>
+                  <th style={styles.th}>Uptime (24h)</th>
+                  <th style={styles.th}>Tiempo de respuesta</th>
+                  <th style={styles.th}>Alertas</th>
+                  <th style={styles.th}>Última comprobación</th>
+                  {canWriteActions ? (
+                    <th style={styles.thActions}>Acciones</th>
+                  ) : null}
+                </tr>
+              </thead>
+
+              <tbody>
+                {pageItems.map((monitor) => {
+                  const viewStatus = getMonitorViewStatus(monitor);
+                  const isSelected = selectedMonitorIds.includes(monitor.id);
+
+                  return (
+                    <tr
+                      key={monitor.id}
+                      style={{
+                        ...styles.tr,
+                        ...(isSelected ? styles.trSelected : {}),
+                        ...(hoveredMonitorId === monitor.id
+                          ? styles.trHover
+                          : {}),
+                      }}
+                      onClick={() => navigate(`/monitors/${monitor.id}`)}
+                      onMouseEnter={() => setHoveredMonitorId(monitor.id)}
+                      onMouseLeave={() => setHoveredMonitorId(null)}
+                    >
+                      {canWriteActions ? (
+                        <td
+                          style={styles.checkboxCell}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              event.preventDefault();
+                              toggleMonitorSelection(monitor.id, {
+                                additive: event.metaKey || event.ctrlKey,
+                                range: event.shiftKey,
+                              });
+                            }}
+                            onChange={() => undefined}
+                            aria-label={`Seleccionar ${monitor.name}`}
+                          />
+                        </td>
+                      ) : null}
+
+                      <td style={styles.td}>
+                        <div style={styles.webCell}>
+                          <span style={styles.webIcon}>
+                            <GlobeIcon size={18} />
+                          </span>
+                          <div>
+                            <strong style={styles.monitorName}>
+                              {monitor.name}
+                            </strong>
+                            <div style={styles.url}>{monitor.target}</div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td style={styles.td}>
+                        <StatusBadge status={viewStatus} />
+                      </td>
+
+                      <td style={styles.td}>
+                        <div style={styles.uptimeCell}>
+                          <span>{getUptimeLabel(viewStatus)}</span>
+                          <MiniSparkline status={viewStatus} />
+                        </div>
+                      </td>
+
+                      <td style={styles.td}>
+                        {formatResponseTime(monitor.lastResponseTime)}
+                      </td>
+
+                      <td style={styles.td}>
+                        <span
+                          style={{
+                            ...styles.alertBadge,
+                            ...(viewStatus === "DOWN"
+                              ? styles.alertBadgeDanger
+                              : {}),
+                          }}
+                        >
+                          {viewStatus === "DOWN" ? 1 : 0}
+                        </span>
+                      </td>
+
+                      <td style={styles.td}>
+                        {formatRelativeDate(monitor.lastCheckedAt)}
+                      </td>
+
+                      {canWriteActions ? (
+                        <td style={styles.tdActions}>
+                          <div
+                            style={styles.actions}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              style={styles.actionButton}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setOpenMenuMonitorId((current) =>
+                                  current === monitor.id ? null : monitor.id,
+                                );
+                              }}
+                              title="Acciones"
+                            >
+                              <MoreHorizontalIcon size={16} />
+                            </button>
+
+                            {openMenuMonitorId === monitor.id && (
+                              <div style={styles.actionMenu}>
+                                <button
+                                  type="button"
+                                  style={styles.actionMenuItem}
+                                  onClick={() => {
+                                    setOpenMenuMonitorId(null);
+                                    void handleRunCheck(monitor.id);
+                                  }}
+                                  disabled={checkingId === monitor.id}
+                                >
+                                  {checkingId !== monitor.id && (
+                                    <ActivityIcon size={15} />
+                                  )}
+                                  {checkingId === monitor.id ? (
+                                    <LoadingState
+                                      variant="button"
+                                      label="Comprobando monitor"
+                                    />
+                                  ) : (
+                                    "Comprobar ahora"
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  style={styles.actionMenuItem}
+                                  onClick={() => handleOpenEdit(monitor)}
+                                >
+                                  <EditIcon size={15} />
+                                  Editar monitor
+                                </button>
+
+                                <button
+                                  type="button"
+                                  style={styles.actionMenuItem}
+                                  onClick={() => {
+                                    setOpenMenuMonitorId(null);
+                                    navigate(`/monitors/${monitor.id}`);
+                                  }}
+                                >
+                                  <MonitorIcon size={15} />
+                                  Ver detalle
+                                </button>
+
+                                <button
+                                  type="button"
+                                  style={styles.actionMenuItem}
+                                  onClick={() => {
+                                    setOpenMenuMonitorId(null);
+                                    void handleToggleActive(monitor.id);
+                                  }}
+                                  disabled={togglingId === monitor.id}
+                                >
+                                  {togglingId !== monitor.id &&
+                                    (monitor.isActive ? (
+                                      <PauseIcon size={15} />
+                                    ) : (
+                                      <PlayIcon size={15} />
+                                    ))}
+                                  {togglingId === monitor.id ? (
+                                    <LoadingState
+                                      variant="button"
+                                      label="Actualizando monitor"
+                                    />
+                                  ) : monitor.isActive ? (
+                                    "Pausar monitor"
+                                  ) : (
+                                    "Reanudar monitor"
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      ) : null}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          <div style={styles.pagination}>
+            <span style={styles.paginationText}>
+              Mostrando {rangeStart} a {rangeEnd} de {totalMonitors} webs
+            </span>
+
+            <div style={styles.pages}>
+              <button
+                type="button"
+                style={styles.pageArrow}
+                aria-label="Página anterior"
+                onClick={() => handleSetPage(page - 1)}
+                disabled={!hasPreviousPage}
+              >
+                <span style={styles.pageArrowLeft}>
+                  <ChevronRightIcon size={14} />
+                </span>
+              </button>
+
+              {getVisiblePageNumbers(page, totalPages).map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  style={
+                    pageNumber === page
+                      ? styles.pageActiveButton
+                      : styles.pageNumberButton
                   }
-                : undefined
-            }
-            showActions={canWriteActions}
-          />
+                  onClick={() => handleSetPage(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                style={styles.pageArrow}
+                aria-label="Página siguiente"
+                onClick={() => handleSetPage(page + 1)}
+                disabled={!hasNextPage}
+              >
+                <ChevronRightIcon size={14} />
+              </button>
+            </div>
+
+            <div style={styles.pageSizeWrap}>
+              <span style={styles.selectFake}>
+                10 por página
+                <span style={styles.pageSizeChevron}>
+                  <ChevronRightIcon size={14} />
+                </span>
+              </span>
+            </div>
+          </div>
         </section>
       </main>
 
@@ -828,8 +1075,113 @@ function KpiCard({
   );
 }
 
+function StatusBadge({ status }: { status: MonitorViewStatus }) {
+  const isUp = status === "UP";
+  const isDown = status === "DOWN";
+  const isPaused = status === "PAUSED";
+
+  return (
+    <span
+      style={{
+        ...styles.badge,
+        background: isUp
+          ? toneStyles.green.background
+          : isDown
+            ? toneStyles.red.background
+            : isPaused
+              ? uiTheme.colors.primarySoft
+              : toneStyles.slate.background,
+        color: isUp
+          ? toneStyles.green.color
+          : isDown
+            ? toneStyles.red.color
+            : isPaused
+              ? uiTheme.colors.primary
+              : toneStyles.slate.color,
+      }}
+    >
+      <span style={styles.badgeDot} />
+      {isUp
+        ? "Operativo"
+        : isDown
+          ? "Problema"
+          : isPaused
+            ? "Pausada"
+            : "Pendiente"}
+    </span>
+  );
+}
+
+function MiniSparkline({ status }: { status: MonitorViewStatus }) {
+  const color =
+    status === "DOWN"
+      ? uiTheme.colors.danger
+      : status === "PAUSED"
+        ? uiTheme.colors.slate
+        : uiTheme.colors.success;
+
+  return (
+    <svg width="74" height="24" viewBox="0 0 74 24">
+      <path
+        d="M0 15 L8 12 L14 14 L20 6 L27 19 L34 10 L42 12 L50 8 L58 14 L66 11 L74 15"
+        fill="none"
+        stroke={color}
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function getUptimeLabel(status: MonitorViewStatus) {
+  if (status === "PAUSED") return "Pausada";
+  if (status === "UNKNOWN") return "—";
+  return "Último estado";
+}
+
 function formatRatio(value: number, total: number) {
   return `${total ? ((value / total) * 100).toFixed(1) : 0}% del total`;
+}
+
+function formatResponseTime(value?: number | null) {
+  return typeof value === "number" ? `${value} ms` : "—";
+}
+
+function formatRelativeDate(value?: string | null) {
+  if (!value) return "—";
+
+  const timestamp = new Date(value).getTime();
+
+  if (Number.isNaN(timestamp)) return "—";
+
+  const diffMinutes = Math.round((Date.now() - timestamp) / 60000);
+
+  if (diffMinutes <= 1) return "Hace 1 min";
+  if (diffMinutes < 60) return `Hace ${diffMinutes} min`;
+
+  const diffHours = Math.round(diffMinutes / 60);
+
+  if (diffHours < 24) return `Hace ${diffHours} h`;
+
+  return new Date(value).toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function getVisiblePageNumbers(page: number, totalPages: number) {
+  const maxVisiblePages = 5;
+  const halfWindow = Math.floor(maxVisiblePages / 2);
+  const startPage = Math.max(
+    1,
+    Math.min(page - halfWindow, totalPages - maxVisiblePages + 1),
+  );
+  const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+  return Array.from(
+    { length: endPage - startPage + 1 },
+    (_, index) => startPage + index,
+  );
 }
 
 const styles: Record<string, CSSProperties> = {

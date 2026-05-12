@@ -12,7 +12,6 @@ model Organization {
   id        Int      @id @default(autoincrement())
   name      String
   slug      String   @unique
-  plan      OrganizationPlan @default(FREE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -33,8 +32,7 @@ model User {
   organizationId Int
   phone          String   @default("")
   timezone       String   @default("Europe/Madrid")
-  language       String   @default("es")
-  avatarUrl      String?
+  language       String   @default("Espanol")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -53,12 +51,6 @@ enum UserStatus {
   ACTIVE
   INACTIVE
   PENDING
-}
-
-enum OrganizationPlan {
-  FREE
-  PRO
-  BUSINESS
 }
 
 enum MonitorType {

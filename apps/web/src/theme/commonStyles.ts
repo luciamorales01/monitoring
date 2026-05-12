@@ -100,10 +100,10 @@ export const iconButtonBase: CSSProperties = {
 
 export const primaryButtonBase: CSSProperties = {
   border: `1px solid ${colors.primary}`,
-  background: colors.primary,
+  background: `linear-gradient(180deg, ${colors.primaryLight}, ${colors.primary})`,
   color: colors.white,
   borderRadius: radii.sm,
-  boxShadow: 'none',
+  boxShadow: shadows.button,
   fontWeight: 600, // 🔥 antes 800
 };
 
@@ -112,15 +112,6 @@ export const secondaryButtonBase: CSSProperties = {
   color: colors.text,
   fontWeight: 600,
 };
-
-export const buttonTokens = {
-  height: 40,
-  radius: radii.sm,
-  primary: colors.primary,
-  primaryHover: colors.primaryDark,
-  disabledBackground: colors.surfaceSoft,
-  disabledText: colors.muted,
-} as const;
 
 export const avatarBase: CSSProperties = {
   width: 38,

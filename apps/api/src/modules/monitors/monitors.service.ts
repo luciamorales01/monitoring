@@ -21,10 +21,6 @@ import { PrismaService } from '../../database/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MonitoringEventName } from '../events/events.types';
 import { NotificationsService } from '../notifications/notifications.service';
-import {
-  ORGANIZATION_PLAN_LIMITS,
-  type OrganizationPlanName,
-} from '../organizations/organizations.service';
 import { CreateMonitorDto } from './create-monitor.dto';
 import {
   ListMonitorsQueryDto,
@@ -146,7 +142,6 @@ export class MonitorsService {
 
   async create(dto: CreateMonitorDto, user: AuthenticatedUser) {
     await this.assertAllowedTarget(dto.type, dto.target, dto.tcpPort);
-    await this.ensureMonitorLimitAllowsCreate(user.organizationId);
 
     return this.prisma.monitor.create({
       data: {
@@ -167,30 +162,6 @@ export class MonitorsService {
         createdById: user.userId,
       },
     });
-  }
-
-  private async ensureMonitorLimitAllowsCreate(organizationId: number) {
-    const organization = await this.prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: {
-        plan: true,
-        _count: {
-          select: {
-            monitors: true,
-          },
-        },
-      },
-    });
-
-    const plan = (organization?.plan ?? 'FREE') as OrganizationPlanName;
-    const monitorLimit = ORGANIZATION_PLAN_LIMITS[plan];
-    const monitorCount = organization?._count.monitors ?? 0;
-
-    if (monitorCount >= monitorLimit) {
-      throw new ForbiddenException(
-        `Tu plan ${plan} permite hasta ${monitorLimit} monitores.`,
-      );
-    }
   }
 
   async findAll(user: AuthenticatedUser, query: ListMonitorsQueryDto = {}) {

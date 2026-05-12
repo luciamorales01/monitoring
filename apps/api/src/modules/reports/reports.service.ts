@@ -1,15 +1,10 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { IncidentStatus, MonitorStatus, Prisma } from '@prisma/client';
 import ExcelJS from 'exceljs';
 import { buildAccessibleMonitorWhere, canAccessAllOrganizationMonitors, type AuthenticatedUser } from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
 
-type ReportRange = '24h' | '7d' | '30d' | 'custom';
+type ReportRange = '24h' | '7d' | '30d';
 type ReportFormat = 'csv' | 'pdf' | 'xlsx';
 
 type ExportReportParams = {
@@ -18,8 +13,6 @@ type ExportReportParams = {
   format: ReportFormat;
   monitorId?: number;
   sectionId?: number;
-  from?: string;
-  to?: string;
 };
 
 type ReportRow = {
@@ -42,61 +35,21 @@ type ReportRow = {
   lastDowntime: string | null;
 };
 
-type ReportTotals = {
-  averageUptimePercent: number;
-  averageResponseTimeMs: number;
-  incidents: number;
-  checks: number;
-  monitors: number;
-  estimatedDowntimeSeconds: number;
-};
-
-function getPresetRangeStart(range: Exclude<ReportRange, 'custom'>) {
+function getRangeStart(range: ReportRange) {
   const now = new Date();
   const hours = range === '24h' ? 24 : range === '30d' ? 24 * 30 : 24 * 7;
   return new Date(now.getTime() - hours * 60 * 60 * 1000);
 }
 
-function getRangeWindow(range: ReportRange, from?: string, to?: string) {
-  if (range !== 'custom') {
-    return { from: getPresetRangeStart(range), to: new Date() };
-  }
-
-  if (!from || !to) {
-    throw new BadRequestException('El rango personalizado requiere from y to.');
-  }
-
-  const fromDate = new Date(from);
-  const toDate = new Date(to);
-
-  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
-    throw new BadRequestException('Las fechas del rango personalizado no son válidas.');
-  }
-
-  if (fromDate >= toDate) {
-    throw new BadRequestException('La fecha inicial debe ser anterior a la final.');
-  }
-
-  const maxRangeMs = 90 * 24 * 60 * 60 * 1000;
-  if (toDate.getTime() - fromDate.getTime() > maxRangeMs) {
-    throw new BadRequestException('El rango personalizado no puede superar 90 días.');
-  }
-
-  return { from: fromDate, to: toDate };
-}
-
-function getRangeLabel(range: ReportRange, from?: Date, to?: Date) {
-  if (range === 'custom' && from && to) {
-    return `${from.toISOString().slice(0, 10)} - ${to.toISOString().slice(0, 10)}`;
-  }
-
+function getRangeLabel(range: ReportRange) {
   if (range === '24h') return 'Ultimas 24 horas';
   if (range === '30d') return 'Ultimos 30 dias';
   return 'Ultimos 7 dias';
 }
 
-function getDowntimeSeconds(rangeSeconds: number, checks: number, downChecks: number) {
+function getDowntimeSeconds(range: ReportRange, checks: number, downChecks: number) {
   if (checks <= 0 || downChecks <= 0) return 0;
+  const rangeSeconds = range === '24h' ? 86_400 : range === '30d' ? 2_592_000 : 604_800;
   return Math.round((downChecks / checks) * rangeSeconds);
 }
 
@@ -110,10 +63,6 @@ function formatSeconds(seconds: number) {
   return `${(seconds / 3600).toFixed(1)}h`;
 }
 
-function getRangeSeconds(from: Date, to: Date) {
-  return Math.max(1, Math.round((to.getTime() - from.getTime()) / 1000));
-}
-
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -123,12 +72,9 @@ export class ReportsService {
     range: ReportRange,
     monitorId?: number,
     sectionId?: number,
-    fromInput?: string,
-    toInput?: string,
   ) {
     const organizationId = user.organizationId;
-    const { from, to } = getRangeWindow(range, fromInput, toInput);
-    const rangeSeconds = getRangeSeconds(from, to);
+    const from = getRangeStart(range);
 
     if (monitorId) {
       const monitor = await this.prisma.monitor.findFirst({
@@ -174,7 +120,7 @@ export class ReportsService {
       where: this.buildMonitorWhere(user, monitorId, sectionId),
       include: {
         checkResults: {
-          where: { checkedAt: { gte: from, lte: to } },
+          where: { checkedAt: { gte: from } },
           orderBy: { checkedAt: 'asc' },
           select: {
             status: true,
@@ -183,7 +129,7 @@ export class ReportsService {
           },
         },
         incidents: {
-          where: { startedAt: { gte: from, lte: to } },
+          where: { startedAt: { gte: from } },
           orderBy: { startedAt: 'desc' },
           select: {
             id: true,
@@ -214,7 +160,7 @@ export class ReportsService {
           ? 100
           : 0;
 
-      const estimatedDowntimeSeconds = getDowntimeSeconds(rangeSeconds, checks.length, downChecks);
+      const estimatedDowntimeSeconds = getDowntimeSeconds(range, checks.length, downChecks);
 
       const lastDowntime = checks
         .slice()
@@ -259,7 +205,7 @@ export class ReportsService {
     return {
       range,
       from: from.toISOString(),
-      to: to.toISOString(),
+      to: new Date().toISOString(),
       selectedMonitorId: monitorId ?? null,
       selectedSectionId: sectionId ?? null,
       totals: {
@@ -280,8 +226,6 @@ export class ReportsService {
       params.range,
       params.monitorId,
       params.sectionId,
-      params.from,
-      params.to,
     );
     let suffix = 'todos-los-monitores';
 
@@ -299,13 +243,7 @@ export class ReportsService {
       return {
         filename: `informe-monitoring-${params.range}-${suffix}.xlsx`,
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        buffer: await this.buildExcel(
-          summary.rows,
-          summary.range,
-          new Date(summary.from),
-          new Date(summary.to),
-          summary.totals,
-        ),
+        buffer: await this.buildExcel(summary.rows, summary.range),
       };
     }
 
@@ -313,13 +251,7 @@ export class ReportsService {
       return {
         filename: `informe-monitoring-${params.range}-${suffix}.pdf`,
         contentType: 'application/pdf',
-        buffer: this.buildPdf(
-          summary.rows,
-          summary.range,
-          new Date(summary.from),
-          new Date(summary.to),
-          summary.totals,
-        ),
+        buffer: this.buildPdf(summary.rows, summary.range),
       };
     }
 
@@ -362,31 +294,15 @@ export class ReportsService {
     return [header, ...lines].map((line) => line.map(csvEscape).join(',')).join('\n');
   }
 
-  private async buildExcel(
-    rows: ReportRow[],
-    range: ReportRange,
-    from: Date,
-    to: Date,
-    totals: ReportTotals,
-  ) {
+  private async buildExcel(rows: ReportRow[], range: ReportRange) {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Monitoring';
     workbook.created = new Date();
 
     const sheet = workbook.addWorksheet('Informe');
-    sheet.addRow(['Informe de monitorizacion', getRangeLabel(range, from, to)]);
-    sheet.addRow([
-      'Monitores',
-      totals.monitors,
-      'Uptime medio',
-      `${totals.averageUptimePercent}%`,
-      'Respuesta media',
-      `${totals.averageResponseTimeMs} ms`,
-      'Incidencias',
-      totals.incidents,
-    ]);
+    sheet.addRow(['Informe de monitorizacion', getRangeLabel(range)]);
     sheet.addRow([]);
-    const headerRow = sheet.addRow([
+    sheet.addRow([
       'Monitor',
       'URL',
       'Tipo',
@@ -399,27 +315,9 @@ export class ReportsService {
       'Checks',
       'Ultima caida',
     ]);
-    sheet.views = [{ state: 'frozen', ySplit: 4 }];
-    sheet.mergeCells('A1:K1');
-    sheet.getCell('A1').font = { bold: true, size: 16, color: { argb: 'FFFFFFFF' } };
-    sheet.getCell('A1').fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF2563EB' },
-    };
-    sheet.getCell('A1').alignment = { vertical: 'middle' };
-    sheet.getRow(1).height = 26;
-    sheet.getRow(2).font = { bold: true, color: { argb: 'FF0F172A' } };
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF0F172A' },
-    };
-    headerRow.alignment = { vertical: 'middle' };
 
     rows.forEach((row) => {
-      const dataRow = sheet.addRow([
+      sheet.addRow([
         row.monitor.name,
         row.monitor.target,
         row.monitor.type ?? '-',
@@ -432,72 +330,39 @@ export class ReportsService {
         row.checks,
         row.lastDowntime ?? 'Sin caidas recientes',
       ]);
-      const isDown = row.monitor.currentStatus === 'DOWN';
-      dataRow.getCell(4).font = {
-        bold: true,
-        color: { argb: isDown ? 'FFDC2626' : 'FF16A34A' },
-      };
-      dataRow.getCell(5).font = {
-        bold: true,
-        color: { argb: row.uptimePercent < 99 ? 'FFD97706' : 'FF16A34A' },
-      };
-    });
-
-    sheet.eachRow((row) => {
-      row.eachCell((cell) => {
-        cell.border = {
-          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-        };
-      });
     });
 
     sheet.columns.forEach((column) => {
-      let width = 14;
-      column.eachCell({ includeEmpty: true }, (cell) => {
-        width = Math.max(width, String(cell.value ?? '').length + 2);
-      });
-      column.width = Math.min(width, 48);
+      column.width = 20;
     });
+    sheet.getColumn(2).width = 42;
+    sheet.getRow(3).font = { bold: true };
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
   }
 
-  private buildPdf(
-    rows: ReportRow[],
-    range: ReportRange,
-    from: Date,
-    to: Date,
-    totals: ReportTotals,
-  ) {
-    const title = `Informe Monitoring - ${getRangeLabel(range, from, to)}`;
+  private buildPdf(rows: ReportRow[], range: ReportRange) {
+    const title = `Informe Monitoring - ${getRangeLabel(range)}`;
     const lines = [
       title,
       '',
-      `Monitores: ${totals.monitors} | Uptime medio: ${totals.averageUptimePercent}% | Respuesta media: ${totals.averageResponseTimeMs} ms`,
-      `Incidencias: ${totals.incidents} | Checks: ${totals.checks} | Downtime estimado: ${formatSeconds(totals.estimatedDowntimeSeconds)}`,
-      '',
-      'Monitor                         Estado     Uptime    Resp.    Inc. Checks',
-      '--------------------------------------------------------------------------',
       ...rows.flatMap((row) => [
-        `${row.monitor.name.slice(0, 30).padEnd(31)} ${row.monitor.currentStatus.padEnd(9)} ${String(`${row.uptimePercent}%`).padEnd(9)} ${String(`${row.averageResponseTimeMs} ms`).padEnd(8)} ${String(row.incidents).padEnd(4)} ${row.checks}`,
-        `  ${row.monitor.target}`,
-        `  Downtime: ${formatSeconds(row.estimatedDowntimeSeconds ?? 0)} | Ultima caida: ${row.lastDowntime ?? 'Sin caidas recientes'}`,
+        `${row.monitor.name} (${row.monitor.type ?? 'HTTP'})`,
+        `URL: ${row.monitor.target}`,
+        `Estado: ${row.monitor.currentStatus}`,
+        `Uptime/SLA: ${row.uptimePercent}%`,
+        `Tiempo medio: ${row.averageResponseTimeMs} ms`,
+        `Downtime estimado: ${formatSeconds(row.estimatedDowntimeSeconds ?? 0)}`,
+        `Incidencias: ${row.incidents} | Checks: ${row.checks}`,
         '',
       ]),
-      `Generado: ${new Date().toISOString()}`,
     ];
 
-    return this.buildSimplePdf(lines, {
-      titleLines: 1,
-      headerLines: 6,
-    });
+    return this.buildSimplePdf(lines);
   }
 
-  private buildSimplePdf(
-    lines: string[],
-    options: { titleLines: number; headerLines: number },
-  ) {
+  private buildSimplePdf(lines: string[]) {
     const safeLines = lines.map((line) =>
       line
         .normalize('NFD')
@@ -511,9 +376,8 @@ export class ReportsService {
       '/F1 18 Tf',
       '50 790 Td',
       ...safeLines.flatMap((line, index) => [
-        index === 0 ? '' : '0 -16 Td',
-        index === options.titleLines ? '/F1 10 Tf' : '',
-        index === options.headerLines ? '/F2 9 Tf' : '',
+        index === 0 ? '' : '0 -18 Td',
+        index === 1 ? '/F1 11 Tf' : '',
         `(${line}) Tj`,
       ]),
       'ET',
@@ -522,10 +386,9 @@ export class ReportsService {
     const objects = [
       '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
       '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj',
-      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 6 0 R >> >> /Contents 5 0 R >>\nendobj',
+      '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj',
       '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
       `5 0 obj\n<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream\nendobj`,
-      '6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>\nendobj',
     ];
 
     let pdf = '%PDF-1.4\n';

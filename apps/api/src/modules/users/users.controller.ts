@@ -15,7 +15,6 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateInvitationDto } from './create-invitation.dto';
 import { UpdateCurrentUserDto } from './update-current-user.dto';
-import { UpdateAvatarDto } from './update-avatar.dto';
 import { UpdateUserStatusDto } from './update-user-status.dto';
 import { UpdateUserDto } from './update-user.dto';
 import { UsersService } from './users.service';
@@ -33,11 +32,6 @@ export class UsersController {
   @Patch('me')
   updateCurrentUser(@Body() dto: UpdateCurrentUserDto, @Req() req: any) {
     return this.usersService.updateCurrentUser(dto, req.user);
-  }
-
-  @Patch('me/avatar')
-  updateCurrentUserAvatar(@Body() dto: UpdateAvatarDto, @Req() req: any) {
-    return this.usersService.updateCurrentUserAvatar(dto, req.user);
   }
 
   @Get()

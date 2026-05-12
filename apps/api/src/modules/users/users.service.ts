@@ -13,17 +13,12 @@ import { CreateInvitationDto } from './create-invitation.dto';
 import { UpdateUserStatusDto } from './update-user-status.dto';
 import { UpdateUserDto } from './update-user.dto';
 import { UpdateCurrentUserDto } from './update-current-user.dto';
-import { UpdateAvatarDto } from './update-avatar.dto';
 
 type AuthenticatedUser = {
   organizationId: number;
   userId: number;
   role?: string;
 };
-
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
-const AVATAR_DATA_URL_PATTERN =
-  /^data:(image\/(?:jpeg|jpg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
 
 @Injectable()
 export class UsersService {
@@ -162,7 +157,7 @@ export class UsersService {
     if (dto.email !== undefined) data.email = dto.email.trim().toLowerCase();
     if (dto.phone !== undefined) data.phone = dto.phone.trim();
     if (dto.timezone !== undefined) data.timezone = dto.timezone.trim();
-    if (dto.language !== undefined) data.language = this.normalizeLanguage(dto.language);
+    if (dto.language !== undefined) data.language = dto.language.trim();
 
     try {
       const updatedUser = await this.prisma.user.update({
@@ -190,29 +185,6 @@ export class UsersService {
 
       throw error;
     }
-  }
-
-  async updateCurrentUserAvatar(dto: UpdateAvatarDto, user: AuthenticatedUser) {
-    const avatarUrl =
-      dto.dataUrl === null || dto.dataUrl === undefined
-        ? null
-        : this.validateAvatarDataUrl(dto.dataUrl);
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id: user.userId },
-      data: { avatarUrl },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    });
-
-    return this.toSafeUser(updatedUser);
   }
 
   async updateStatus(
@@ -441,62 +413,6 @@ export class UsersService {
     return Number.isFinite(hours) && hours > 0
       ? hours * 60 * 60 * 1000
       : 72 * 60 * 60 * 1000;
-  }
-
-  private normalizeLanguage(language: string) {
-    return language.trim().toLowerCase() === 'en' ? 'en' : 'es';
-  }
-
-  private validateAvatarDataUrl(dataUrl: string) {
-    const match = AVATAR_DATA_URL_PATTERN.exec(dataUrl);
-
-    if (!match) {
-      throw new BadRequestException('La imagen debe ser JPG, PNG o WebP.');
-    }
-
-    const [, mimeType, base64Payload] = match;
-    const imageBuffer = Buffer.from(base64Payload, 'base64');
-
-    if (imageBuffer.length === 0 || imageBuffer.length > MAX_AVATAR_BYTES) {
-      throw new BadRequestException('La imagen no puede superar 2 MB.');
-    }
-
-    if (!this.matchesImageSignature(mimeType, imageBuffer)) {
-      throw new BadRequestException('El contenido de la imagen no es válido.');
-    }
-
-    return `data:${mimeType === 'image/jpg' ? 'image/jpeg' : mimeType};base64,${base64Payload}`;
-  }
-
-  private matchesImageSignature(mimeType: string, imageBuffer: Buffer) {
-    if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
-      return (
-        imageBuffer.length >= 3 &&
-        imageBuffer[0] === 0xff &&
-        imageBuffer[1] === 0xd8 &&
-        imageBuffer[2] === 0xff
-      );
-    }
-
-    if (mimeType === 'image/png') {
-      return (
-        imageBuffer.length >= 8 &&
-        imageBuffer[0] === 0x89 &&
-        imageBuffer[1] === 0x50 &&
-        imageBuffer[2] === 0x4e &&
-        imageBuffer[3] === 0x47 &&
-        imageBuffer[4] === 0x0d &&
-        imageBuffer[5] === 0x0a &&
-        imageBuffer[6] === 0x1a &&
-        imageBuffer[7] === 0x0a
-      );
-    }
-
-    return (
-      imageBuffer.length >= 12 &&
-      imageBuffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
-      imageBuffer.subarray(8, 12).toString('ascii') === 'WEBP'
-    );
   }
 
   private toSafeUser<T extends { passwordHash: string }>(user: T) {

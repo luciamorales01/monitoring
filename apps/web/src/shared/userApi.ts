@@ -3,7 +3,6 @@ import { apiClient } from "./apiClient";
 export type UserRole = "OWNER" | "ADMIN" | "VIEWER";
 export type UserStatus = "ACTIVE" | "INACTIVE" | "PENDING";
 export type InvitationStatus = "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
-export type LanguageCode = "es" | "en";
 
 export type User = {
   id: number;
@@ -21,9 +20,8 @@ export type User = {
   } | null;
 
   phone?: string;
-  timezone?: string;
-  language?: LanguageCode;
-  avatarUrl?: string | null;
+timezone?: string;
+language?: string;
 };
 
 export type UpdateCurrentUserInput = {
@@ -31,7 +29,7 @@ export type UpdateCurrentUserInput = {
   email?: string;
   phone?: string;
   timezone?: string;
-  language?: LanguageCode;
+  language?: string;
 };
 
 export const getCurrentUser = async () => {
@@ -42,13 +40,6 @@ export const updateCurrentUser = async (data: UpdateCurrentUserInput) => {
   return apiClient<User>("/users/me", {
     method: "PATCH",
     body: JSON.stringify(data),
-  });
-};
-
-export const updateCurrentUserAvatar = async (dataUrl: string | null) => {
-  return apiClient<User>("/users/me/avatar", {
-    method: "PATCH",
-    body: JSON.stringify({ dataUrl }),
   });
 };
 

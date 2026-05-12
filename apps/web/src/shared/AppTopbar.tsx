@@ -28,7 +28,6 @@ type TopbarCta = {
 };
 
 type TopbarUserSummary = {
-  avatarUrl?: string | null;
   initials: string;
   name: string;
   role: string;
@@ -286,15 +285,7 @@ export default function AppTopbar({
           >
             {userSummary ? (
               <>
-                {userSummary.avatarUrl ? (
-                  <img
-                    alt=""
-                    src={userSummary.avatarUrl}
-                    style={styles.userAvatarImage}
-                  />
-                ) : (
-                  <span style={styles.userAvatar}>{userSummary.initials}</span>
-                )}
+                <span style={styles.userAvatar}>{userSummary.initials}</span>
                 <span style={styles.userCopy}>
                   <strong style={styles.userName}>{userSummary.name}</strong>
                   <small style={styles.userRole}>{userSummary.role}</small>
@@ -438,13 +429,6 @@ const styles: Record<string, CSSProperties> = {
     width: 34,
     height: 34,
     fontSize: 12,
-    flexShrink: 0,
-  },
-  userAvatarImage: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    objectFit: 'cover',
     flexShrink: 0,
   },
   userCopy: {

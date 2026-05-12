@@ -1,7 +1,6 @@
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
-  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -38,7 +37,7 @@ export class UpdateCurrentUserDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['es', 'en'])
+  @MaxLength(40)
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  language?: 'es' | 'en';
+  language?: string;
 }

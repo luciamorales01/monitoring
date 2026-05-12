@@ -1,13 +1,11 @@
 import { appEnv } from './env';
 import { tokenStorage } from './tokenStorage';
 
-export type ReportRange = '24h' | '7d' | '30d' | 'custom';
+export type ReportRange = '24h' | '7d' | '30d';
 export type ReportFormat = 'csv' | 'pdf' | 'xlsx';
 export type ReportScope = {
-  from?: string;
   monitorId?: number | string | null;
   sectionId?: number | string | null;
-  to?: string;
 };
 
 function buildReportsQuery(range: ReportRange, scope?: ReportScope) {
@@ -19,11 +17,6 @@ function buildReportsQuery(range: ReportRange, scope?: ReportScope) {
 
   if (scope?.sectionId && scope.sectionId !== 'all') {
     params.set('sectionId', String(scope.sectionId));
-  }
-
-  if (range === 'custom') {
-    if (scope?.from) params.set('from', scope.from);
-    if (scope?.to) params.set('to', scope.to);
   }
 
   return params.toString();
