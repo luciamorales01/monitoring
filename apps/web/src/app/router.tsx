@@ -1,4 +1,3 @@
-import { type ReactNode } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import ForgotPasswordPage from "../modules/auth/ForgotPasswordPage";
 import LoginPage from "../modules/auth/LoginPage";
@@ -21,21 +20,7 @@ import RouteErrorPage from "./RouteErrorPage";
 import NotFoundPage from "./NotFoundPage";
 import ResetPasswordPage from "../modules/auth/ResetPasswordPage";
 import AcceptInvitationPage from "../modules/auth/AcceptInvitationPage";
-import { useCurrentUserPermissions } from "../shared/permissions";
-
-function OwnerRoute({ children }: { children: ReactNode }) {
-  const { canManageUsers, isLoading } = useCurrentUserPermissions();
-
-  if (isLoading) {
-    return <div style={{ padding: 32 }}>Comprobando permisos...</div>;
-  }
-
-  if (!canManageUsers) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return children;
-}
+import { OwnerRoute } from "./OwnerRoute";
 
 export const router = createBrowserRouter([
   {
@@ -63,8 +48,7 @@ export const router = createBrowserRouter([
   },
   { path: "/register", element: <Navigate to="/registro" replace /> },
   { path: "/recuperar-password", element: <ForgotPasswordPage /> },
-  {path: "/restablecer-password", element: <ResetPasswordPage />,},
-  {path: "/aceptar-invitacion", element: <AcceptInvitationPage />,},
+  { path: "/aceptar-invitacion", element: <AcceptInvitationPage /> },
   { path: "/status/:slug", element: <PublicStatusPage /> },
   { path: "/mi-perfil", element: <Navigate to="/profile" replace /> },
   {
@@ -93,13 +77,13 @@ export const router = createBrowserRouter([
       { path: "sections/:sectionId", element: <SectionDetailPage /> },
       { path: "sections", element: <SectionsPage /> },
       {
-  path: "users",
-  element: (
-    <OwnerRoute>
-      <UsersPage />
-    </OwnerRoute>
-  ),
-},
+        path: "users",
+        element: (
+          <OwnerRoute>
+            <UsersPage />
+          </OwnerRoute>
+        ),
+      },
       { path: "profile", element: <ProfilePage /> },
       { path: "*", element: <NotFoundPage /> },
     ],

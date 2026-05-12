@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
@@ -67,9 +68,9 @@ async function bootstrap() {
 
   await app.listen(port);
 
-  console.log(`API running on http://localhost:${port}/${globalPrefix}`);
-  console.log(`Swagger docs on http://localhost:${port}/${globalPrefix}/docs`);
-  console.log('CORS enabled for:', corsOrigins);
+  logger.log(`API running on http://localhost:${port}/${globalPrefix}`);
+  logger.log(`Swagger docs on http://localhost:${port}/${globalPrefix}/docs`);
+  logger.log(`CORS enabled for: ${corsOrigins.join(', ') || 'none'}`);
 }
 
 bootstrap();

@@ -217,8 +217,8 @@ export default function CreateMonitorPage() {
     try {
       await createMonitor(buildPayload());
       navigate('/monitors');
-    } catch (err: any) {
-      setError(err.message ?? 'No se pudo crear el monitor');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo crear el monitor');
     } finally {
       setIsSubmitting(false);
     }

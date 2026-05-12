@@ -319,7 +319,7 @@ async function main() {
     }
   }
 
-  console.log(`✅ Seed completado con ${monitors.length} monitores.`);
+  console.info(`✅ Seed completado con ${monitors.length} monitores.`);
 }
 
 main()

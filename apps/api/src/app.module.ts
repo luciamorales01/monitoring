@@ -20,6 +20,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ReportsModule } from './modules/reports/reports.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { SectionsModule } from './modules/sections/sections.module';
+import { StatusModule } from './modules/status/status.module';
 import { EventsModule } from './modules/events/events.module';
 
 @Module({
@@ -42,6 +43,7 @@ import { EventsModule } from './modules/events/events.module';
     ReportsModule,
     JobsModule,
     SectionsModule,
+    StatusModule,
     EventsModule,
   ],
   controllers: [AppController],
