@@ -81,7 +81,6 @@ monitoring-tfg/
     workers/
       monitoring-worker/         # Worker BullMQ para checks de monitores
       notifications-worker/      # Worker reservado para notificaciones async
-      reports-worker/            # Worker reservado para reportes async
   packages/
     shared-types/                # Tipos TypeScript compartidos
   docs/                          # Documentacion auxiliar
