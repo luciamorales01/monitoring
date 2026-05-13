@@ -8,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomBytes, createHash } from 'crypto';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { LoginDto } from './login.dto';
 import { RegisterDto } from './register.dto';
 import { ForgotPasswordDto } from './forgot-password.dto';
@@ -45,6 +46,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -193,14 +195,21 @@ export class AuthService {
       },
     });
 
-    const origins =
-      this.configService.get<string>('CORS_ORIGINS')?.split(',') ?? [];
-
     const appUrl =
-  this.configService.get<string>('FRONTEND_URL') ??
-  'http://localhost:5173';
+      this.configService.get<string>('FRONTEND_URL') ??
+      this.configService.get<string>('APP_URL') ??
+      'http://localhost:5173';
 
     const resetUrl = `${appUrl.replace(/\/$/, '')}/restablecer-password?token=${encodeURIComponent(resetToken)}`;
+
+    await this.notificationsService.notifyPasswordReset({
+      email: user.email,
+      expiresAt,
+      name: user.name,
+      organizationId: user.organizationId,
+      resetUrl,
+      userId: user.id,
+    });
 
     const payload: { message: string; resetUrl?: string; resetToken?: string } =
       {
@@ -213,7 +222,6 @@ export class AuthService {
       payload.resetToken = resetToken;
     }
 
-    // La integración SMTP real se puede conectar aquí. En desarrollo se devuelve resetUrl para poder probar el flujo.
     return payload;
   }
 

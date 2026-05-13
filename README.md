@@ -210,8 +210,8 @@ Servicios locales:
 | `API_PREFIX` | Prefijo global, normalmente `api`. |
 | `CORS_ORIGINS` | Lista de origenes permitidos separada por comas. |
 | `APP_NAME` | Nombre visible de la aplicacion. |
-| `APP_URL` | URL publica del frontend. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Configuracion de email para alertas. |
+| `FRONTEND_URL` | URL publica del frontend para enlaces de recuperacion. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `NOTIFICATIONS_FROM` | Configuracion usada por `notifications-worker`. La API solo encola jobs. |
 
 ### Web (`apps/web/.env`)
 
@@ -230,6 +230,8 @@ Servicios locales:
 | `REDIS_PORT` | Puerto de Redis si no se usa `REDIS_URL`. |
 | `MONITOR_CHECK_WORKER_CONCURRENCY` | Concurrencia del worker de checks. Valor por defecto: `5`. |
 | `MONITOR_CHECK_LOCK_TTL_MS` | TTL del lock por monitor. Valor por defecto: `300000`. |
+| `NOTIFICATIONS_WORKER_CONCURRENCY` | Concurrencia del worker de emails. Valor por defecto: `5`. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `NOTIFICATIONS_FROM` | SMTP de Gmail/Nodemailer. Si falta configuracion, el worker loguea el email y no falla. |
 | `DATABASE_URL` | Conexion a PostgreSQL necesaria para el worker de monitorizacion. |
 | `DIRECT_URL` | Conexion directa para Prisma si el worker inicializa cliente Prisma. |
 

@@ -21,5 +21,5 @@ export type MonitorCheckJobResult =
     };
 
 export function buildMonitorCheckJobId(monitorId: number) {
-  return `monitor-check:${monitorId}`;
+  return `monitor-check-${monitorId}`;
 }

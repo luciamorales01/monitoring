@@ -2,6 +2,8 @@ import { UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { buildNotificationJobId } from '../notifications/notifications.queue-contract';
 import { AuthService } from './auth.service';
 
 jest.mock('bcryptjs', () => ({
@@ -21,6 +23,9 @@ describe('AuthService', () => {
       create: jest.fn(),
       update: jest.fn(),
     },
+    passwordResetToken: {
+      create: jest.fn(),
+    },
     organization: {
       findUnique: jest.fn(),
       create: jest.fn(),
@@ -30,6 +35,13 @@ describe('AuthService', () => {
   const jwtService = {
     sign: jest.fn(),
   };
+  const configService = {
+    get: jest.fn(),
+    getOrThrow: jest.fn(),
+  };
+  const notificationsService = {
+    notifyPasswordReset: jest.fn(),
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -37,7 +49,8 @@ describe('AuthService', () => {
     service = new AuthService(
       prisma as unknown as PrismaService,
       jwtService as unknown as JwtService,
-      { get: jest.fn(), getOrThrow: jest.fn() } as any,
+      configService,
+      notificationsService as unknown as NotificationsService,
     );
   });
 
@@ -118,5 +131,51 @@ describe('AuthService', () => {
         }),
       }),
     );
+  });
+
+  it('forgot-password enqueues reset email with a BullMQ-safe job id', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 42,
+      name: 'Ana',
+      email: 'ana@example.com',
+      organizationId: 10,
+      passwordHash: 'hashed-password',
+      role: 'OWNER',
+      status: 'ACTIVE',
+    });
+    prisma.passwordResetToken.create.mockResolvedValue({ id: 99 });
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'FRONTEND_URL') return 'http://localhost:5173';
+      if (key === 'NODE_ENV') return 'production';
+      return undefined;
+    });
+    notificationsService.notifyPasswordReset.mockImplementation((payload) => {
+      const jobId = buildNotificationJobId({
+        kind: 'password-reset',
+        email: {
+          html: `<a href="${payload.resetUrl}">reset</a>`,
+          subject: 'Reset',
+          text: payload.resetUrl,
+          to: [payload.email],
+        },
+        organizationId: payload.organizationId,
+        requestedAt: new Date('2026-05-13T06:00:00.000Z').toISOString(),
+        userId: payload.userId,
+      });
+
+      expect(jobId).not.toContain(':');
+      expect(jobId).not.toContain(payload.email);
+      expect(jobId).not.toContain(payload.resetUrl);
+      return Promise.resolve();
+    });
+
+    await expect(
+      service.forgotPassword({ email: 'ana@example.com' }),
+    ).resolves.toEqual({
+      message:
+        'Si el email existe, recibirás instrucciones para restablecer la contraseña.',
+    });
+
+    expect(notificationsService.notifyPasswordReset).toHaveBeenCalledTimes(1);
   });
 });

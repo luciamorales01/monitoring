@@ -6,8 +6,8 @@ import {
   NotificationType,
   Prisma,
 } from '@prisma/client';
-import nodemailer from 'nodemailer';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { NotificationsQueueService } from './notifications-queue.service';
 
 type NotificationPrisma = Pick<
   Prisma.TransactionClient,
@@ -27,6 +27,15 @@ type MonitorNotificationPayload = {
   resolvedAt?: Date | null;
 };
 
+type PasswordResetPayload = {
+  email: string;
+  name: string;
+  organizationId: number;
+  resetUrl: string;
+  userId: number;
+  expiresAt: Date;
+};
+
 type MailMessage = {
   to: string[];
   subject: string;
@@ -37,7 +46,6 @@ type MailMessage = {
 const EMAIL_CHANNEL = NotificationChannel.EMAIL;
 const EVENT_DOWN = NotificationType.MONITOR_DOWN;
 const EVENT_RECOVERED = NotificationType.MONITOR_RECOVERED;
-const STATUS_SENT = NotificationStatus.SENT;
 const STATUS_FAILED = NotificationStatus.FAILED;
 const STATUS_SKIPPED = NotificationStatus.SKIPPED;
 
@@ -48,23 +56,34 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly notificationsQueueService: NotificationsQueueService,
   ) {}
 
   async notifyMonitorDown(
     payload: MonitorNotificationPayload,
     tx?: NotificationPrisma,
   ) {
-    await this.sendMonitorAlert(EVENT_DOWN, payload, tx);
+    await this.enqueueMonitorAlert(EVENT_DOWN, payload, tx);
   }
 
   async notifyMonitorRecovered(
     payload: MonitorNotificationPayload,
     tx?: NotificationPrisma,
   ) {
-    await this.sendMonitorAlert(EVENT_RECOVERED, payload, tx);
+    await this.enqueueMonitorAlert(EVENT_RECOVERED, payload, tx);
   }
 
-  private async sendMonitorAlert(
+  async notifyPasswordReset(payload: PasswordResetPayload) {
+    await this.notificationsQueueService.enqueueEmail({
+      kind: 'password-reset',
+      email: this.buildPasswordResetMessage(payload),
+      organizationId: payload.organizationId,
+      requestedAt: new Date().toISOString(),
+      userId: payload.userId,
+    });
+  }
+
+  private async enqueueMonitorAlert(
     type: typeof EVENT_DOWN | typeof EVENT_RECOVERED,
     payload: MonitorNotificationPayload,
     tx?: NotificationPrisma,
@@ -76,7 +95,7 @@ export class NotificationsService {
       prisma,
     );
 
-    const message = this.buildMessage(type, payload, recipients);
+    const message = this.buildMonitorMessage(type, payload, recipients);
     const event = await this.createNotificationEvent(
       prisma,
       type,
@@ -88,53 +107,27 @@ export class NotificationsService {
     if (recipients.length === 0) {
       await this.markEvent(
         prisma,
-        event?.id,
+        event.id,
         STATUS_SKIPPED,
         'Sin destinatarios',
       );
       return;
     }
 
-    if (!this.isSmtpConfigured()) {
-      await this.markEvent(
-        prisma,
-        event?.id,
-        STATUS_SKIPPED,
-        'SMTP no configurado',
-      );
-      this.logger.warn(
-        `Notificación ${type} omitida: faltan variables SMTP_HOST, SMTP_USER o SMTP_PASS`,
-      );
-      return;
-    }
-
     try {
-      const transporter = nodemailer.createTransport({
-        host: this.configService.get<string>('SMTP_HOST'),
-        port: Number(this.configService.get<string>('SMTP_PORT') ?? 587),
-        secure: this.configService.get<string>('SMTP_SECURE') === 'true',
-        auth: {
-          user: this.configService.get<string>('SMTP_USER'),
-          pass: this.configService.get<string>('SMTP_PASS'),
-        },
+      await this.notificationsQueueService.enqueueEmail({
+        kind: 'monitor-alert',
+        email: message,
+        notificationEventId: event.id,
+        requestedAt: new Date().toISOString(),
       });
-
-      await transporter.sendMail({
-        from:
-          this.configService.get<string>('SMTP_FROM') ??
-          this.configService.get<string>('SMTP_USER'),
-        to: message.to.join(', '),
-        subject: message.subject,
-        text: message.text,
-        html: message.html,
-      });
-
-      await this.markEvent(prisma, event?.id, STATUS_SENT);
     } catch (error) {
-      const message =
+      const errorMessage =
         error instanceof Error ? error.message : 'Error desconocido';
-      await this.markEvent(prisma, event?.id, STATUS_FAILED, message);
-      this.logger.error(`Error enviando notificación ${type}: ${message}`);
+      await this.markEvent(prisma, event.id, STATUS_FAILED, errorMessage);
+      this.logger.error(
+        `Error encolando notificacion ${type}: ${errorMessage}`,
+      );
     }
   }
 
@@ -160,23 +153,23 @@ export class NotificationsService {
           },
         ],
       },
-      select: { email: true, name: true },
+      select: { email: true },
       orderBy: { id: 'asc' },
     });
 
     return users.map((user) => user.email).filter(Boolean);
   }
 
-  private buildMessage(
+  private buildMonitorMessage(
     type: typeof EVENT_DOWN | typeof EVENT_RECOVERED,
     payload: MonitorNotificationPayload,
     recipients: string[],
   ): MailMessage {
     const appName = this.configService.get<string>('APP_NAME') ?? 'Monitoring';
     const subjectPrefix =
-      type === EVENT_DOWN ? 'Monitor caído' : 'Monitor recuperado';
+      type === EVENT_DOWN ? 'Monitor caido' : 'Monitor recuperado';
     const subject = `[${appName}] ${subjectPrefix}: ${payload.monitorName}`;
-    const statusLabel = type === EVENT_DOWN ? 'caído' : 'recuperado';
+    const statusLabel = type === EVENT_DOWN ? 'caido' : 'recuperado';
     const severity = payload.severity ? `\nSeveridad: ${payload.severity}` : '';
     const error = payload.errorMessage
       ? `\nError: ${payload.errorMessage}`
@@ -184,7 +177,7 @@ export class NotificationsService {
     const timestamp = payload.resolvedAt ?? payload.startedAt ?? new Date();
 
     const text = [
-      `${payload.monitorName} está ${statusLabel}.`,
+      `${payload.monitorName} esta ${statusLabel}.`,
       `URL: ${payload.monitorTarget}`,
       `Incidencia: ${payload.title}`,
       `Fecha: ${timestamp.toISOString()}`,
@@ -197,7 +190,7 @@ export class NotificationsService {
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
         <h2 style="margin:0 0 12px">${this.escapeHtml(subjectPrefix)}</h2>
-        <p><strong>${this.escapeHtml(payload.monitorName)}</strong> está <strong>${this.escapeHtml(statusLabel)}</strong>.</p>
+        <p><strong>${this.escapeHtml(payload.monitorName)}</strong> esta <strong>${this.escapeHtml(statusLabel)}</strong>.</p>
         <p><strong>URL:</strong> <a href="${this.escapeHtml(payload.monitorTarget)}">${this.escapeHtml(payload.monitorTarget)}</a></p>
         <p><strong>Incidencia:</strong> ${this.escapeHtml(payload.title)}</p>
         ${payload.severity ? `<p><strong>Severidad:</strong> ${this.escapeHtml(payload.severity)}</p>` : ''}
@@ -207,6 +200,31 @@ export class NotificationsService {
     `;
 
     return { to: recipients, subject, text, html };
+  }
+
+  private buildPasswordResetMessage(payload: PasswordResetPayload): MailMessage {
+    const appName = this.configService.get<string>('APP_NAME') ?? 'Monitoring';
+    const subject = `[${appName}] Restablece tu contrasena`;
+    const expiresAt = payload.expiresAt.toISOString();
+    const text = [
+      `Hola ${payload.name},`,
+      'Hemos recibido una solicitud para restablecer tu contrasena.',
+      `Abre este enlace: ${payload.resetUrl}`,
+      `El enlace caduca en: ${expiresAt}`,
+      'Si no has solicitado este cambio, puedes ignorar este email.',
+    ].join('\n');
+    const html = `
+      <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
+        <h2 style="margin:0 0 12px">Restablece tu contrasena</h2>
+        <p>Hola ${this.escapeHtml(payload.name)},</p>
+        <p>Hemos recibido una solicitud para restablecer tu contrasena.</p>
+        <p><a href="${this.escapeHtml(payload.resetUrl)}">Restablecer contrasena</a></p>
+        <p><strong>Caduca:</strong> ${this.escapeHtml(expiresAt)}</p>
+        <p>Si no has solicitado este cambio, puedes ignorar este email.</p>
+      </div>
+    `;
+
+    return { to: [payload.email], subject, text, html };
   }
 
   private async createNotificationEvent(
@@ -231,28 +249,18 @@ export class NotificationsService {
 
   private async markEvent(
     prisma: NotificationPrisma,
-    eventId: number | undefined,
+    eventId: number,
     status: NotificationStatus,
     errorMessage?: string,
   ) {
-    if (!eventId) return;
-
     await prisma.notificationEvent.update({
       where: { id: eventId },
       data: {
         status,
         errorMessage: errorMessage ?? null,
-        sentAt: status === STATUS_SENT ? new Date() : null,
+        sentAt: null,
       },
     });
-  }
-
-  private isSmtpConfigured() {
-    return Boolean(
-      this.configService.get<string>('SMTP_HOST') &&
-      this.configService.get<string>('SMTP_USER') &&
-      this.configService.get<string>('SMTP_PASS'),
-    );
   }
 
   private escapeHtml(value: string) {

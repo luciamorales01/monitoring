@@ -534,7 +534,7 @@ function KpiCard({
 function StatusBadge({ status }: { status: IncidentFilterStatus }) {
   const stylesByStatus: Record<IncidentFilterStatus, { background: string; color: string; label: string }> = {
     ALL: { background: uiTheme.colors.background, color: uiTheme.colors.muted, label: 'Todas' },
-    OPEN: { background: uiTheme.colors.dangerSoft, color: '#dc2626', label: 'Abierta' },
+    OPEN: { background: uiTheme.colors.dangerSoft, color: uiTheme.colors.danger, label: 'Abierta' },
     ACKNOWLEDGED: { background: uiTheme.colors.warningSoft, color: '#d97706', label: 'Reconocida' },
     INVESTIGATING: { background: uiTheme.colors.warningSoft, color: '#d97706', label: 'En investigación' },
     RESOLVED: { background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary, label: 'Resuelta' },
@@ -658,7 +658,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 20,
     alignSelf: 'start',
     height: 'fit-content',
-    background: '#ffffff',
+    background: uiTheme.colors.surface,
   },
   toolbar: {
     display: 'grid',
@@ -688,8 +688,8 @@ const styles: Record<string, React.CSSProperties> = {
   tabActive: { background: uiTheme.colors.primarySoft, borderColor: uiTheme.colors.primaryLight, color: uiTheme.colors.primary },
   table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0 },
   th: { textAlign: 'left', padding: '13px 10px', color: uiTheme.colors.muted, fontSize: 12, borderBottom: `1px solid ${uiTheme.colors.border}`, fontWeight: 700 },
-  tr: { borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, background: '#ffffff', cursor: 'pointer' },
-  trHover: { background: '#f8fafc' },
+  tr: { borderBottom: `1px solid ${uiTheme.colors.surfaceSoft}`, background: uiTheme.colors.surface, cursor: 'pointer' },
+  trHover: { background: uiTheme.colors.surfaceSoft },
   td: { padding: '14px 10px', fontSize: 12, color: uiTheme.colors.text },
   url: { marginTop: 3, color: uiTheme.colors.muted, fontSize: 11 },
   badge: { padding: '5px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6 },
@@ -698,7 +698,7 @@ const styles: Record<string, React.CSSProperties> = {
   pagination: { ...paginationBase, padding: '16px 20px' },
   pages: { display: 'flex', gap: 10, alignItems: 'center', justifySelf: 'center', color: uiTheme.colors.text },
   pageActiveButton: pageActiveButtonBase,
-  pageNumberButton: { border: '1px solid transparent', background: 'transparent', color: '#475569', minWidth: 36, textAlign: 'center', cursor: 'pointer', padding: '7px 11px' },
+  pageNumberButton: { border: '1px solid transparent', background: 'transparent', color: uiTheme.colors.muted, minWidth: 36, textAlign: 'center', cursor: 'pointer', padding: '7px 11px' },
   pageArrow: pageArrowBase,
   pageArrowLeft: { transform: 'rotate(180deg)', display: 'grid', placeItems: 'center' },
   selectFake: { ...selectFakeBase, justifySelf: 'end' },
@@ -711,7 +711,7 @@ const styles: Record<string, React.CSSProperties> = {
   legendRow: { display: 'grid', gridTemplateColumns: '14px 1fr 32px', gap: 8, alignItems: 'center', fontSize: 12, padding: '8px 0', borderTop: `1px solid ${uiTheme.colors.surfaceSoft}` },
   dot: { width: 8, height: 8, borderRadius: 999 },
   topRow: { display: 'grid', gridTemplateColumns: '20px 1fr 28px', alignItems: 'center', gap: 8, padding: '9px 0', fontSize: 12 },
-  countBadge: { background: '#fee2e2', color: '#dc2626', borderRadius: 999, padding: '3px 8px', fontWeight: 800 },
+  countBadge: { background: uiTheme.colors.dangerSoft, color: uiTheme.colors.danger, borderRadius: 999, padding: '3px 8px', fontWeight: 800 },
   notificationsHeader: {
     display: 'flex',
     alignItems: 'center',

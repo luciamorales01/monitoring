@@ -17,6 +17,16 @@ import LoadingState from '../../shared/LoadingState';
 import { useCurrentUserPermissions } from '../../shared/permissions';
 import { EditIcon, MailIcon, MoreHorizontalIcon, ShieldIcon, UsersIcon } from '../../shared/uiIcons';
 import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Modal as UiModal,
+  SectionHeader,
+  Table,
+  fieldStyles,
+} from '../../shared/ui';
+import {
   inputBase,
   kpiCardBase,
   pageMain,
@@ -178,17 +188,17 @@ export default function UsersPage() {
           <strong>Invitación creada.</strong>
           <span>Copia este enlace y envíaselo al usuario:</span>
           <code style={styles.inviteLink}>{inviteResult.inviteUrl}</code>
-          <button type="button" style={styles.smallButton} onClick={() => navigator.clipboard?.writeText(inviteResult.inviteUrl ?? '')}>
+          <Button size="sm" style={styles.fitButton} onClick={() => navigator.clipboard?.writeText(inviteResult.inviteUrl ?? '')}>
             Copiar enlace
-          </button>
+          </Button>
         </div>
       ) : null}
 
       <section style={styles.grid}>
-        <div style={styles.card}>
+        <Card as="div" padding="none" style={styles.card}>
           <div style={styles.cardHeader}>
             <div>
-              <h2 style={styles.cardTitle}>Miembros</h2>
+              <SectionHeader title="Miembros" />
               <p style={styles.cardSubtitle}>Usuarios con acceso a la organización.</p>
             </div>
           </div>
@@ -196,9 +206,9 @@ export default function UsersPage() {
           {loading ? (
             <LoadingState variant="table" label="Cargando usuarios" rows={7} />
           ) : error ? (
-            <p style={styles.empty}>{error}</p>
+            <EmptyState title="No se pudieron cargar usuarios">{error}</EmptyState>
           ) : (
-            <table style={styles.table}>
+            <Table>
               <thead>
                 <tr>
                   <th style={styles.th}>Usuario</th>
@@ -267,18 +277,18 @@ export default function UsersPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
           )}
-        </div>
+        </Card>
 
-        <aside style={styles.sideCard}>
+        <Card as="aside" style={styles.sideCard}>
           <div style={styles.cardHeaderCompact}>
             <h2 style={styles.cardTitle}>Invitaciones pendientes</h2>
-            <span style={styles.counter}>{pendingInvitations.length}</span>
+            <Badge tone="blue">{pendingInvitations.length}</Badge>
           </div>
 
           {pendingInvitations.length === 0 ? (
-            <p style={styles.empty}>No hay invitaciones pendientes.</p>
+            <EmptyState title="Sin invitaciones">No hay invitaciones pendientes.</EmptyState>
           ) : (
             <div style={styles.inviteList}>
               {pendingInvitations.map((invitation) => (
@@ -288,15 +298,15 @@ export default function UsersPage() {
                     <p style={styles.muted}>{getRoleLabel(invitation.role)} · caduca {formatDate(invitation.expiresAt)}</p>
                   </div>
                   {canWriteActions ? (
-                    <button type="button" style={styles.dangerButton} onClick={() => handleRevokeInvitation(invitation)}>
+                    <Button variant="danger" size="sm" onClick={() => handleRevokeInvitation(invitation)}>
                       Revocar
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               ))}
             </div>
           )}
-        </aside>
+        </Card>
       </section>
 
       <UserEditModal
@@ -348,7 +358,19 @@ function UserEditModal({
   if (!isOpen || !user) return null;
 
   return (
-    <Modal title="Editar usuario" subtitle={user.email} onClose={onClose}>
+    <UiModal
+      title="Editar usuario"
+      subtitle={user.email}
+      onClose={onClose}
+      footer={
+        <>
+          <Button onClick={onClose} disabled={isSaving}>Cancelar</Button>
+          <Button variant="primary" onClick={() => onSubmit({ name: name.trim(), email: email.trim(), role })} disabled={isSaving}>
+            {isSaving ? 'Guardando...' : 'Guardar cambios'}
+          </Button>
+        </>
+      }
+    >
       <div style={styles.modalForm}>
         <Field label="Nombre" value={name} onChange={setName} disabled={isSaving} />
         <Field label="Email" value={email} onChange={setEmail} disabled={isSaving} type="email" />
@@ -362,13 +384,7 @@ function UserEditModal({
         </label>
       </div>
       {error ? <div style={styles.modalError}>{error}</div> : null}
-      <div style={styles.modalActions}>
-        <button type="button" style={styles.secondaryButton} onClick={onClose} disabled={isSaving}>Cancelar</button>
-        <button type="button" style={styles.primaryButton} onClick={() => onSubmit({ name: name.trim(), email: email.trim(), role })} disabled={isSaving}>
-          {isSaving ? 'Guardando...' : 'Guardar cambios'}
-        </button>
-      </div>
-    </Modal>
+    </UiModal>
   );
 }
 
@@ -438,9 +454,9 @@ function Modal({ title, subtitle, children, onClose }: { title: string; subtitle
 
 function Field({ label, value, onChange, disabled, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; disabled: boolean; type?: string }) {
   return (
-    <label style={styles.modalField}>
+    <label style={fieldStyles.label}>
       <span>{label}</span>
-      <input style={styles.modalInput} value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} type={type} />
+      <input style={fieldStyles.input} value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} type={type} />
     </label>
   );
 }
@@ -459,7 +475,7 @@ function KpiCard({ icon, title, value, note }: { icon: ReactNode; title: string;
 }
 
 function RoleBadge({ role }: { role: UserRoleLabel }) {
-  return <span style={styles.roleBadge}>{role}</span>;
+  return <Badge tone="blue">{role}</Badge>;
 }
 
 function getRoleLabel(role: UserRole): UserRoleLabel {
@@ -537,7 +553,8 @@ const styles: Record<string, CSSProperties> = {
     background: 'transparent',
     borderColor: 'transparent',
   },
-  smallButton: { ...secondaryButtonBase, minHeight: 32, padding: '0 10px', borderRadius: 12, fontSize: 12, cursor: 'pointer', width: 'fit-content' },
+  fitButton: { width: 'fit-content' },
+  smallButton: { ...secondaryButtonBase, minHeight: 32, padding: '0 10px', borderRadius: uiTheme.radii.sm, fontSize: 12, cursor: 'pointer', width: 'fit-content' },
   dangerButton: { ...secondaryButtonBase, color: uiTheme.colors.danger, minHeight: 32, padding: '0 10px', borderRadius: 12, fontSize: 12, cursor: 'pointer' },
   inviteList: { display: 'grid', gap: 10 },
   inviteItem: { display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'center', padding: 12, borderRadius: 12, background: uiTheme.colors.surfaceSoft },

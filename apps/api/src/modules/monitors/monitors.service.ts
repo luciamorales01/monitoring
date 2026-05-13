@@ -98,8 +98,23 @@ type MonitorCheckBatchResult = {
 const DEFAULT_CHECK_LOCATION = 'default';
 
 type IncidentSyncResult =
-  | { type: 'created'; incidentId: number; happenedAt: Date }
-  | { type: 'resolved'; incidentId: number; happenedAt: Date }
+  | {
+      type: 'created';
+      incidentId: number;
+      happenedAt: Date;
+      title: string;
+      severity?: string | null;
+      errorMessage?: string | null;
+      shouldNotify: boolean;
+    }
+  | {
+      type: 'resolved';
+      incidentId: number;
+      happenedAt: Date;
+      title: string;
+      severity?: string | null;
+      shouldNotify: boolean;
+    }
   | null;
 
 type PersistedCheckResult = MonitorCheckBatchResult & {
@@ -994,11 +1009,50 @@ export class MonitorsService {
     });
 
     await this.publishCheckEvents(monitor.id, monitor.organizationId, persisted);
+    await this.enqueueIncidentNotifications(monitor, persisted);
 
     return {
       overallStatus: persisted.overallStatus,
       results: persisted.results,
     };
+  }
+
+  private async enqueueIncidentNotifications(
+    monitor: Pick<
+      MonitorEntity,
+      'id' | 'name' | 'target' | 'organizationId' | 'alertEmail'
+    >,
+    result: PersistedCheckResult,
+  ) {
+    const incidentSync = result.incidentSync;
+
+    if (!incidentSync?.shouldNotify || monitor.alertEmail === false) {
+      return;
+    }
+
+    const basePayload = {
+      incidentId: incidentSync.incidentId,
+      monitorId: monitor.id,
+      monitorName: monitor.name ?? `Monitor #${monitor.id}`,
+      monitorTarget: monitor.target,
+      organizationId: monitor.organizationId,
+      severity: incidentSync.severity,
+      title: incidentSync.title,
+    };
+
+    if (incidentSync.type === 'created') {
+      await this.notificationsService.notifyMonitorDown({
+        ...basePayload,
+        errorMessage: incidentSync.errorMessage,
+        startedAt: incidentSync.happenedAt,
+      });
+      return;
+    }
+
+    await this.notificationsService.notifyMonitorRecovered({
+      ...basePayload,
+      resolvedAt: incidentSync.happenedAt,
+    });
   }
 
   private async publishCheckEvents(
@@ -1255,26 +1309,13 @@ export class MonitorsService {
         },
       });
 
-      if (monitor.alertEmail !== false) {
-        await this.notificationsService.notifyMonitorDown(
-          {
-            monitorId: monitor.id,
-            incidentId: incident.id,
-            organizationId: monitor.organizationId,
-            monitorName: monitor.name ?? `Monitor #${monitor.id}`,
-            monitorTarget: monitor.target,
-            title: incident.title,
-            severity: incident.severity,
-            errorMessage: outcome.errorMessage,
-            startedAt: incident.startedAt,
-          },
-          tx,
-        );
-      }
-
       return {
+        errorMessage: outcome.errorMessage,
         happenedAt: incident.startedAt ?? outcome.checkedAt,
         incidentId: incident.id,
+        severity: incident.severity,
+        shouldNotify: monitor.alertEmail !== false,
+        title: incident.title,
         type: 'created',
       };
     }
@@ -1301,25 +1342,12 @@ export class MonitorsService {
       },
     });
 
-    if (monitor.alertEmail !== false) {
-      await this.notificationsService.notifyMonitorRecovered(
-        {
-          monitorId: monitor.id,
-          incidentId: resolvedIncident.id,
-          organizationId: monitor.organizationId,
-          monitorName: monitor.name ?? `Monitor #${monitor.id}`,
-          monitorTarget: monitor.target,
-          title: resolvedIncident.title,
-          severity: resolvedIncident.severity,
-          resolvedAt: outcome.checkedAt,
-        },
-        tx,
-      );
-    }
-
     return {
       happenedAt: outcome.checkedAt,
       incidentId: resolvedIncident.id,
+      severity: resolvedIncident.severity,
+      shouldNotify: monitor.alertEmail !== false,
+      title: resolvedIncident.title,
       type: 'resolved',
     };
   }

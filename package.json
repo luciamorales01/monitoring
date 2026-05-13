@@ -26,5 +26,8 @@
   "dependencies": {
     "@nestjs/swagger": "^11.4.2",
     "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2.0.0"
   }
 }

@@ -4,6 +4,8 @@ import AuthLayout from './AuthLayout';
 import { forgotPassword } from './authApi';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const GENERIC_SUCCESS_MESSAGE =
+  'Si el email existe, recibirás instrucciones para restablecer tu contraseña.';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -33,8 +35,8 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      const res = await forgotPassword(trimmedEmail);
-      setSuccessMessage(res.resetUrl ? `${res.message} En desarrollo: ${res.resetUrl}` : res.message);
+      await forgotPassword(trimmedEmail);
+      setSuccessMessage(GENERIC_SUCCESS_MESSAGE);
     } catch (err) {
       setSubmitError(
         err instanceof Error

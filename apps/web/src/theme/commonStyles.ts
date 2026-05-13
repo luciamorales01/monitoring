@@ -54,10 +54,10 @@ export const pageSubtitle: CSSProperties = {
 };
 
 export const surfaceCard: CSSProperties = {
-  background: 'var(--surface-card)',
+  background: colors.surface,
   border: `1px solid ${colors.border}`,
   borderRadius: radii.md,
-  boxShadow: shadows.card,
+  boxShadow: 'none',
 };
 
 export const kpiCardBase: CSSProperties = {
@@ -71,7 +71,7 @@ export const controlBase: CSSProperties = {
   color: colors.text,
   borderRadius: radii.sm,
   fontWeight: 500, // 🔥 más ligero
-  boxShadow: 'var(--control-shadow)',
+  boxShadow: 'none',
 };
 
 export const inputBase: CSSProperties = {
@@ -100,10 +100,10 @@ export const iconButtonBase: CSSProperties = {
 
 export const primaryButtonBase: CSSProperties = {
   border: `1px solid ${colors.primary}`,
-  background: `linear-gradient(180deg, ${colors.primaryLight}, ${colors.primary})`,
+  background: colors.primary,
   color: colors.white,
   borderRadius: radii.sm,
-  boxShadow: shadows.button,
+  boxShadow: 'none',
   fontWeight: 600, // 🔥 antes 800
 };
 

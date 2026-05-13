@@ -55,14 +55,11 @@ export function logout(refreshToken: string) {
 }
 
 export function forgotPassword(email: string) {
-  return apiClient<{ message: string; resetUrl?: string; resetToken?: string }>(
-    '/auth/forgot-password',
-    {
-      method: 'POST',
-      skipAuth: true,
-      body: JSON.stringify({ email }),
-    },
-  );
+  return apiClient<{ message: string }>('/auth/forgot-password', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify({ email }),
+  });
 }
 
 export function resetPassword(data: { token: string; password: string }) {
