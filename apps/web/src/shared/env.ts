@@ -4,6 +4,14 @@ type AppEnv = {
   requestTimeoutMs: number;
 };
 
+function normalizeAppName(value: unknown) {
+  const rawValue = typeof value === 'string' ? value.trim() : '';
+  if (!rawValue || rawValue === 'Monitoring TFG') {
+    return 'Monitoring';
+  }
+  return rawValue;
+}
+
 function normalizeApiUrl(value: unknown) {
   const rawValue = typeof value === 'string' ? value.trim() : '';
   const fallback = 'http://localhost:3000/api';
@@ -30,7 +38,7 @@ function toPositiveInteger(value: unknown, fallback: number) {
 
 export const appEnv: AppEnv = {
   apiUrl: normalizeApiUrl(import.meta.env.VITE_API_URL),
-  appName: import.meta.env.VITE_APP_NAME?.trim() || 'Monitoring TFG',
+  appName: normalizeAppName(import.meta.env.VITE_APP_NAME),
   requestTimeoutMs: toPositiveInteger(
     import.meta.env.VITE_REQUEST_TIMEOUT_MS,
     15000,

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import BrandLogo from '../../shared/BrandLogo';
 import '../../pages/auth.css';
 
 type AuthLayoutProps = {
@@ -17,10 +18,10 @@ export default function AuthLayout({
       <section className="login-shell">
         <aside className="login-brand">
           <div className="brand-logo">
-            <div className="brand-icon">⌁</div>
-            <span>
-              Monitoring<strong>TFG</strong>
-            </span>
+            <div className="brand-icon">
+              <BrandLogo className="brand-logo-image" size={24} />
+            </div>
+            <span className="brand-logo-text">Monitoring</span>
           </div>
 
           <div className="brand-copy">

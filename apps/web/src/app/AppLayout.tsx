@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import BrandLogo from "../shared/BrandLogo";
 import { getActiveIncidents } from "../shared/incidentApi";
 import { appEnv } from "../shared/env";
 import { useCurrentUserPermissions } from "../shared/permissions";
@@ -11,7 +12,6 @@ import {
 import { surfaceCard, uiTheme } from "../theme/commonStyles";
 import {
   AlertTriangleIcon,
-  BrandMark,
   FolderIcon,
   HomeIcon,
   MonitorIcon,
@@ -89,7 +89,7 @@ export default function AppLayout() {
       void refreshActiveIncidents();
     };
 
-    refreshActiveIncidents();
+    void refreshActiveIncidents();
 
     const intervalId = window.setInterval(refreshActiveIncidents, 10000);
     window.addEventListener(
@@ -114,7 +114,7 @@ export default function AppLayout() {
       <aside style={styles.sidebar}>
         <div style={styles.logo}>
           <span style={styles.logoIcon}>
-            <BrandMark size={18} />
+            <BrandLogo size={22} />
           </span>
           <span>{appEnv.appName}</span>
         </div>
@@ -179,7 +179,7 @@ function SidebarItem({
   to,
   active,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   to?: string;
   active?: boolean;
@@ -191,7 +191,7 @@ function SidebarItem({
     </>
   );
 
-  const style: React.CSSProperties = {
+  const style: CSSProperties = {
     ...styles.navItem,
     ...(active ? styles.navItemActive : {}),
   };
@@ -239,7 +239,7 @@ function MiniSparkline({ warning }: { warning: boolean }) {
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
   page: {
     height: "100vh",
     display: "flex",
@@ -283,9 +283,9 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: uiTheme.radii.sm,
     display: "grid",
     placeItems: "center",
-    color: uiTheme.colors.primary,
-    background: uiTheme.colors.primarySoft,
+    background: "rgba(255, 255, 255, 0.72)",
     border: `1px solid ${uiTheme.colors.border}`,
+    boxShadow: "0 10px 24px rgba(37, 99, 235, 0.14)",
   },
   sidebarMain: {
     display: "flex",
@@ -321,12 +321,12 @@ const styles: Record<string, React.CSSProperties> = {
     color: uiTheme.colors.primary,
   },
   globalCard: {
-  ...surfaceCard,
-  background: uiTheme.colors.surface,
-  borderRadius: uiTheme.radii.md,
-  padding: 18,
-  marginTop: "auto",
-},
+    ...surfaceCard,
+    background: uiTheme.colors.surface,
+    borderRadius: uiTheme.radii.md,
+    padding: 18,
+    marginTop: "auto",
+  },
   globalTitle: {
     margin: "0 0 12px",
     color: uiTheme.colors.muted,
@@ -366,17 +366,11 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: "auto",
     paddingTop: 18,
   },
-  greenText: {
-    color: uiTheme.colors.success,
-  },
   bigGreen: {
     marginTop: 10,
     fontSize: 26,
     fontWeight: 600,
     color: uiTheme.colors.success,
-  },
-  redText: {
-    color: uiTheme.colors.danger,
   },
   bigRed: {
     marginTop: 10,

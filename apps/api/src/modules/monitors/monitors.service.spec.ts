@@ -114,7 +114,6 @@ describe('MonitorsService', () => {
       id: 50,
       name: 'API principal',
       alertEmail: false,
-      alertPush: true,
       alertThreshold: 5,
     });
 
@@ -127,7 +126,6 @@ describe('MonitorsService', () => {
         frequencySeconds: 60,
         timeoutSeconds: 10,
         alertEmail: false,
-        alertPush: true,
         alertThreshold: 5,
       },
       user,
@@ -142,7 +140,6 @@ describe('MonitorsService', () => {
         frequencySeconds: 60,
         timeoutSeconds: 10,
         alertEmail: false,
-        alertPush: true,
         alertThreshold: 5,
         organizationId: user.organizationId,
         createdById: user.userId,
@@ -161,7 +158,6 @@ describe('MonitorsService', () => {
       id: 7,
       name: 'API editada',
       alertEmail: false,
-      alertPush: true,
     });
 
     await service.update(
@@ -169,7 +165,6 @@ describe('MonitorsService', () => {
       {
         name: 'API editada',
         alertEmail: false,
-        alertPush: true,
       },
       user,
     );
@@ -180,7 +175,6 @@ describe('MonitorsService', () => {
         data: {
           name: 'API editada',
           alertEmail: false,
-          alertPush: true,
         },
       }),
     );

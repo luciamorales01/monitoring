@@ -89,7 +89,6 @@ const defaultForm: CreateMonitorInput = {
   frequencySeconds: 60,
   timeoutSeconds: 10,
   alertEmail: true,
-  alertPush: false,
   alertThreshold: 3,
   tcpPort: null,
   sslWarningDays: 14,
@@ -114,8 +113,8 @@ export default function CreateMonitorPage() {
     return `Cada ${minutes} minuto${minutes === 1 ? '' : 's'}`;
   }, [form.frequencySeconds]);
 
-  const alertLabel = form.alertEmail || form.alertPush
-    ? `${[form.alertEmail ? 'Email' : '', form.alertPush ? 'Push' : ''].filter(Boolean).join(' y ')} tras ${form.alertThreshold} fallo${form.alertThreshold === 1 ? '' : 's'}`
+  const alertLabel = form.alertEmail
+    ? `Email tras ${form.alertThreshold} fallo${form.alertThreshold === 1 ? '' : 's'}`
     : 'Sin alertas';
 
   const updateForm = <K extends keyof CreateMonitorInput>(field: K, value: CreateMonitorInput[K]) => {
@@ -315,10 +314,6 @@ export default function CreateMonitorPage() {
               <label style={styles.toggleRowCard}>
                 <input type="checkbox" checked={form.alertEmail} onChange={(event) => updateForm('alertEmail', event.target.checked)} />
                 <div><strong style={styles.toggleTitle}>Email</strong><p style={styles.toggleText}>Aviso por correo cuando falle el monitor.</p></div>
-              </label>
-              <label style={styles.toggleRowCard}>
-                <input type="checkbox" checked={form.alertPush} onChange={(event) => updateForm('alertPush', event.target.checked)} />
-                <div><strong style={styles.toggleTitle}>Push</strong><p style={styles.toggleText}>Preparado para app móvil.</p></div>
               </label>
             </div>
             <Field label="Umbral de fallos consecutivos" helper="Número de fallos antes de crear incidencia.">

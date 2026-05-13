@@ -62,7 +62,6 @@ const emptyForm: UpdateMonitorInput = {
   frequencySeconds: 60,
   timeoutSeconds: 10,
   alertEmail: true,
-  alertPush: false,
   alertThreshold: 3,
   tcpPort: null,
   sslWarningDays: 14,
@@ -94,7 +93,6 @@ export default function MonitorEditModal({
       frequencySeconds: monitor.frequencySeconds,
       timeoutSeconds: monitor.timeoutSeconds,
       alertEmail: monitor.alertEmail,
-      alertPush: monitor.alertPush,
       alertThreshold: monitor.alertThreshold,
       tcpPort: monitor.tcpPort ?? null,
       sslWarningDays: monitor.sslWarningDays ?? 14,
@@ -130,7 +128,7 @@ export default function MonitorEditModal({
     }));
   };
 
-  const setBooleanField = (field: 'alertEmail' | 'alertPush') =>
+  const setBooleanField = (field: 'alertEmail') =>
     (event: ChangeEvent<HTMLInputElement>) => updateForm(field, event.target.checked as never);
 
   const validate = () => {
@@ -250,7 +248,6 @@ export default function MonitorEditModal({
             <h3 style={styles.sectionTitle}>Alertas</h3>
             <div style={styles.toggleGrid}>
               <label style={styles.toggleCard}><input type="checkbox" checked={form.alertEmail} onChange={setBooleanField('alertEmail')} /><div><strong>Email</strong><p style={styles.toggleCopy}>Aviso por correo.</p></div></label>
-              <label style={styles.toggleCard}><input type="checkbox" checked={form.alertPush} onChange={setBooleanField('alertPush')} /><div><strong>Push</strong><p style={styles.toggleCopy}>Aviso en la app.</p></div></label>
             </div>
             <Field label="Umbral de fallos consecutivos"><input type="number" min={1} max={20} style={styles.input} value={form.alertThreshold} onChange={setNumberField('alertThreshold')} /></Field>
           </section>

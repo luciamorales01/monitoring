@@ -52,8 +52,8 @@
   color: var(--text-main);
 }
 
-.brand-logo strong {
-  color: var(--primary);
+.brand-logo-text {
+  line-height: 1;
 }
 
 .brand-icon {
@@ -62,9 +62,16 @@
   display: grid;
   place-items: center;
   border-radius: 10px;
-  border: 2px solid var(--primary);
-  color: var(--primary);
-  font-size: 20px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.58)),
+    var(--primary-soft);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.12);
+}
+
+.brand-logo-image {
+  width: 24px;
+  height: 24px;
 }
 
 /* Texto principal */

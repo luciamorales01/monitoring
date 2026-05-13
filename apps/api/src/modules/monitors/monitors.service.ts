@@ -137,7 +137,6 @@ const monitorListSelect = {
   nextCheckAt: true,
   isActive: true,
   alertEmail: true,
-  alertPush: true,
   alertThreshold: true,
   tcpPort: true,
   sslWarningDays: true,
@@ -167,7 +166,6 @@ export class MonitorsService {
         frequencySeconds: dto.frequencySeconds ?? 60,
         timeoutSeconds: dto.timeoutSeconds ?? 10,
         alertEmail: dto.alertEmail ?? true,
-        alertPush: dto.alertPush ?? false,
         alertThreshold: dto.alertThreshold ?? 3,
         tcpPort: dto.tcpPort ?? null,
         sslWarningDays: dto.sslWarningDays ?? 14,
@@ -269,7 +267,6 @@ export class MonitorsService {
       data.timeoutSeconds = dto.timeoutSeconds;
     }
     if (dto.alertEmail !== undefined) data.alertEmail = dto.alertEmail;
-    if (dto.alertPush !== undefined) data.alertPush = dto.alertPush;
     if (dto.alertThreshold !== undefined) {
       data.alertThreshold = dto.alertThreshold;
     }

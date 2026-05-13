@@ -2,7 +2,7 @@
 
 SaaS multi-tenant de monitorizacion web inspirado en UptimeRobot. Permite registrar monitores HTTP/HTTPS y otros tipos de comprobaciones, ejecutar checks periodicos, almacenar historico de disponibilidad, detectar incidentes, notificar eventos relevantes y consultar metricas desde un panel web.
 
-El proyecto esta orientado a un Trabajo de Fin de Grado y mantiene una arquitectura modular, preparada para evolucionar hacia despliegues productivos con API, frontend, base de datos, Redis y workers independientes.
+El proyecto esta orientado a un Trabajo de Fin de Grado y mantiene una arquitectura modular exclusivamente web, preparada para evolucionar hacia despliegues productivos con API, frontend React, base de datos, Redis y workers independientes.
 
 ## Contenido
 
@@ -20,6 +20,8 @@ El proyecto esta orientado a un Trabajo de Fin de Grado y mantiene una arquitect
 ## Descripcion
 
 Monitoring TFG centraliza la supervision de servicios web para organizaciones. Cada organizacion opera en un contexto aislado y puede gestionar usuarios, secciones, monitores, checks, incidencias, notificaciones y reportes.
+
+La plataforma no incluye aplicacion movil. El alcance actual es frontend web, API backend, base de datos y workers BullMQ.
 
 Funcionalidades principales:
 
@@ -291,12 +293,6 @@ npm install
 npm run dev
 ```
 
-```bash
-cd apps/workers/reports-worker
-npm install
-npm run dev
-```
-
 ## Workers
 
 ### Monitoring worker
@@ -323,16 +319,6 @@ Uso esperado:
 - Enviar emails o integraciones externas.
 - Reintentar fallos con politicas de BullMQ.
 - Mantener historial de eventos de notificacion.
-
-### Reports worker
-
-`apps/workers/reports-worker` esta reservado para generacion asincrona de reportes.
-
-Uso esperado:
-
-- Crear reportes pesados fuera de la request HTTP.
-- Generar PDFs o documentos exportables.
-- Publicar resultados o actualizar estado del reporte.
 
 ## Despliegue
 
@@ -460,7 +446,7 @@ Buenas practicas del proyecto:
 - Mejorar observabilidad con logs estructurados, trazas y metricas.
 - Anadir healthchecks publicos para API y workers.
 - Ampliar cobertura e2e de flujos criticos.
-- Gestion avanzada de canales de alerta: Slack, webhooks, SMS y push.
+- Gestion avanzada de canales de alerta: Slack, webhooks y email.
 - Checks multi-region.
 - Ventanas de mantenimiento.
 - SLA/SLO por monitor y por organizacion.

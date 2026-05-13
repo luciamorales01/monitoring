@@ -698,7 +698,6 @@ diff -ru api_orig/src/modules/monitors/create-monitor.dto.ts api_phase/src/modul
 -
 -  @IsOptional()
 -  @IsBoolean()
--  alertPush?: boolean;
 -
 -  @IsOptional()
 -  @IsInt()
@@ -767,7 +766,6 @@ diff -ru api_orig/src/modules/monitors/create-monitor.dto.ts api_phase/src/modul
 +
 +  @IsOptional()
 +  @IsBoolean()
-+  alertPush?: boolean;
 +
 +  @IsOptional()
 +  @IsInt()
@@ -829,7 +827,6 @@ diff -ru api_orig/src/modules/monitors/monitors.service.ts api_phase/src/modules
 -        timeoutSeconds: dto.timeoutSeconds ?? 10,
 -        locations: this.sanitizeConfiguredLocations(dto.locations),
 -        alertEmail: dto.alertEmail ?? true,
--        alertPush: dto.alertPush ?? false,
 -        alertThreshold: dto.alertThreshold ?? 3,
 -        organizationId: user.organizationId,
 -        createdById: user.userId,
@@ -900,7 +897,6 @@ diff -ru api_orig/src/modules/monitors/monitors.service.ts api_phase/src/modules
 -      data.locations = this.sanitizeConfiguredLocations(dto.locations);
 -    }
 -    if (dto.alertEmail !== undefined) data.alertEmail = dto.alertEmail;
--    if (dto.alertPush !== undefined) data.alertPush = dto.alertPush;
 -    if (dto.alertThreshold !== undefined) {
 -      data.alertThreshold = dto.alertThreshold;
 -    }
@@ -1442,7 +1438,6 @@ diff -ru api_orig/src/modules/monitors/monitors.service.ts api_phase/src/modules
 +        timeoutSeconds: dto.timeoutSeconds ?? 10,
 +        locations: this.sanitizeConfiguredLocations(dto.locations),
 +        alertEmail: dto.alertEmail ?? true,
-+        alertPush: dto.alertPush ?? false,
 +        alertThreshold: dto.alertThreshold ?? 3,
 +        organizationId: user.organizationId,
 +        createdById: user.userId,
@@ -1517,7 +1512,6 @@ diff -ru api_orig/src/modules/monitors/monitors.service.ts api_phase/src/modules
 +      data.locations = this.sanitizeConfiguredLocations(dto.locations);
 +    }
 +    if (dto.alertEmail !== undefined) data.alertEmail = dto.alertEmail;
-+    if (dto.alertPush !== undefined) data.alertPush = dto.alertPush;
 +    if (dto.alertThreshold !== undefined) {
 +      data.alertThreshold = dto.alertThreshold;
 +    }
@@ -2136,7 +2130,6 @@ diff -ru api_orig/src/modules/monitors/update-monitor.dto.ts api_phase/src/modul
 -
 -  @IsOptional()
 -  @IsBoolean()
--  alertPush?: boolean;
 -
 -  @IsOptional()
 -  @IsInt()
@@ -2207,7 +2200,6 @@ diff -ru api_orig/src/modules/monitors/update-monitor.dto.ts api_phase/src/modul
 +
 +  @IsOptional()
 +  @IsBoolean()
-+  alertPush?: boolean;
 +
 +  @IsOptional()
 +  @IsInt()

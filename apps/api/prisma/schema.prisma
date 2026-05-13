@@ -110,7 +110,6 @@ model Monitor {
   @@index([isActive, nextCheckAt])
 
   alertEmail     Boolean  @default(true)
-  alertPush      Boolean  @default(false)
   alertThreshold Int      @default(3)
 
   // Fase 9: checks avanzados

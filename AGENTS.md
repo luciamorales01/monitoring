@@ -3,7 +3,6 @@
 ## Stack
 - Frontend: React + TypeScript + Vite
 - Backend: NestJS + Prisma
-- Mobile: Flutter
 - Database: PostgreSQL
 - Queue: BullMQ + Redis
 

@@ -26,8 +26,8 @@
   --control-bg: rgba(255, 255, 255, 0.94);
   --control-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   --auth-brand-bg:
-    linear-gradient(225deg, rgba(148, 163, 184, 0.16), transparent 34%),
-    linear-gradient(145deg, #f8fafc 0%, #eef2f7 100%);
+    linear-gradient(225deg, rgba(255, 255, 255, 0.18), transparent 34%),
+    linear-gradient(145deg, #eff6ff 0%, #dbeafe 42%, #bfdbfe 100%);
   --auth-server-bg: linear-gradient(135deg, #e2e8f0, #f8fafc);
   --auth-mini-bg: rgba(255, 255, 255, 0.9);
   --auth-status-bg: #ffffff;
@@ -85,8 +85,8 @@ html[data-theme='dark'] {
   --control-bg: rgba(15, 23, 42, 0.82);
   --control-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --auth-brand-bg:
-    linear-gradient(225deg, rgba(96, 165, 250, 0.16), transparent 34%),
-    linear-gradient(145deg, #0b1524 0%, #101b2d 100%);
+    linear-gradient(225deg, rgba(191, 219, 254, 0.18), transparent 34%),
+    linear-gradient(145deg, #0f172a 0%, #1e3a8a 58%, #2563eb 100%);
   --auth-server-bg: linear-gradient(135deg, #16243a, #22314a);
   --auth-mini-bg: rgba(16, 27, 45, 0.92);
   --auth-status-bg: #101b2d;

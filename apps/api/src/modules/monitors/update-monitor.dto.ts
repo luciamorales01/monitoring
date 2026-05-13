@@ -89,14 +89,6 @@ export class UpdateMonitorDto {
   alertEmail?: boolean;
 
   @ApiPropertyOptional({
-    example: false,
-    description: 'Activa o desactiva alertas push.',
-  })
-  @IsOptional()
-  @IsBoolean()
-  alertPush?: boolean;
-
-  @ApiPropertyOptional({
     example: 3,
     minimum: 1,
     maximum: 20,

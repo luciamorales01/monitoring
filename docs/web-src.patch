@@ -1201,7 +1201,6 @@ diff -ru web_orig/src/shared/monitorApi.ts web_phase/src/shared/monitorApi.ts
 -  isActive: boolean;
 -  locations: string[];
 -  alertEmail: boolean;
--  alertPush: boolean;
 -  alertThreshold: number;
 -};
 -
@@ -1225,7 +1224,6 @@ diff -ru web_orig/src/shared/monitorApi.ts web_phase/src/shared/monitorApi.ts
 -  timeoutSeconds: number;
 -  locations: string[];
 -  alertEmail: boolean;
--  alertPush: boolean;
 -  alertThreshold: number;
 -};
 -
@@ -1297,7 +1295,6 @@ diff -ru web_orig/src/shared/monitorApi.ts web_phase/src/shared/monitorApi.ts
 +  isActive: boolean;
 +  locations: string[];
 +  alertEmail: boolean;
-+  alertPush: boolean;
 +  alertThreshold: number;
 +};
 +
@@ -1321,7 +1318,6 @@ diff -ru web_orig/src/shared/monitorApi.ts web_phase/src/shared/monitorApi.ts
 +  timeoutSeconds: number;
 +  locations: string[];
 +  alertEmail: boolean;
-+  alertPush: boolean;
 +  alertThreshold: number;
 +};
 +

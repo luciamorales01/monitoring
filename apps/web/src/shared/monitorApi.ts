@@ -18,7 +18,6 @@ export type Monitor = {
   isActive: boolean;
   usesSectionSchedule?: boolean;
   alertEmail: boolean;
-  alertPush: boolean;
   alertThreshold: number;
   tcpPort?: number | null;
   sslWarningDays?: number | null;
@@ -75,7 +74,6 @@ export type CreateMonitorInput = {
   frequencySeconds: number;
   timeoutSeconds: number;
   alertEmail: boolean;
-  alertPush: boolean;
   alertThreshold: number;
   tcpPort?: number | null;
   sslWarningDays?: number | null;
