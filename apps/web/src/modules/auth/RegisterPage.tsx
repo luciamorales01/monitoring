@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from './authApi';
 import AuthLayout from './AuthLayout';
+import PasswordInput from '../../shared/PasswordInput';
 import { tokenStorage } from '../../shared/tokenStorage';
 
 type RegisterErrors = {
@@ -161,13 +162,12 @@ export default function RegisterPage() {
           Contraseña
           <div className={`input-wrap${errors.password ? ' input-error' : ''}`}>
             <span>🔒</span>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Mínimo 6 caracteres"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
-              aria-invalid={Boolean(errors.password)}
+              ariaInvalid={Boolean(errors.password)}
               required
             />
           </div>
@@ -182,13 +182,12 @@ export default function RegisterPage() {
             className={`input-wrap${errors.confirmPassword ? ' input-error' : ''}`}
           >
             <span>🔐</span>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Repite tu contraseña"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
-              aria-invalid={Boolean(errors.confirmPassword)}
+              ariaInvalid={Boolean(errors.confirmPassword)}
               required
             />
           </div>

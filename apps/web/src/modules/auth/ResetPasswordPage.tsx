@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import { resetPassword } from './authApi';
+import PasswordInput from '../../shared/PasswordInput';
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
@@ -53,8 +54,7 @@ export default function ResetPasswordPage() {
           Nueva contraseña
           <div className="input-wrap">
             <span>🔒</span>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Mínimo 6 caracteres"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -68,8 +68,7 @@ export default function ResetPasswordPage() {
           Confirmar contraseña
           <div className="input-wrap">
             <span>🔐</span>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Repite la contraseña"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}

@@ -17,6 +17,16 @@ async function bootstrap() {
     [];
   const globalPrefix = configService.get<string>('app.globalPrefix') ?? 'api';
 
+  const config = new DocumentBuilder()
+    .setTitle('Monitoring API')
+    .setDescription('Documentación de la API de Monitoring')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document);
+
   app.setGlobalPrefix(globalPrefix);
 
   app.use(helmet());

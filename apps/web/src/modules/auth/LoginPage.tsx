@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { login } from './authApi';
 import AuthLayout from './AuthLayout';
+import PasswordInput from '../../shared/PasswordInput';
 import { tokenStorage } from '../../shared/tokenStorage';
 
 export default function LoginPage() {
@@ -67,8 +68,7 @@ export default function LoginPage() {
           Contraseña
           <div className="input-wrap">
             <span>🔒</span>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

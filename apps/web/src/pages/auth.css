@@ -261,6 +261,34 @@
   color: var(--text-main);
 }
 
+.input-wrap .password-toggle {
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 8px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.input-wrap .password-toggle:hover {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.input-wrap .password-toggle:focus-visible {
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+.input-wrap .password-toggle:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .input-wrap:focus-within {
   border-color: var(--primary-light);
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);

@@ -11,6 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { changePassword, logout } from "../auth/authApi";
 import AppTopbar from "../../shared/AppTopbar";
 import LoadingState from "../../shared/LoadingState";
+import PasswordInput from "../../shared/PasswordInput";
 import { tokenStorage } from "../../shared/tokenStorage";
 import {
   useThemePreference,
@@ -470,7 +471,7 @@ export default function ProfilePage() {
                     style={styles.profileForm}
                   >
                     <Field label="Contrasena actual">
-                      <input
+                      <PasswordInput
                         value={passwordForm.currentPassword}
                         onChange={(event) =>
                           setPasswordForm((current) => ({
@@ -478,15 +479,16 @@ export default function ProfilePage() {
                             currentPassword: event.target.value,
                           }))
                         }
-                        style={styles.input}
-                        className="profile-input"
-                        type="password"
+                        containerStyle={styles.passwordInputWrap}
+                        containerClassName="profile-passwordWrap"
+                        inputStyle={styles.passwordInput}
+                        inputClassName="profile-input profile-passwordInput"
                         autoComplete="current-password"
                       />
                     </Field>
 
                     <Field label="Nueva contrasena">
-                      <input
+                      <PasswordInput
                         value={passwordForm.newPassword}
                         onChange={(event) =>
                           setPasswordForm((current) => ({
@@ -494,15 +496,16 @@ export default function ProfilePage() {
                             newPassword: event.target.value,
                           }))
                         }
-                        style={styles.input}
-                        className="profile-input"
-                        type="password"
+                        containerStyle={styles.passwordInputWrap}
+                        containerClassName="profile-passwordWrap"
+                        inputStyle={styles.passwordInput}
+                        inputClassName="profile-input profile-passwordInput"
                         autoComplete="new-password"
                       />
                     </Field>
 
                     <Field label="Confirmar nueva contrasena" wide>
-                      <input
+                      <PasswordInput
                         value={passwordForm.confirmPassword}
                         onChange={(event) =>
                           setPasswordForm((current) => ({
@@ -510,9 +513,10 @@ export default function ProfilePage() {
                             confirmPassword: event.target.value,
                           }))
                         }
-                        style={styles.input}
-                        className="profile-input"
-                        type="password"
+                        containerStyle={styles.passwordInputWrap}
+                        containerClassName="profile-passwordWrap"
+                        inputStyle={styles.passwordInput}
+                        inputClassName="profile-input profile-passwordInput"
                         autoComplete="new-password"
                       />
                     </Field>
@@ -930,6 +934,42 @@ const profileInteractionStyles = `
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
   }
 
+  .profile-passwordWrap {
+    transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+
+  .profile-passwordWrap:focus-within {
+    border-color: ${uiTheme.colors.primary};
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  }
+
+  .profile-passwordInput:focus-visible {
+    box-shadow: none;
+  }
+
+  .profile-passwordWrap .password-toggle {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 10px;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    color: ${uiTheme.colors.muted};
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .profile-passwordWrap .password-toggle:hover {
+    color: ${uiTheme.colors.primary};
+    background: rgba(37, 99, 235, 0.08);
+  }
+
+  .profile-passwordWrap .password-toggle:focus-visible {
+    outline: 2px solid ${uiTheme.colors.primary};
+    outline-offset: 2px;
+  }
+
   .profile-primaryButton,
   .profile-secondaryButton,
   .profile-iconButton,
@@ -1293,6 +1333,29 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 14,
     height: 46,
     background: uiTheme.colors.surface,
+  },
+  passwordInputWrap: {
+    ...inputBase,
+    width: "100%",
+    boxSizing: "border-box",
+    borderRadius: 14,
+    height: 46,
+    padding: "0 6px 0 16px",
+    background: uiTheme.colors.surface,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  passwordInput: {
+    border: "none",
+    outline: "none",
+    width: "100%",
+    minWidth: 0,
+    height: "100%",
+    padding: 0,
+    background: "transparent",
+    color: uiTheme.colors.text,
+    font: "inherit",
   },
   formFooter: {
     gridColumn: "1 / -1",

@@ -377,6 +377,26 @@ export function LockIcon(props: IconProps) {
   );
 }
 
+export function EyeIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="3" />
+    </IconBase>
+  );
+}
+
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M3 3l18 18" />
+      <path d="M10.6 10.6a3 3 0 0 0 3.8 3.8" />
+      <path d="M9.9 5.2A10.4 10.4 0 0 1 12 5c6 0 9.5 7 9.5 7a16.8 16.8 0 0 1-2.2 3.1" />
+      <path d="M6.2 6.8C3.8 8.7 2.5 12 2.5 12s3.5 7 9.5 7a9.9 9.9 0 0 0 4-.8" />
+    </IconBase>
+  );
+}
+
 export function DownloadIcon(props: IconProps) {
   return (
     <IconBase {...props}>

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import { acceptInvitation } from './authApi';
+import PasswordInput from '../../shared/PasswordInput';
 import { tokenStorage } from '../../shared/tokenStorage';
 
 export default function AcceptInvitationPage() {
@@ -72,8 +73,7 @@ export default function AcceptInvitationPage() {
           Contraseña
           <div className="input-wrap">
             <span>🔒</span>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Mínimo 6 caracteres"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -87,8 +87,7 @@ export default function AcceptInvitationPage() {
           Confirmar contraseña
           <div className="input-wrap">
             <span>🔐</span>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Repite la contraseña"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}

@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import BrandLogo from "../shared/BrandLogo";
 import { getActiveIncidents } from "../shared/incidentApi";
@@ -280,12 +286,9 @@ const styles: Record<string, CSSProperties> = {
   logoIcon: {
     width: 34,
     height: 34,
-    borderRadius: uiTheme.radii.sm,
     display: "grid",
     placeItems: "center",
-    background: "rgba(255, 255, 255, 0.72)",
-    border: `1px solid ${uiTheme.colors.border}`,
-    boxShadow: "0 10px 24px rgba(37, 99, 235, 0.14)",
+    boxShadow: "none",
   },
   sidebarMain: {
     display: "flex",
