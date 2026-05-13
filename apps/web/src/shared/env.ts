@@ -20,7 +20,7 @@ function normalizeApiUrl(value: unknown) {
   try {
     const url = new URL(apiUrl);
     if (!['http:', 'https:'].includes(url.protocol)) {
-      throw new Error('Invalid protocol');
+      throw new Error('Protocolo no válido');
     }
     return url.toString().replace(/\/$/, '');
   } catch {

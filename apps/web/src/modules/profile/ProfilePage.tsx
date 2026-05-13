@@ -29,7 +29,6 @@ import {
   BellIcon,
   ChevronRightIcon,
   ClockIcon,
-  GlobeIcon,
   LockIcon,
   LogOutIcon,
   MailIcon,
@@ -49,7 +48,6 @@ type ProfileData = {
   email: string;
   phone: string;
   timezone: string;
-  language: string;
   memberSince: string;
   lastAccess: string;
   location: string;
@@ -57,7 +55,7 @@ type ProfileData = {
 
 type ProfileFormState = Pick<
   ProfileData,
-  "name" | "email" | "phone" | "timezone" | "language"
+  "name" | "email" | "phone" | "timezone"
 >;
 
 type NotificationFormState = {
@@ -102,7 +100,6 @@ const emptyProfile: ProfileData = {
   email: "",
   phone: "",
   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Madrid",
-  language: "Espanol",
   memberSince: "No disponible",
   lastAccess: "Sesion actual",
   location: "No disponible",
@@ -143,7 +140,6 @@ export default function ProfilePage() {
         location: `Organizacion ${currentUser.organizationId}`,
         phone: currentUser.phone ?? "",
         timezone: currentUser.timezone ?? emptyProfile.timezone,
-        language: currentUser.language ?? emptyProfile.language,
       };
 
       setProfile(nextProfile);
@@ -205,7 +201,6 @@ export default function ProfilePage() {
         email: form.email,
         phone: form.phone,
         timezone: form.timezone,
-        language: form.language,
       });
 
       const nextProfile: ProfileData = {
@@ -214,7 +209,6 @@ export default function ProfilePage() {
         email: updatedUser.email,
         phone: updatedUser.phone ?? "",
         timezone: updatedUser.timezone ?? emptyProfile.timezone,
-        language: updatedUser.language ?? emptyProfile.language,
       };
 
       setProfile(nextProfile);
@@ -433,19 +427,6 @@ export default function ProfilePage() {
                         <option value="Europe/Madrid">Europe/Madrid</option>
                         <option value="Europe/Lisbon">Europe/Lisbon</option>
                         <option value="Europe/London">Europe/London</option>
-                      </select>
-                    </Field>
-
-                    <Field label="Idioma" wide>
-                      <select
-                        value={form.language}
-                        onChange={handleFormChange("language")}
-                        style={styles.input}
-                        className="profile-input"
-                      >
-                        <option>Espanol</option>
-                        <option>English</option>
-                        <option>Portugues</option>
                       </select>
                     </Field>
 
@@ -710,10 +691,6 @@ export default function ProfilePage() {
                     label={profile.timezone}
                   />
                   <MetaRow
-                    icon={<GlobeIcon size={15} />}
-                    label={profile.language}
-                  />
-                  <MetaRow
                     icon={<MapPinIcon size={15} />}
                     label={profile.location}
                   />
@@ -881,7 +858,6 @@ function pickForm(profile: ProfileData): ProfileFormState {
     email: profile.email,
     phone: profile.phone,
     timezone: profile.timezone,
-    language: profile.language,
   };
 }
 

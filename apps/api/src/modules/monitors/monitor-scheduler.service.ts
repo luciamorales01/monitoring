@@ -55,7 +55,7 @@ export class MonitorSchedulerService {
             message:
               result.reason instanceof Error
                 ? result.reason.message
-                : 'Unknown error',
+                : 'Error desconocido',
             stack:
               result.reason instanceof Error ? result.reason.stack : undefined,
           }),

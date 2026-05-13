@@ -126,7 +126,7 @@ export class NotificationsService {
         error instanceof Error ? error.message : 'Error desconocido';
       await this.markEvent(prisma, event.id, STATUS_FAILED, errorMessage);
       this.logger.error(
-        `Error encolando notificacion ${type}: ${errorMessage}`,
+        `Error encolando notificación ${type}: ${errorMessage}`,
       );
     }
   }
@@ -167,9 +167,9 @@ export class NotificationsService {
   ): MailMessage {
     const appName = this.configService.get<string>('APP_NAME') ?? 'Monitoring';
     const subjectPrefix =
-      type === EVENT_DOWN ? 'Monitor caido' : 'Monitor recuperado';
+      type === EVENT_DOWN ? 'Monitor caído' : 'Monitor recuperado';
     const subject = `[${appName}] ${subjectPrefix}: ${payload.monitorName}`;
-    const statusLabel = type === EVENT_DOWN ? 'caido' : 'recuperado';
+    const statusLabel = type === EVENT_DOWN ? 'caído' : 'recuperado';
     const severity = payload.severity ? `\nSeveridad: ${payload.severity}` : '';
     const error = payload.errorMessage
       ? `\nError: ${payload.errorMessage}`
@@ -177,7 +177,7 @@ export class NotificationsService {
     const timestamp = payload.resolvedAt ?? payload.startedAt ?? new Date();
 
     const text = [
-      `${payload.monitorName} esta ${statusLabel}.`,
+      `${payload.monitorName} está ${statusLabel}.`,
       `URL: ${payload.monitorTarget}`,
       `Incidencia: ${payload.title}`,
       `Fecha: ${timestamp.toISOString()}`,
@@ -190,7 +190,7 @@ export class NotificationsService {
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
         <h2 style="margin:0 0 12px">${this.escapeHtml(subjectPrefix)}</h2>
-        <p><strong>${this.escapeHtml(payload.monitorName)}</strong> esta <strong>${this.escapeHtml(statusLabel)}</strong>.</p>
+        <p><strong>${this.escapeHtml(payload.monitorName)}</strong> está <strong>${this.escapeHtml(statusLabel)}</strong>.</p>
         <p><strong>URL:</strong> <a href="${this.escapeHtml(payload.monitorTarget)}">${this.escapeHtml(payload.monitorTarget)}</a></p>
         <p><strong>Incidencia:</strong> ${this.escapeHtml(payload.title)}</p>
         ${payload.severity ? `<p><strong>Severidad:</strong> ${this.escapeHtml(payload.severity)}</p>` : ''}
@@ -204,21 +204,21 @@ export class NotificationsService {
 
   private buildPasswordResetMessage(payload: PasswordResetPayload): MailMessage {
     const appName = this.configService.get<string>('APP_NAME') ?? 'Monitoring';
-    const subject = `[${appName}] Restablece tu contrasena`;
+    const subject = `[${appName}] Restablece tu contraseña`;
     const expiresAt = payload.expiresAt.toISOString();
     const text = [
       `Hola ${payload.name},`,
-      'Hemos recibido una solicitud para restablecer tu contrasena.',
+      'Hemos recibido una solicitud para restablecer tu contraseña.',
       `Abre este enlace: ${payload.resetUrl}`,
       `El enlace caduca en: ${expiresAt}`,
       'Si no has solicitado este cambio, puedes ignorar este email.',
     ].join('\n');
     const html = `
       <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111827">
-        <h2 style="margin:0 0 12px">Restablece tu contrasena</h2>
+        <h2 style="margin:0 0 12px">Restablece tu contraseña</h2>
         <p>Hola ${this.escapeHtml(payload.name)},</p>
-        <p>Hemos recibido una solicitud para restablecer tu contrasena.</p>
-        <p><a href="${this.escapeHtml(payload.resetUrl)}">Restablecer contrasena</a></p>
+        <p>Hemos recibido una solicitud para restablecer tu contraseña.</p>
+        <p><a href="${this.escapeHtml(payload.resetUrl)}">Restablecer contraseña</a></p>
         <p><strong>Caduca:</strong> ${this.escapeHtml(expiresAt)}</p>
         <p>Si no has solicitado este cambio, puedes ignorar este email.</p>
       </div>

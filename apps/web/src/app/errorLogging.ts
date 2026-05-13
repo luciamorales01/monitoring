@@ -14,7 +14,7 @@ function toError(error: unknown): Error {
     return error;
   }
 
-  return new Error(typeof error === 'string' ? error : 'Unknown application error');
+  return new Error(typeof error === 'string' ? error : 'Error desconocido de la aplicación');
 }
 
 export function logAppError(

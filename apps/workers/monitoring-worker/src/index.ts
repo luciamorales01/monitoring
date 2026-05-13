@@ -190,7 +190,7 @@ async function bootstrap() {
 }
 
 void bootstrap().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : 'Unknown error';
+  const message = error instanceof Error ? error.message : 'Error desconocido';
   const stack = error instanceof Error ? error.stack : undefined;
 
   logStructured('error', {

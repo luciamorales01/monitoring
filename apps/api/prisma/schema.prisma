@@ -32,7 +32,6 @@ model User {
   organizationId Int
   phone          String   @default("")
   timezone       String   @default("Europe/Madrid")
-  language       String   @default("Espanol")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

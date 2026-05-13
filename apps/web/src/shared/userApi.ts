@@ -20,8 +20,7 @@ export type User = {
   } | null;
 
   phone?: string;
-timezone?: string;
-language?: string;
+  timezone?: string;
 };
 
 export type UpdateCurrentUserInput = {
@@ -29,7 +28,6 @@ export type UpdateCurrentUserInput = {
   email?: string;
   phone?: string;
   timezone?: string;
-  language?: string;
 };
 
 export const getCurrentUser = async () => {

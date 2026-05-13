@@ -157,7 +157,6 @@ export class UsersService {
     if (dto.email !== undefined) data.email = dto.email.trim().toLowerCase();
     if (dto.phone !== undefined) data.phone = dto.phone.trim();
     if (dto.timezone !== undefined) data.timezone = dto.timezone.trim();
-    if (dto.language !== undefined) data.language = dto.language.trim();
 
     try {
       const updatedUser = await this.prisma.user.update({

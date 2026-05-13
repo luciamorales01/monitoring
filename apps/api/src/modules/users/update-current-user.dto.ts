@@ -34,10 +34,4 @@ export class UpdateCurrentUserDto {
   @MaxLength(80)
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   timezone?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(40)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  language?: string;
 }

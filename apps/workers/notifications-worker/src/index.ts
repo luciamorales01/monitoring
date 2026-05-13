@@ -212,7 +212,7 @@ async function processJob(
 
     return result;
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Error desconocido';
 
     if (job.data.kind === 'monitor-alert') {
       const notificationEventId = job.data.notificationEventId;
@@ -228,7 +228,7 @@ async function processJob(
           message:
             updateError instanceof Error
               ? updateError.message
-              : 'Unknown error',
+              : 'Error desconocido',
           notificationEventId,
           queue: NOTIFICATIONS_QUEUE,
         });
@@ -308,7 +308,7 @@ async function bootstrap() {
 void bootstrap().catch((error: unknown) => {
   logStructured('error', {
     event: 'notifications_worker_bootstrap_failed',
-    message: error instanceof Error ? error.message : 'Unknown error',
+    message: error instanceof Error ? error.message : 'Error desconocido',
     stack: error instanceof Error ? error.stack : undefined,
   });
 
