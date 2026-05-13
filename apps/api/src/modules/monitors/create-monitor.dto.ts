@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -130,8 +131,7 @@ export class CreateMonitorDto {
     description: 'Tipo de registro DNS esperado.',
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(12)
+  @IsIn(DNS_RECORD_TYPES)
   dnsRecordType?: string;
 
   @ApiPropertyOptional({

@@ -2,8 +2,18 @@ import { Body, Controller, Get, Patch, Post, Query, Req, UseGuards } from '@nest
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { buildAccessibleNotificationWhere, type AuthenticatedUser } from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
+import { ListNotificationsQueryDto, MarkNotificationsReadDto } from './notifications.dto';
 
-const notificationInclude = {
+const notificationSelect = {
+  id: true,
+  monitorId: true,
+  incidentId: true,
+  type: true,
+  channel: true,
+  status: true,
+  sentAt: true,
+  readAt: true,
+  createdAt: true,
   monitor: {
     select: {
       id: true,
@@ -31,17 +41,16 @@ export class NotificationsController {
   @Get()
   findRecent(
     @Req() req: AuthRequest,
-    @Query('limit') limit?: string,
-    @Query('unreadOnly') unreadOnly?: string,
+    @Query() query: ListNotificationsQueryDto,
   ) {
-    const take = Math.min(Math.max(Number(limit) || 50, 1), 100);
+    const take = query.limit ?? 50;
 
     return this.prisma.notificationEvent.findMany({
       where: {
-        ...(unreadOnly === 'true' ? { readAt: null } : {}),
+        ...(query.unreadOnly ? { readAt: null } : {}),
         ...buildAccessibleNotificationWhere(req.user),
       },
-      include: notificationInclude,
+      select: notificationSelect,
       orderBy: { createdAt: 'desc' },
       take,
     });
@@ -62,11 +71,9 @@ export class NotificationsController {
   @Patch('read')
   async markSelectedAsRead(
     @Req() req: AuthRequest,
-    @Body() body: { ids?: number[] },
+    @Body() dto: MarkNotificationsReadDto,
   ) {
-    const ids = Array.isArray(body.ids)
-      ? body.ids.filter((id) => Number.isInteger(id))
-      : [];
+    const ids = Array.from(new Set(dto.ids));
 
     if (ids.length === 0) {
       return { updated: 0 };

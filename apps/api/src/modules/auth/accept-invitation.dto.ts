@@ -1,6 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
+const STRONG_PASSWORD_MESSAGE =
+  'La contrasena debe incluir mayuscula, minuscula, numero y simbolo.';
 
 export class AcceptInvitationDto {
   @ApiProperty({
@@ -9,6 +18,8 @@ export class AcceptInvitationDto {
   })
   @IsString()
   @IsNotEmpty()
+  @MinLength(32)
+  @MaxLength(128)
   token: string;
 
   @ApiProperty({
@@ -24,10 +35,14 @@ export class AcceptInvitationDto {
 
   @ApiProperty({
     example: 'AdminPass123',
-    minLength: 6,
+    minLength: 8,
     description: 'Contrasena inicial de la cuenta invitada.',
   })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
+  @MaxLength(72)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/, {
+    message: STRONG_PASSWORD_MESSAGE,
+  })
   password: string;
 }

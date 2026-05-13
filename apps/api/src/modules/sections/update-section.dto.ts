@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -23,14 +24,15 @@ export class UpdateSectionDto {
   description?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(40)
+  @IsIn(['folder', 'globe', 'monitor', 'database', 'cloud', 'code', 'drive'])
   icon?: string;
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(200)
   @Type(() => Number)
   @IsInt({ each: true })
+  @Min(1, { each: true })
   monitorIds?: number[];
 
   @IsOptional()

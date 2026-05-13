@@ -1,5 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MinLength } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
+const STRONG_PASSWORD_MESSAGE =
+  'La contrasena debe incluir mayuscula, minuscula, numero y simbolo.';
 
 export class ResetPasswordDto {
   @ApiProperty({
@@ -8,14 +17,20 @@ export class ResetPasswordDto {
   })
   @IsString()
   @IsNotEmpty()
+  @MinLength(32)
+  @MaxLength(128)
   token: string;
 
   @ApiProperty({
     example: 'MyN3wPass!',
-    minLength: 6,
+    minLength: 8,
     description: 'Nueva contrasena del usuario.',
   })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
+  @MaxLength(72)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/, {
+    message: STRONG_PASSWORD_MESSAGE,
+  })
   password: string;
 }

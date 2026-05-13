@@ -27,5 +27,24 @@ export function validateEnv(config: RawEnv) {
     throw new Error('SMTP_SECURE debe ser true o false');
   }
 
+  if (
+    config.NODE_ENV === 'production' &&
+    (!config.CORS_ORIGINS || config.CORS_ORIGINS.trim().length === 0)
+  ) {
+    throw new Error('CORS_ORIGINS es obligatorio en produccion');
+  }
+
+  const corsOrigins = config.CORS_ORIGINS?.split(',').map((origin) =>
+    origin.trim(),
+  );
+
+  if (corsOrigins?.some((origin) => origin === '*')) {
+    throw new Error('CORS_ORIGINS no puede usar * con credenciales habilitadas');
+  }
+
+  if (config.SWAGGER_ENABLED && !['true', 'false'].includes(config.SWAGGER_ENABLED)) {
+    throw new Error('SWAGGER_ENABLED debe ser true o false');
+  }
+
   return config;
 }

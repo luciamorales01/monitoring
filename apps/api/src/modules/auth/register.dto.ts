@@ -1,5 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+
+const STRONG_PASSWORD_MESSAGE =
+  'La contrasena debe incluir mayuscula, minuscula, numero y simbolo.';
 
 export class RegisterDto {
   @ApiProperty({
@@ -8,6 +19,8 @@ export class RegisterDto {
   })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(120)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   name: string;
 
   @ApiProperty({
@@ -15,15 +28,23 @@ export class RegisterDto {
     description: 'Email unico del propietario de la organizacion.',
   })
   @IsEmail()
+  @MaxLength(254)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   email: string;
 
   @ApiProperty({
     example: 'Str0ngPass!',
-    minLength: 6,
+    minLength: 8,
     description: 'Contrasena de acceso.',
   })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
+  @MaxLength(72)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/, {
+    message: STRONG_PASSWORD_MESSAGE,
+  })
   password: string;
 
   @ApiProperty({
@@ -32,5 +53,7 @@ export class RegisterDto {
   })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(120)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   organizationName: string;
 }

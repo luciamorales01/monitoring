@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsEmail, MaxLength } from 'class-validator';
 
 export class ForgotPasswordDto {
   @ApiProperty({
@@ -7,5 +8,9 @@ export class ForgotPasswordDto {
     description: 'Email de la cuenta que solicita restablecer la contrasena.',
   })
   @IsEmail()
+  @MaxLength(254)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   email: string;
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { IncidentStatus, MonitorStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
 
@@ -19,6 +19,10 @@ export class StatusService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getPublicStatus(organizationSlug: string) {
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(organizationSlug)) {
+      throw new BadRequestException('Slug de organizacion invalido');
+    }
+
     const organization = await this.prisma.organization.findUnique({
       where: { slug: organizationSlug },
       select: { id: true, name: true, slug: true },

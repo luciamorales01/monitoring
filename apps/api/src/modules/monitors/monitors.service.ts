@@ -786,6 +786,12 @@ export class MonitorsService {
       throw new BadRequestException('Solo se permiten URLs HTTP o HTTPS');
     }
 
+    if (parsedUrl.username || parsedUrl.password) {
+      throw new BadRequestException(
+        'No se permiten credenciales en la URL del monitor',
+      );
+    }
+
     await this.assertPublicHostTarget(parsedUrl.hostname);
     return parsedUrl;
   }

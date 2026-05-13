@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -130,8 +131,7 @@ export class UpdateMonitorDto {
     maxLength: 12,
   })
   @IsOptional()
-  @IsString()
-  @MaxLength(12)
+  @IsIn(['A', 'AAAA', 'CNAME', 'MX', 'TXT'])
   dnsRecordType?: string;
 
   @ApiPropertyOptional({

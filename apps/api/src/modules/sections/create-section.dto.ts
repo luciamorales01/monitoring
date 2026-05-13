@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -31,7 +32,10 @@ export class CreateSectionDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(200)
+  @Type(() => Number)
   @IsInt({ each: true })
+  @Min(1, { each: true })
   monitorIds?: number[];
 
   @IsOptional()

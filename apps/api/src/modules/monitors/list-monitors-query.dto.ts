@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { MonitorType } from '@prisma/client';
@@ -61,6 +62,7 @@ export class ListMonitorsQueryDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   search?: string;
 
   @ApiPropertyOptional({
@@ -90,4 +92,15 @@ export class ListMonitorsQueryDto {
   @IsEnum(MonitorType)
   type?: MonitorType;
 
+}
+
+export class RecentChecksQueryDto {
+  @ApiPropertyOptional({
+    enum: ['asc', 'desc'],
+    example: 'desc',
+    description: 'Orden cronologico de los resultados.',
+  })
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  order?: 'asc' | 'desc';
 }

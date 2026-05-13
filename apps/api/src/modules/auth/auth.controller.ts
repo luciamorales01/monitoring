@@ -10,6 +10,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import type { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { RegisterDto } from './register.dto';
 import { LoginDto } from './login.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -220,7 +221,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description: 'Token ausente o usuario no autorizado.',
   })
-  changePassword(@Req() req: any, @Body() dto: ChangePasswordDto) {
+  changePassword(@Req() req: AuthenticatedRequest, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(req.user.userId, dto);
   }
 
@@ -252,7 +253,7 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description: 'Token invalido o usuario inactivo.',
   })
-  me(@Req() req: any) {
+  me(@Req() req: AuthenticatedRequest) {
     return this.authService.me(req.user.userId);
   }
 }

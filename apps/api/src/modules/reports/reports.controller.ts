@@ -17,11 +17,10 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ReportExportQueryDto, ReportSummaryQueryDto } from './reports-query.dto';
 import { ReportsService } from './reports.service';
-
-type ReportRange = '24h' | '7d' | '30d';
-type ReportFormat = 'csv' | 'pdf' | 'xlsx';
 
 @ApiTags('reports')
 @ApiBearerAuth('bearer')
@@ -99,17 +98,12 @@ export class ReportsController {
     description: 'Monitor no encontrado para la organizacion actual.',
   })
   @ApiUnauthorizedResponse({ description: 'Token ausente o invalido.' })
-  summary(
-    @Req() req: any,
-    @Query('range') range?: ReportRange,
-    @Query('monitorId') monitorId?: string,
-    @Query('sectionId') sectionId?: string,
-  ) {
+  summary(@Req() req: AuthenticatedRequest, @Query() query: ReportSummaryQueryDto) {
     return this.reportsService.getSummary(
       req.user,
-      range ?? '7d',
-      this.parseOptionalNumber(monitorId),
-      this.parseOptionalNumber(sectionId),
+      query.range ?? '7d',
+      query.monitorId,
+      query.sectionId,
     );
   }
 
@@ -161,29 +155,20 @@ export class ReportsController {
     description: 'Monitor no encontrado para la organizacion actual.',
   })
   async export(
-    @Req() req: any,
-    @Query('range') range?: ReportRange,
-    @Query('format') format?: ReportFormat,
-    @Query('monitorId') monitorId?: string,
-    @Query('sectionId') sectionId?: string,
+    @Req() req: AuthenticatedRequest,
+    @Query() query: ReportExportQueryDto,
   ) {
     const file = await this.reportsService.exportReport({
       user: req.user,
-      range: range ?? '7d',
-      format: format ?? 'csv',
-      monitorId: this.parseOptionalNumber(monitorId),
-      sectionId: this.parseOptionalNumber(sectionId),
+      range: query.range ?? '7d',
+      format: query.format ?? 'csv',
+      monitorId: query.monitorId,
+      sectionId: query.sectionId,
     });
 
     return new StreamableFile(file.buffer, {
       type: file.contentType,
       disposition: `attachment; filename="${file.filename}"`,
     });
-  }
-
-  private parseOptionalNumber(value?: string) {
-    if (!value || value === 'all') return undefined;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
   }
 }

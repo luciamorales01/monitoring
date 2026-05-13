@@ -6,6 +6,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 
@@ -51,7 +52,7 @@ export class DashboardController {
     },
   })
   @ApiUnauthorizedResponse({ description: 'Token ausente o invalido.' })
-  summary(@Req() req: any) {
+  summary(@Req() req: AuthenticatedRequest) {
     return this.dashboardService.getSummary(req.user);
   }
 }

@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import type { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IncidentsService } from './incidents.service';
 import { UpdateIncidentDto } from './update-incident.dto';
@@ -58,7 +59,7 @@ export class IncidentsController {
     },
   })
   @ApiUnauthorizedResponse({ description: 'Token ausente o invalido.' })
-  findAll(@Req() req: any) {
+  findAll(@Req() req: AuthenticatedRequest) {
     return this.incidentsService.findAll(req.user);
   }
 
@@ -86,7 +87,7 @@ export class IncidentsController {
       ],
     },
   })
-  findActive(@Req() req: any) {
+  findActive(@Req() req: AuthenticatedRequest) {
     return this.incidentsService.findActive(req.user);
   }
 
@@ -124,7 +125,7 @@ export class IncidentsController {
   @ApiForbiddenResponse({
     description: 'Sin acceso a la incidencia solicitada.',
   })
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.incidentsService.findOne(id, req.user);
   }
 
@@ -158,7 +159,7 @@ export class IncidentsController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateIncidentDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.incidentsService.update(id, dto, req.user);
   }
@@ -186,7 +187,7 @@ export class IncidentsController {
       },
     },
   })
-  acknowledge(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
+  acknowledge(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
     return this.incidentsService.acknowledge(id, req.user);
   }
 
@@ -218,7 +219,7 @@ export class IncidentsController {
   resolve(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateIncidentDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.incidentsService.resolve(id, dto, req.user);
   }
@@ -249,7 +250,7 @@ export class IncidentsController {
   updateSeverity(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateIncidentSeverityDto,
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
   ) {
     return this.incidentsService.updateSeverity(id, dto.severity, req.user);
   }

@@ -2,9 +2,10 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { SafeExceptionFilter } from './common/filters/safe-exception.filter';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -16,20 +17,18 @@ async function bootstrap() {
     process.env.FRONTEND_URL?.split(',').map((origin) => origin.trim()) ??
     [];
   const globalPrefix = configService.get<string>('app.globalPrefix') ?? 'api';
-
-  const config = new DocumentBuilder()
-    .setTitle('Monitoring API')
-    .setDescription('Documentación de la API de Monitoring')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  const nodeEnv = configService.get<string>('NODE_ENV') ?? 'development';
+  const swaggerEnabled =
+    nodeEnv !== 'production' ||
+    configService.get<string>('SWAGGER_ENABLED') === 'true';
 
   app.setGlobalPrefix(globalPrefix);
 
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'same-site' },
+    }),
+  );
   app.use(cookieParser());
 
   app.enableCors({
@@ -46,40 +45,45 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+  app.useGlobalFilters(new SafeExceptionFilter());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Monitoring API')
-    .setDescription(
-      'API multi-tenant para autenticacion, monitores, incidencias, informes y dashboard.',
-    )
-    .setVersion('1.0.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        description: 'Introduce un access token JWT valido.',
+  if (swaggerEnabled) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Monitoring API')
+      .setDescription(
+        'API multi-tenant para autenticacion, monitores, incidencias, informes y dashboard.',
+      )
+      .setVersion('1.0.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Introduce un access token JWT valido.',
+        },
+        'bearer',
+      )
+      .build();
+
+    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup(`${globalPrefix}/docs`, app, swaggerDocument, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        tagsSorter: 'alpha',
+        operationsSorter: 'alpha',
       },
-      'bearer',
-    )
-    .build();
-
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup(`${globalPrefix}/docs`, app, swaggerDocument, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      tagsSorter: 'alpha',
-      operationsSorter: 'alpha',
-    },
-    customSiteTitle: 'Monitoring API Docs',
-  });
+      customSiteTitle: 'Monitoring API Docs',
+    });
+  }
 
   const port = configService.get<number>('app.port') ?? 3000;
 
   await app.listen(port);
 
   logger.log(`API running on http://localhost:${port}/${globalPrefix}`);
-  logger.log(`Swagger docs on http://localhost:${port}/${globalPrefix}/docs`);
+  if (swaggerEnabled) {
+    logger.log(`Swagger docs on http://localhost:${port}/${globalPrefix}/docs`);
+  }
   logger.log(`CORS enabled for: ${corsOrigins.join(', ') || 'none'}`);
 }
 

@@ -1,9 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
   IsOptional,
   IsString,
+  MaxLength,
   MinLength,
 } from 'class-validator';
 
@@ -13,6 +15,10 @@ export class LoginDto {
     description: 'Email del usuario.',
   })
   @IsEmail()
+  @MaxLength(254)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   email: string;
 
   @ApiProperty({
@@ -22,6 +28,7 @@ export class LoginDto {
   })
   @IsString()
   @MinLength(6)
+  @MaxLength(72)
   password: string;
 
   @ApiPropertyOptional({
@@ -29,6 +36,7 @@ export class LoginDto {
     description: 'Mantiene la sesion durante un periodo mas largo.',
   })
   @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   rememberMe?: boolean;
 }

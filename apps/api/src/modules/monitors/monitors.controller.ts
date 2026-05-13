@@ -28,7 +28,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMonitorDto } from './create-monitor.dto';
-import { ListMonitorsQueryDto } from './list-monitors-query.dto';
+import { ListMonitorsQueryDto, RecentChecksQueryDto } from './list-monitors-query.dto';
 import { MonitorsService } from './monitors.service';
 import { UpdateMonitorDto } from './update-monitor.dto';
 
@@ -228,10 +228,10 @@ export class MonitorsController {
   @ApiNotFoundResponse({ description: 'Monitor no encontrado.' })
   findRecentChecks(
     @Param('id', ParseIntPipe) id: number,
-    @Query('order') order: 'asc' | 'desc' | undefined,
+    @Query() query: RecentChecksQueryDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.monitorsService.findRecentChecks(id, req.user, order);
+    return this.monitorsService.findRecentChecks(id, req.user, query.order);
   }
 
   @Post(':id/run-check')
