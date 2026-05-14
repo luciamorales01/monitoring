@@ -15,6 +15,7 @@ import {
 import AppTopbar from '../../shared/AppTopbar';
 import LoadingState from '../../shared/LoadingState';
 import { useCurrentUserPermissions } from '../../shared/permissions';
+import { getInitials } from '../../shared/userDisplay';
 import { EditIcon, MailIcon, MoreHorizontalIcon, ShieldIcon, UsersIcon } from '../../shared/uiIcons';
 import {
   Badge,
@@ -485,10 +486,6 @@ function getRoleLabel(role: UserRole): UserRoleLabel {
     VIEWER: 'Solo lectura',
   };
   return roleMap[role];
-}
-
-function getInitials(value: string) {
-  return value.split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
 }
 
 function formatDate(value: string) {

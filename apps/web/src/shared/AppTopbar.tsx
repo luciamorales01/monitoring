@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { tokenStorage } from './tokenStorage';
+import { getCurrentUser } from './userApi';
+import { getInitials } from './userDisplay';
 import {
   getNotifications,
   markAllNotificationsAsRead,
@@ -69,9 +71,11 @@ export default function AppTopbar({
   const [notifications, setNotifications] = useState<NotificationEvent[]>([]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  const [fallbackUserInitials, setFallbackUserInitials] = useState<string | null>(null);
   const [toast, setToast] = useState<NotificationEvent | null>(null);
   const knownNotificationIds = useRef<Set<number>>(new Set());
   const initializedNotifications = useRef(false);
+  const shouldLoadUserInitials = !userSummary;
 
   const loadNotifications = async (showToast = false) => {
     const data = await getNotifications({ limit: 8 });
@@ -117,6 +121,27 @@ export default function AppTopbar({
       window.clearInterval(intervalId);
     };
   }, []);
+
+  useEffect(() => {
+    if (!shouldLoadUserInitials) return;
+
+    let cancelled = false;
+
+    const loadUserInitials = async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        if (!cancelled) setFallbackUserInitials(getInitials(currentUser.name || currentUser.email));
+      } catch {
+        if (!cancelled) setFallbackUserInitials(null);
+      }
+    };
+
+    void loadUserInitials();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldLoadUserInitials]);
 
   useEffect(() => {
     if (!toast) return;
@@ -186,6 +211,7 @@ export default function AppTopbar({
       {cta?.label}
     </>
   );
+  const avatarInitials = userSummary?.initials || fallbackUserInitials || 'U';
 
   return (
     <header style={styles.topbar}>
@@ -290,7 +316,7 @@ export default function AppTopbar({
                 </span>
               </>
             ) : (
-              'AS'
+              avatarInitials
             )}
           </button>
 
