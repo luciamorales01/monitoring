@@ -27,9 +27,7 @@ export type PasswordResetEmailJobData = {
   organizationId: number;
 };
 
-export type SendEmailJobData =
-  | MonitorEmailJobData
-  | PasswordResetEmailJobData;
+export type SendEmailJobData = MonitorEmailJobData | PasswordResetEmailJobData;
 
 export type SendEmailJobResult = {
   status: 'sent' | 'skipped';

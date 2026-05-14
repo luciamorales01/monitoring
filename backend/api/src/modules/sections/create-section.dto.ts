@@ -13,7 +13,15 @@ import {
   MinLength,
 } from 'class-validator';
 
-export const sectionIcons = ['folder', 'globe', 'monitor', 'database', 'cloud', 'code', 'drive'] as const;
+export const sectionIcons = [
+  'folder',
+  'globe',
+  'monitor',
+  'database',
+  'cloud',
+  'code',
+  'drive',
+] as const;
 
 export class CreateSectionDto {
   @IsString()

@@ -221,7 +221,10 @@ export class AuthController {
   @ApiUnauthorizedResponse({
     description: 'Token ausente o usuario no autorizado.',
   })
-  changePassword(@Req() req: AuthenticatedRequest, @Body() dto: ChangePasswordDto) {
+  changePassword(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: ChangePasswordDto,
+  ) {
     return this.authService.changePassword(req.user.userId, dto);
   }
 

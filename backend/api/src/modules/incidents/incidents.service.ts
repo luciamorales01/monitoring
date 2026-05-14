@@ -1,6 +1,14 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { IncidentSeverity, IncidentStatus, Prisma } from '@prisma/client';
-import { buildAccessibleIncidentWhere, canAccessAllOrganizationMonitors, type AuthenticatedUser } from '../../common/monitor-access-scope';
+import {
+  buildAccessibleIncidentWhere,
+  canAccessAllOrganizationMonitors,
+  type AuthenticatedUser,
+} from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MonitoringEventName } from '../events/events.types';
@@ -101,7 +109,11 @@ export class IncidentsService {
     return updatedIncident;
   }
 
-  async updateSeverity(id: number, severity: IncidentSeverity, user: AuthenticatedUser) {
+  async updateSeverity(
+    id: number,
+    severity: IncidentSeverity,
+    user: AuthenticatedUser,
+  ) {
     await this.findOne(id, user);
     return this.prisma.incident.update({
       where: { id },
@@ -115,10 +127,15 @@ export class IncidentsService {
     const data: Record<string, unknown> = {};
 
     if (dto.severity) data.severity = dto.severity;
-    if (dto.rootCause !== undefined) data.rootCause = dto.rootCause.trim() || null;
-    if (dto.resolutionNote !== undefined) data.resolutionNote = dto.resolutionNote.trim() || null;
+    if (dto.rootCause !== undefined)
+      data.rootCause = dto.rootCause.trim() || null;
+    if (dto.resolutionNote !== undefined)
+      data.resolutionNote = dto.resolutionNote.trim() || null;
 
-    if (dto.status === IncidentStatus.ACKNOWLEDGED && incident.status !== IncidentStatus.RESOLVED) {
+    if (
+      dto.status === IncidentStatus.ACKNOWLEDGED &&
+      incident.status !== IncidentStatus.RESOLVED
+    ) {
       data.status = IncidentStatus.ACKNOWLEDGED;
       data.acknowledgedAt = incident.acknowledgedAt ?? new Date();
       data.acknowledgedById = user.userId;
@@ -138,7 +155,9 @@ export class IncidentsService {
       data.resolvedById = user.userId;
       data.durationSeconds = Math.max(
         0,
-        Math.floor((resolvedAt.getTime() - incident.startedAt.getTime()) / 1000),
+        Math.floor(
+          (resolvedAt.getTime() - incident.startedAt.getTime()) / 1000,
+        ),
       );
     }
 
@@ -178,19 +197,26 @@ export class IncidentsService {
     });
   }
 
-  private buildIncidentWhere(user: AuthenticatedUser): Prisma.IncidentWhereInput {
+  private buildIncidentWhere(
+    user: AuthenticatedUser,
+  ): Prisma.IncidentWhereInput {
     return buildAccessibleIncidentWhere(user);
   }
 
   private canAccessMonitor(
-    monitor: { organizationId: number; sections?: { section: { members: { userId: number }[] } }[] },
+    monitor: {
+      organizationId: number;
+      sections?: { section: { members: { userId: number }[] } }[];
+    },
     user: AuthenticatedUser,
   ) {
     if (monitor.organizationId !== user.organizationId) return false;
     if (this.canManageAll(user)) return true;
-    return monitor.sections?.some(({ section }) =>
-      section.members.some((member) => member.userId === user.userId),
-    ) ?? false;
+    return (
+      monitor.sections?.some(({ section }) =>
+        section.members.some((member) => member.userId === user.userId),
+      ) ?? false
+    );
   }
 
   private canManageAll(user: AuthenticatedUser) {

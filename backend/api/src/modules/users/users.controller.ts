@@ -31,7 +31,10 @@ export class UsersController {
   }
 
   @Patch('me')
-  updateCurrentUser(@Body() dto: UpdateCurrentUserDto, @Req() req: AuthenticatedRequest) {
+  updateCurrentUser(
+    @Body() dto: UpdateCurrentUserDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.usersService.updateCurrentUser(dto, req.user);
   }
 
@@ -49,13 +52,19 @@ export class UsersController {
 
   @Post('invitations')
   @Roles('OWNER')
-  createInvitation(@Body() dto: CreateInvitationDto, @Req() req: AuthenticatedRequest) {
+  createInvitation(
+    @Body() dto: CreateInvitationDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.usersService.createInvitation(dto, req.user);
   }
 
   @Delete('invitations/:id')
   @Roles('OWNER')
-  revokeInvitation(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  revokeInvitation(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.usersService.revokeInvitation(id, req.user);
   }
 

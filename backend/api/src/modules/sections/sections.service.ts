@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { MonitorsService } from '../monitors/monitors.service';
@@ -6,7 +11,11 @@ import { CreateSectionDto } from './create-section.dto';
 import { UpdateSectionDto } from './update-section.dto';
 import { UpdateSectionMembersDto } from './update-section-members.dto';
 
-type AuthenticatedUser = { organizationId: number; userId: number; role?: string };
+type AuthenticatedUser = {
+  organizationId: number;
+  userId: number;
+  role?: string;
+};
 
 type SectionWithRelations = Prisma.SectionGetPayload<{
   include: {
@@ -42,9 +51,12 @@ export class SectionsService {
   }
 
   async create(dto: CreateSectionDto, user: AuthenticatedUser) {
-    const monitorIds = await this.validateMonitorIds(dto.monitorIds ?? [], user);
+    const monitorIds = await this.validateMonitorIds(
+      dto.monitorIds ?? [],
+      user,
+    );
     const locations = this.sanitizeConfiguredLocations(dto.locations);
-    const defaultMembers = await this.buildDefaultMembers(user);
+    const defaultMembers = this.buildDefaultMembers(user);
     const section = await this.prisma.section.create({
       data: {
         name: dto.name.trim(),
@@ -57,9 +69,15 @@ export class SectionsService {
         isActive: dto.isActive ?? true,
         organizationId: user.organizationId,
         ...(monitorIds.length > 0
-          ? { monitors: { create: monitorIds.map((monitorId) => ({ monitorId })) } }
+          ? {
+              monitors: {
+                create: monitorIds.map((monitorId) => ({ monitorId })),
+              },
+            }
           : {}),
-        ...(defaultMembers.length > 0 ? { members: { create: defaultMembers } } : {}),
+        ...(defaultMembers.length > 0
+          ? { members: { create: defaultMembers } }
+          : {}),
       },
       include: this.sectionInclude,
     });
@@ -78,9 +96,15 @@ export class SectionsService {
     });
     if (!current) throw new NotFoundException('Sección no encontrada');
     this.ensureManageAccess(current, user);
-    const monitorIds = dto.monitorIds === undefined ? undefined : await this.validateMonitorIds(dto.monitorIds, user);
+    const monitorIds =
+      dto.monitorIds === undefined
+        ? undefined
+        : await this.validateMonitorIds(dto.monitorIds, user);
     const scheduleChanged = this.hasScheduleChange(dto);
-    const locations = dto.locations === undefined ? undefined : this.sanitizeConfiguredLocations(dto.locations);
+    const locations =
+      dto.locations === undefined
+        ? undefined
+        : this.sanitizeConfiguredLocations(dto.locations);
 
     const section = await this.prisma.$transaction(async (tx) => {
       if (monitorIds !== undefined) {
@@ -96,11 +120,19 @@ export class SectionsService {
         where: { id },
         data: {
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-          ...(dto.description !== undefined ? { description: dto.description.trim() } : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description.trim() }
+            : {}),
           ...(dto.icon !== undefined ? { icon: dto.icon } : {}),
-          ...(dto.expectedStatusCode !== undefined ? { expectedStatusCode: dto.expectedStatusCode } : {}),
-          ...(dto.frequencySeconds !== undefined ? { frequencySeconds: dto.frequencySeconds } : {}),
-          ...(dto.timeoutSeconds !== undefined ? { timeoutSeconds: dto.timeoutSeconds } : {}),
+          ...(dto.expectedStatusCode !== undefined
+            ? { expectedStatusCode: dto.expectedStatusCode }
+            : {}),
+          ...(dto.frequencySeconds !== undefined
+            ? { frequencySeconds: dto.frequencySeconds }
+            : {}),
+          ...(dto.timeoutSeconds !== undefined
+            ? { timeoutSeconds: dto.timeoutSeconds }
+            : {}),
           ...(locations !== undefined ? { locations } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         },
@@ -150,7 +182,8 @@ export class SectionsService {
     });
     if (!section) throw new NotFoundException('Sección no encontrada');
     await this.ensureSectionAccessById(id, user);
-    const results: Awaited<ReturnType<typeof this.monitorsService.runCheck>>[] = [];
+    const results: Awaited<ReturnType<typeof this.monitorsService.runCheck>>[] =
+      [];
     for (const item of section.monitors) {
       if (!item.monitor.isActive) continue;
       results.push(await this.monitorsService.runCheck(item.monitorId, user));
@@ -158,7 +191,11 @@ export class SectionsService {
     return { checked: results.length, results };
   }
 
-  async updateMembers(id: number, dto: UpdateSectionMembersDto, user: AuthenticatedUser) {
+  async updateMembers(
+    id: number,
+    dto: UpdateSectionMembersDto,
+    user: AuthenticatedUser,
+  ) {
     const section = await this.prisma.section.findUnique({
       where: { id },
       include: { members: true },
@@ -184,7 +221,10 @@ export class SectionsService {
     return this.serializeSection(updated);
   }
 
-  private async validateMonitorIds(monitorIds: number[], user: AuthenticatedUser) {
+  private async validateMonitorIds(
+    monitorIds: number[],
+    user: AuthenticatedUser,
+  ) {
     const uniqueIds = Array.from(new Set(monitorIds.filter(Number.isInteger)));
     if (uniqueIds.length === 0) return [];
     const monitors = await this.prisma.monitor.findMany({
@@ -200,9 +240,13 @@ export class SectionsService {
       },
     });
     if (monitors.length !== uniqueIds.length) {
-      throw new BadRequestException('Algún monitor no existe o no pertenece a tu organización');
+      throw new BadRequestException(
+        'Algún monitor no existe o no pertenece a tu organización',
+      );
     }
-    const inaccessibleMonitor = monitors.find((monitor) => !this.canAccessMonitor(monitor, user));
+    const inaccessibleMonitor = monitors.find(
+      (monitor) => !this.canAccessMonitor(monitor, user),
+    );
     if (inaccessibleMonitor) {
       throw new ForbiddenException(
         'No puedes vincular monitores fuera de tus secciones o sin sección asignada.',
@@ -215,15 +259,24 @@ export class SectionsService {
     const uniqueIds = Array.from(new Set(userIds.filter(Number.isInteger)));
     if (uniqueIds.length === 0) return [];
     const count = await this.prisma.user.count({
-      where: { id: { in: uniqueIds }, organizationId: user.organizationId, status: 'ACTIVE' },
+      where: {
+        id: { in: uniqueIds },
+        organizationId: user.organizationId,
+        status: 'ACTIVE',
+      },
     });
     if (count !== uniqueIds.length) {
-      throw new BadRequestException('Algún usuario no existe o no pertenece a tu organización');
+      throw new BadRequestException(
+        'Algún usuario no existe o no pertenece a tu organización',
+      );
     }
     return uniqueIds;
   }
 
-  private ensureSectionAccess(section: { organizationId: number; members?: { userId: number }[] }, user: AuthenticatedUser) {
+  private ensureSectionAccess(
+    section: { organizationId: number; members?: { userId: number }[] },
+    user: AuthenticatedUser,
+  ) {
     if (section.organizationId !== user.organizationId) {
       throw new ForbiddenException('No tienes acceso a esta sección');
     }
@@ -240,23 +293,39 @@ export class SectionsService {
       throw new ForbiddenException('No tienes acceso a esta sección');
     }
     if (this.canAccessAllSections(user)) return;
-    if (user.role === UserRole.ADMIN && this.isSectionMember(section, user.userId)) return;
+    if (
+      user.role === UserRole.ADMIN &&
+      this.isSectionMember(section, user.userId)
+    )
+      return;
     if (user.role === UserRole.VIEWER) {
-      throw new ForbiddenException('Los usuarios VIEWER solo tienen acceso de lectura a sus secciones.');
+      throw new ForbiddenException(
+        'Los usuarios VIEWER solo tienen acceso de lectura a sus secciones.',
+      );
     }
-    throw new ForbiddenException('Solo puedes gestionar secciones de las que eres miembro.');
+    throw new ForbiddenException(
+      'Solo puedes gestionar secciones de las que eres miembro.',
+    );
   }
 
-  private ensureOwnerAccess(sectionOrganizationId: number, user: AuthenticatedUser) {
+  private ensureOwnerAccess(
+    sectionOrganizationId: number,
+    user: AuthenticatedUser,
+  ) {
     if (sectionOrganizationId !== user.organizationId) {
       throw new ForbiddenException('No tienes acceso a esta sección');
     }
     if (user.role !== UserRole.OWNER) {
-      throw new ForbiddenException('Solo un propietario puede gestionar los miembros de la sección.');
+      throw new ForbiddenException(
+        'Solo un propietario puede gestionar los miembros de la sección.',
+      );
     }
   }
 
-  private async ensureSectionAccessById(sectionId: number, user: AuthenticatedUser) {
+  private async ensureSectionAccessById(
+    sectionId: number,
+    user: AuthenticatedUser,
+  ) {
     const section = await this.prisma.section.findUnique({
       where: { id: sectionId },
       include: { members: true },
@@ -278,7 +347,7 @@ export class SectionsService {
     return !user.role || user.role === UserRole.OWNER;
   }
 
-  private async buildDefaultMembers(user: AuthenticatedUser) {
+  private buildDefaultMembers(user: AuthenticatedUser) {
     if (user.role === UserRole.ADMIN) {
       return [{ userId: user.userId }];
     }
@@ -286,7 +355,10 @@ export class SectionsService {
     return [];
   }
 
-  private isSectionMember(section: { members?: { userId: number }[] }, userId: number) {
+  private isSectionMember(
+    section: { members?: { userId: number }[] },
+    userId: number,
+  ) {
     return section.members?.some((member) => member.userId === userId) ?? false;
   }
 
@@ -301,7 +373,11 @@ export class SectionsService {
     user: AuthenticatedUser,
   ) {
     if (this.canAccessAllSections(user)) return true;
-    return monitor.sections?.some(({ section }) => this.isSectionMember(section, user.userId)) ?? false;
+    return (
+      monitor.sections?.some(({ section }) =>
+        this.isSectionMember(section, user.userId),
+      ) ?? false
+    );
   }
 
   private hasScheduleChange(dto: UpdateSectionDto) {

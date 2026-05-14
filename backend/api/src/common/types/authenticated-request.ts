@@ -4,7 +4,7 @@ import type { UserRole } from '@prisma/client';
 export type AuthenticatedUser = {
   organizationId: number;
   userId: number;
-  role?: UserRole | string;
+  role?: UserRole;
   email?: string;
 };
 

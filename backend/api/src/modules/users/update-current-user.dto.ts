@@ -12,13 +12,15 @@ export class UpdateCurrentUserDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   name?: string;
 
   @IsOptional()
   @IsEmail()
   @MaxLength(254)
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   email?: string;
@@ -26,12 +28,16 @@ export class UpdateCurrentUserDto {
   @IsOptional()
   @IsString()
   @MaxLength(30)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   phone?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(80)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   timezone?: string;
 }

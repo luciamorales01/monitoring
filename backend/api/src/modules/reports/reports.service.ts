@@ -1,7 +1,15 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { IncidentStatus, MonitorStatus, Prisma } from '@prisma/client';
 import ExcelJS from 'exceljs';
-import { buildAccessibleMonitorWhere, canAccessAllOrganizationMonitors, type AuthenticatedUser } from '../../common/monitor-access-scope';
+import {
+  buildAccessibleMonitorWhere,
+  canAccessAllOrganizationMonitors,
+  type AuthenticatedUser,
+} from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
 
 type ReportRange = '24h' | '7d' | '30d';
@@ -47,14 +55,36 @@ function getRangeLabel(range: ReportRange) {
   return 'Ultimos 7 dias';
 }
 
-function getDowntimeSeconds(range: ReportRange, checks: number, downChecks: number) {
+function getDowntimeSeconds(
+  range: ReportRange,
+  checks: number,
+  downChecks: number,
+) {
   if (checks <= 0 || downChecks <= 0) return 0;
-  const rangeSeconds = range === '24h' ? 86_400 : range === '30d' ? 2_592_000 : 604_800;
+  const rangeSeconds =
+    range === '24h' ? 86_400 : range === '30d' ? 2_592_000 : 604_800;
   return Math.round((downChecks / checks) * rangeSeconds);
 }
 
 function csvEscape(value: unknown) {
-  return `"${String(value ?? '').replaceAll('"', '""')}"`;
+  let normalized = '';
+
+  if (value !== null && value !== undefined) {
+    if (typeof value === 'string') {
+      normalized = value;
+    } else if (
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      typeof value === 'bigint' ||
+      typeof value === 'symbol'
+    ) {
+      normalized = String(value);
+    } else {
+      normalized = JSON.stringify(value) ?? '';
+    }
+  }
+
+  return `"${normalized.replaceAll('"', '""')}"`;
 }
 
 function formatSeconds(seconds: number) {
@@ -91,7 +121,9 @@ export class ReportsService {
       }
 
       if (!this.canAccessMonitor(monitor, user)) {
-        throw new ForbiddenException('No tienes acceso a los informes de este monitor.');
+        throw new ForbiddenException(
+          'No tienes acceso a los informes de este monitor.',
+        );
       }
     }
 
@@ -144,15 +176,23 @@ export class ReportsService {
 
     const rows = monitors.map((monitor) => {
       const checks = monitor.checkResults;
-      const upChecks = checks.filter((check) => check.status === MonitorStatus.UP).length;
-      const downChecks = checks.filter((check) => check.status === MonitorStatus.DOWN).length;
-      const checksWithResponse = checks.filter((check) => typeof check.responseTimeMs === 'number');
+      const upChecks = checks.filter(
+        (check) => check.status === MonitorStatus.UP,
+      ).length;
+      const downChecks = checks.filter(
+        (check) => check.status === MonitorStatus.DOWN,
+      ).length;
+      const checksWithResponse = checks.filter(
+        (check) => typeof check.responseTimeMs === 'number',
+      );
       const averageResponseTimeMs = checksWithResponse.length
         ? Math.round(
-            checksWithResponse.reduce((sum, check) => sum + (check.responseTimeMs ?? 0), 0) /
-              checksWithResponse.length,
+            checksWithResponse.reduce(
+              (sum, check) => sum + (check.responseTimeMs ?? 0),
+              0,
+            ) / checksWithResponse.length,
           )
-        : monitor.lastResponseTime ?? 0;
+        : (monitor.lastResponseTime ?? 0);
 
       const uptimePercent = checks.length
         ? Number(((upChecks / checks.length) * 100).toFixed(2))
@@ -160,7 +200,11 @@ export class ReportsService {
           ? 100
           : 0;
 
-      const estimatedDowntimeSeconds = getDowntimeSeconds(range, checks.length, downChecks);
+      const estimatedDowntimeSeconds = getDowntimeSeconds(
+        range,
+        checks.length,
+        downChecks,
+      );
 
       const lastDowntime = checks
         .slice()
@@ -180,7 +224,9 @@ export class ReportsService {
         slaPercent: uptimePercent,
         averageResponseTimeMs,
         incidents: monitor.incidents.length,
-        openIncidents: monitor.incidents.filter((incident) => incident.status === IncidentStatus.OPEN).length,
+        openIncidents: monitor.incidents.filter(
+          (incident) => incident.status === IncidentStatus.OPEN,
+        ).length,
         checks: checks.length,
         downChecks,
         estimatedDowntimeSeconds,
@@ -190,15 +236,26 @@ export class ReportsService {
 
     const checks = rows.reduce((sum, row) => sum + row.checks, 0);
     const incidents = rows.reduce((sum, row) => sum + row.incidents, 0);
-    const estimatedDowntimeSeconds = rows.reduce((sum, row) => sum + row.estimatedDowntimeSeconds, 0);
+    const estimatedDowntimeSeconds = rows.reduce(
+      (sum, row) => sum + row.estimatedDowntimeSeconds,
+      0,
+    );
     const averageUptimePercent = rows.length
-      ? Number((rows.reduce((sum, row) => sum + row.uptimePercent, 0) / rows.length).toFixed(2))
+      ? Number(
+          (
+            rows.reduce((sum, row) => sum + row.uptimePercent, 0) / rows.length
+          ).toFixed(2),
+        )
       : 0;
-    const rowsWithResponse = rows.filter((row) => row.averageResponseTimeMs > 0);
+    const rowsWithResponse = rows.filter(
+      (row) => row.averageResponseTimeMs > 0,
+    );
     const averageResponseTimeMs = rowsWithResponse.length
       ? Math.round(
-          rowsWithResponse.reduce((sum, row) => sum + row.averageResponseTimeMs, 0) /
-            rowsWithResponse.length,
+          rowsWithResponse.reduce(
+            (sum, row) => sum + row.averageResponseTimeMs,
+            0,
+          ) / rowsWithResponse.length,
         )
       : 0;
 
@@ -236,13 +293,16 @@ export class ReportsService {
         where: { id: params.sectionId },
         select: { name: true },
       });
-      suffix = section ? this.slugify(section.name) : `seccion-${params.sectionId}`;
+      suffix = section
+        ? this.slugify(section.name)
+        : `seccion-${params.sectionId}`;
     }
 
     if (params.format === 'xlsx') {
       return {
         filename: `informe-monitoring-${params.range}-${suffix}.xlsx`,
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         buffer: await this.buildExcel(summary.rows, summary.range),
       };
     }
@@ -291,7 +351,9 @@ export class ReportsService {
       row.lastDowntime ?? 'Sin caidas recientes',
     ]);
 
-    return [header, ...lines].map((line) => line.map(csvEscape).join(',')).join('\n');
+    return [header, ...lines]
+      .map((line) => line.map(csvEscape).join(','))
+      .join('\n');
   }
 
   private async buildExcel(rows: ReportRow[], range: ReportRange) {
@@ -381,7 +443,9 @@ export class ReportsService {
         `(${line}) Tj`,
       ]),
       'ET',
-    ].filter(Boolean).join('\n');
+    ]
+      .filter(Boolean)
+      .join('\n');
 
     const objects = [
       '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
@@ -409,12 +473,14 @@ export class ReportsService {
   }
 
   private slugify(value: string) {
-    return value
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '') || 'monitor';
+    return (
+      value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'monitor'
+    );
   }
 
   private buildMonitorWhere(
@@ -422,7 +488,9 @@ export class ReportsService {
     monitorId?: number,
     sectionId?: number,
   ): Prisma.MonitorWhereInput {
-    const filters: Prisma.MonitorWhereInput[] = [buildAccessibleMonitorWhere(user)];
+    const filters: Prisma.MonitorWhereInput[] = [
+      buildAccessibleMonitorWhere(user),
+    ];
 
     if (monitorId) {
       filters.push({ id: monitorId });

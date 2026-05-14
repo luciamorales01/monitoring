@@ -16,7 +16,11 @@ import {
 import { isIP, Socket } from 'node:net';
 import { connect as tlsConnect, type PeerCertificate } from 'node:tls';
 import { Prisma } from '@prisma/client';
-import { buildAccessibleMonitorWhere, canAccessAllOrganizationMonitors, type AuthenticatedUser } from '../../common/monitor-access-scope';
+import {
+  buildAccessibleMonitorWhere,
+  canAccessAllOrganizationMonitors,
+  type AuthenticatedUser,
+} from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MonitoringEventName } from '../events/events.types';
@@ -210,7 +214,10 @@ export class MonitorsService {
           orderBy: { checkedAt: 'desc' },
           take: 20,
         },
-        sections: { include: { section: { include: { members: true } } }, orderBy: { assignedAt: 'asc' } },
+        sections: {
+          include: { section: { include: { members: true } } },
+          orderBy: { assignedAt: 'asc' },
+        },
       },
     });
 
@@ -306,7 +313,12 @@ export class MonitorsService {
     const updatedMonitor = await this.prisma.monitor.update({
       where: { id },
       data,
-      include: { sections: { include: { section: { include: { members: true } } }, orderBy: { assignedAt: 'asc' } } },
+      include: {
+        sections: {
+          include: { section: { include: { members: true } } },
+          orderBy: { assignedAt: 'asc' },
+        },
+      },
     });
 
     return this.sanitizeMonitorResponse(updatedMonitor);
@@ -318,20 +330,27 @@ export class MonitorsService {
     const section = monitor.sections?.[0]?.section;
 
     if (!section) {
-      throw new BadRequestException('El monitor no pertenece a ninguna sección');
+      throw new BadRequestException(
+        'El monitor no pertenece a ninguna sección',
+      );
     }
 
     return this.prisma.monitor.update({
       where: { id },
-        data: {
-          expectedStatusCode: section.expectedStatusCode,
-          frequencySeconds: section.frequencySeconds,
-          timeoutSeconds: section.timeoutSeconds,
-          isActive: section.isActive,
-          usesSectionSchedule: true,
-          nextCheckAt: section.isActive ? new Date() : undefined,
+      data: {
+        expectedStatusCode: section.expectedStatusCode,
+        frequencySeconds: section.frequencySeconds,
+        timeoutSeconds: section.timeoutSeconds,
+        isActive: section.isActive,
+        usesSectionSchedule: true,
+        nextCheckAt: section.isActive ? new Date() : undefined,
       },
-      include: { sections: { include: { section: { include: { members: true } } }, orderBy: { assignedAt: 'asc' } } },
+      include: {
+        sections: {
+          include: { section: { include: { members: true } } },
+          orderBy: { assignedAt: 'asc' },
+        },
+      },
     });
   }
 
@@ -407,7 +426,10 @@ export class MonitorsService {
       take: 50,
     });
 
-    return results.map(({ location: _location, ...result }) => result);
+    return results.map(({ location, ...result }) => {
+      void location;
+      return result;
+    });
   }
 
   private buildMonitorListWhere(
@@ -888,10 +910,7 @@ export class MonitorsService {
     return [301, 302, 303, 307, 308].includes(statusCode);
   }
 
-  private doesHttpStatusMatch(
-    statusCode: number,
-    expectedStatusCode: number,
-  ) {
+  private doesHttpStatusMatch(statusCode: number, expectedStatusCode: number) {
     return statusCode === expectedStatusCode;
   }
 
@@ -988,19 +1007,14 @@ export class MonitorsService {
         },
       });
 
-      const incidentSync = await this.syncIncidentForCheck(
-        tx,
-        monitor,
-        {
-          checkedAt: latestCheckedAt,
-          errorMessage: this.buildGlobalErrorMessage(outcomes),
-          location: 'default',
-          responseTimeMs: averageResponseTime ?? 0,
-          status: overallStatus,
-          statusCode: null,
-        },
-        outcomes,
-      );
+      const incidentSync = await this.syncIncidentForCheck(tx, monitor, {
+        checkedAt: latestCheckedAt,
+        errorMessage: this.buildGlobalErrorMessage(outcomes),
+        location: 'default',
+        responseTimeMs: averageResponseTime ?? 0,
+        status: overallStatus,
+        statusCode: null,
+      });
 
       return {
         checkedAt: latestCheckedAt,
@@ -1011,7 +1025,11 @@ export class MonitorsService {
       } satisfies PersistedCheckResult;
     });
 
-    await this.publishCheckEvents(monitor.id, monitor.organizationId, persisted);
+    await this.publishCheckEvents(
+      monitor.id,
+      monitor.organizationId,
+      persisted,
+    );
     await this.enqueueIncidentNotifications(monitor, persisted);
 
     return {
@@ -1245,7 +1263,7 @@ export class MonitorsService {
     );
   }
 
-  private buildIncidentTitle(_outcomes: MonitorCheckOutcome[]) {
+  private buildIncidentTitle() {
     return 'Monitor caído';
   }
 
@@ -1261,7 +1279,6 @@ export class MonitorsService {
       | 'alertEmail'
     >,
     outcome: MonitorCheckOutcome,
-    outcomes: MonitorCheckOutcome[],
   ): Promise<IncidentSyncResult> {
     const openIncident = await tx.incident.findFirst({
       where: {
@@ -1304,7 +1321,7 @@ export class MonitorsService {
         data: {
           monitorId: monitor.id,
           status: IncidentStatus.OPEN,
-          title: this.buildIncidentTitle(outcomes),
+          title: this.buildIncidentTitle(),
           startedAt: this.getIncidentStartedAt(
             consecutiveDownBatches,
             outcome.checkedAt,
@@ -1364,7 +1381,7 @@ export class MonitorsService {
           orderBy: { assignedAt: 'asc' },
         },
       },
-    }) as Promise<MonitorEntity | null>;
+    });
   }
 
   private async findMonitorByIdOrThrow(id: number): Promise<MonitorEntity> {
@@ -1430,7 +1447,9 @@ export class MonitorsService {
     monitor: TMonitor,
   ): TMonitor {
     const monitorWithChecks = monitor as TMonitor & {
-      checkResults?: Array<Record<string, unknown> & { location?: string | null }>;
+      checkResults?: Array<
+        Record<string, unknown> & { location?: string | null }
+      >;
     };
 
     if (!monitorWithChecks.checkResults) {
@@ -1440,7 +1459,10 @@ export class MonitorsService {
     return {
       ...monitor,
       checkResults: monitorWithChecks.checkResults.map(
-        ({ location: _location, ...check }) => check,
+        ({ location, ...check }) => {
+          void location;
+          return check;
+        },
       ),
     };
   }

@@ -5,7 +5,7 @@ import { UserRole } from '@prisma/client';
 export class CreateInvitationDto {
   @IsEmail()
   @MaxLength(254)
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   email: string;

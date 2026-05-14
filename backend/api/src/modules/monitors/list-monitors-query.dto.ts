@@ -91,7 +91,6 @@ export class ListMonitorsQueryDto {
   @IsOptional()
   @IsEnum(MonitorType)
   type?: MonitorType;
-
 }
 
 export class RecentChecksQueryDto {

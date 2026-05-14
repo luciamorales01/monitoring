@@ -125,7 +125,10 @@ export class IncidentsController {
   @ApiForbiddenResponse({
     description: 'Sin acceso a la incidencia solicitada.',
   })
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.incidentsService.findOne(id, req.user);
   }
 
@@ -187,7 +190,10 @@ export class IncidentsController {
       },
     },
   })
-  acknowledge(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  acknowledge(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.incidentsService.acknowledge(id, req.user);
   }
 

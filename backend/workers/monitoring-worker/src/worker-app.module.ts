@@ -5,7 +5,7 @@ import databaseConfig from '../../../api/src/config/database.config';
 import queueConfig from '../../../api/src/config/queue.config';
 import { PrismaModule } from '../../../api/src/database/prisma/prisma.module';
 import { EventsModule } from '../../../api/src/modules/events/events.module';
-import { NotificationsService } from '../../../api/src/modules/notifications/notifications.service';
+import { NotificationsModule } from '../../../api/src/modules/notifications/notifications.module';
 import { MonitorsService } from '../../../api/src/modules/monitors/monitors.service';
 
 @Module({
@@ -20,7 +20,8 @@ import { MonitorsService } from '../../../api/src/modules/monitors/monitors.serv
     }),
     PrismaModule,
     EventsModule,
+    NotificationsModule,
   ],
-  providers: [NotificationsService, MonitorsService],
+  providers: [MonitorsService],
 })
 export class MonitoringWorkerAppModule {}

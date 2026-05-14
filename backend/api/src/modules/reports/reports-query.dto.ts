@@ -8,7 +8,12 @@ export type ReportRange = (typeof REPORT_RANGES)[number];
 export type ReportFormat = (typeof REPORT_FORMATS)[number];
 
 function optionalPositiveInt(value: unknown) {
-  if (value === undefined || value === null || value === '' || value === 'all') {
+  if (
+    value === undefined ||
+    value === null ||
+    value === '' ||
+    value === 'all'
+  ) {
     return undefined;
   }
 

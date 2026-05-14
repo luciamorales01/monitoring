@@ -19,7 +19,10 @@ import {
 } from '@nestjs/swagger';
 import type { AuthenticatedRequest } from '../../common/types/authenticated-request';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { ReportExportQueryDto, ReportSummaryQueryDto } from './reports-query.dto';
+import {
+  ReportExportQueryDto,
+  ReportSummaryQueryDto,
+} from './reports-query.dto';
 import { ReportsService } from './reports.service';
 
 @ApiTags('reports')
@@ -98,7 +101,10 @@ export class ReportsController {
     description: 'Monitor no encontrado para la organizacion actual.',
   })
   @ApiUnauthorizedResponse({ description: 'Token ausente o invalido.' })
-  summary(@Req() req: AuthenticatedRequest, @Query() query: ReportSummaryQueryDto) {
+  summary(
+    @Req() req: AuthenticatedRequest,
+    @Query() query: ReportSummaryQueryDto,
+  ) {
     return this.reportsService.getSummary(
       req.user,
       query.range ?? '7d',

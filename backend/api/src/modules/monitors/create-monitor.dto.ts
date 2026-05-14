@@ -107,7 +107,7 @@ export class CreateMonitorDto {
     maximum: 65535,
     description: 'Puerto TCP. Obligatorio cuando `type` es `TCP`.',
   })
-  @ValidateIf((dto) => dto.type === MonitorType.TCP)
+  @ValidateIf((dto: CreateMonitorDto) => dto.type === MonitorType.TCP)
   @IsInt()
   @Min(1)
   @Max(65535)

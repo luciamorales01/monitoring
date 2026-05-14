@@ -20,7 +20,9 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   name: string;
 
   @ApiProperty({
@@ -29,7 +31,7 @@ export class RegisterDto {
   })
   @IsEmail()
   @MaxLength(254)
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   email: string;
@@ -54,6 +56,8 @@ export class RegisterDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(120)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   organizationName: string;
 }

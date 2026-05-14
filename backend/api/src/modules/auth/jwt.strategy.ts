@@ -24,7 +24,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     role: string;
     organizationId: number;
   }) {
-    if (!Number.isInteger(payload.sub) || !Number.isInteger(payload.organizationId)) {
+    if (
+      !Number.isInteger(payload.sub) ||
+      !Number.isInteger(payload.organizationId)
+    ) {
       throw new UnauthorizedException('Token invalido');
     }
 

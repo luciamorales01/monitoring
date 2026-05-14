@@ -28,14 +28,18 @@ export class EventsController {
   ) {}
 
   @Sse()
-  async stream(@Query('token') token?: string): Promise<Observable<MessageEvent>> {
+  async stream(
+    @Query('token') token?: string,
+  ): Promise<Observable<MessageEvent>> {
     const user = await this.verifyToken(token);
-    const events = this.eventsService.streamForOrganization(user.organizationId).pipe(
-      map((event) => ({
-        data: event.payload,
-        type: event.name,
-      })),
-    );
+    const events = this.eventsService
+      .streamForOrganization(user.organizationId)
+      .pipe(
+        map((event) => ({
+          data: event.payload,
+          type: event.name,
+        })),
+      );
     const heartbeat = interval(30_000).pipe(
       map(() => ({
         data: { timestamp: new Date().toISOString() },

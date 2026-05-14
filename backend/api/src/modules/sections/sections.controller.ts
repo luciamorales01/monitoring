@@ -37,7 +37,10 @@ export class SectionsController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.sectionsService.findOne(id, req.user);
   }
 
@@ -59,13 +62,19 @@ export class SectionsController {
 
   @Delete(':id')
   @Roles('OWNER', 'ADMIN')
-  remove(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.sectionsService.remove(id, req.user);
   }
 
   @Post(':id/run-checks')
   @Roles('OWNER', 'ADMIN')
-  runSectionChecks(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  runSectionChecks(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.sectionsService.runSectionChecks(id, req.user);
   }
 

@@ -202,7 +202,9 @@ export class NotificationsService {
     return { to: recipients, subject, text, html };
   }
 
-  private buildPasswordResetMessage(payload: PasswordResetPayload): MailMessage {
+  private buildPasswordResetMessage(
+    payload: PasswordResetPayload,
+  ): MailMessage {
     const appName = this.configService.get<string>('APP_NAME') ?? 'Monitoring';
     const subject = `[${appName}] Restablece tu contraseña`;
     const expiresAt = payload.expiresAt.toISOString();

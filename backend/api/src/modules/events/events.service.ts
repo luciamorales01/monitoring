@@ -21,8 +21,11 @@ export class EventsService implements OnModuleDestroy {
       const publisher = this.getPublisher();
       await publisher.publish(MONITORING_EVENTS_CHANNEL, JSON.stringify(event));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error desconocido';
-      this.logger.warn(`No se pudo publicar evento SSE ${event.name}: ${message}`);
+      const message =
+        error instanceof Error ? error.message : 'Error desconocido';
+      this.logger.warn(
+        `No se pudo publicar evento SSE ${event.name}: ${message}`,
+      );
     }
   }
 

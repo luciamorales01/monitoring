@@ -43,7 +43,9 @@ export function validateEnv(config: RawEnv) {
     .map((origin) => origin.trim());
 
   if (corsOrigins?.some((origin) => origin === '*')) {
-    throw new Error('CORS_ORIGINS no puede usar * con credenciales habilitadas');
+    throw new Error(
+      'CORS_ORIGINS no puede usar * con credenciales habilitadas',
+    );
   }
 
   if (

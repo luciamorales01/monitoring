@@ -1,8 +1,23 @@
-import { Body, Controller, Get, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { buildAccessibleNotificationWhere, type AuthenticatedUser } from '../../common/monitor-access-scope';
+import {
+  buildAccessibleNotificationWhere,
+  type AuthenticatedUser,
+} from '../../common/monitor-access-scope';
 import { PrismaService } from '../../database/prisma/prisma.service';
-import { ListNotificationsQueryDto, MarkNotificationsReadDto } from './notifications.dto';
+import {
+  ListNotificationsQueryDto,
+  MarkNotificationsReadDto,
+} from './notifications.dto';
 
 const notificationSelect = {
   id: true,

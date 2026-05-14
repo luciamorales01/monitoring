@@ -28,7 +28,10 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateMonitorDto } from './create-monitor.dto';
-import { ListMonitorsQueryDto, RecentChecksQueryDto } from './list-monitors-query.dto';
+import {
+  ListMonitorsQueryDto,
+  RecentChecksQueryDto,
+} from './list-monitors-query.dto';
 import { MonitorsService } from './monitors.service';
 import { UpdateMonitorDto } from './update-monitor.dto';
 
@@ -107,7 +110,10 @@ export class MonitorsController {
       },
     },
   })
-  findAll(@Query() query: ListMonitorsQueryDto, @Req() req: AuthenticatedRequest) {
+  findAll(
+    @Query() query: ListMonitorsQueryDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.monitorsService.findAll(req.user, query);
   }
 
@@ -144,7 +150,10 @@ export class MonitorsController {
   })
   @ApiNotFoundResponse({ description: 'Monitor no encontrado.' })
   @ApiForbiddenResponse({ description: 'Sin acceso al monitor solicitado.' })
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.monitorsService.findOne(id, req.user);
   }
 
@@ -267,7 +276,10 @@ export class MonitorsController {
       },
     },
   })
-  runCheck(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  runCheck(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.monitorsService.runCheck(id, req.user);
   }
 
@@ -296,7 +308,10 @@ export class MonitorsController {
       },
     },
   })
-  runCheckAlias(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  runCheckAlias(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.monitorsService.runCheck(id, req.user);
   }
 
@@ -322,7 +337,10 @@ export class MonitorsController {
       },
     },
   })
-  toggleActive(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  toggleActive(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.monitorsService.toggleActive(id, req.user);
   }
 
@@ -350,7 +368,10 @@ export class MonitorsController {
     },
   })
   @ApiNotFoundResponse({ description: 'Monitor no encontrado.' })
-  remove(@Param('id', ParseIntPipe) id: number, @Req() req: AuthenticatedRequest) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.monitorsService.remove(id, req.user);
   }
 }

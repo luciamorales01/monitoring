@@ -95,7 +95,7 @@ export class AuthService {
       return { organization, user };
     });
 
-    return this.buildSession(user as AuthUserInput, true);
+    return this.buildSession(user, true);
   }
 
   async login(dto: LoginDto) {
@@ -124,7 +124,7 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    return this.buildSession(user as AuthUserInput, Boolean(dto.rememberMe));
+    return this.buildSession(user, Boolean(dto.rememberMe));
   }
 
   async refresh(refreshToken: string) {
@@ -155,10 +155,7 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    return this.buildSession(
-      storedToken.user as AuthUserInput,
-      storedToken.rememberMe,
-    );
+    return this.buildSession(storedToken.user, storedToken.rememberMe);
   }
 
   async logout(refreshToken: string) {
@@ -268,7 +265,6 @@ export class AuthService {
     return { success: true };
   }
 
-
   async acceptInvitation(dto: AcceptInvitationDto) {
     const tokenHash = this.hashToken(dto.token);
     const invitation = await this.prisma.userInvitation.findUnique({
@@ -282,7 +278,9 @@ export class AuthService {
       invitation.revokedAt ||
       invitation.expiresAt <= new Date()
     ) {
-      throw new BadRequestException('La invitación no es válida o ha caducado.');
+      throw new BadRequestException(
+        'La invitación no es válida o ha caducado.',
+      );
     }
 
     const existingUser = await this.prisma.user.findUnique({
@@ -318,7 +316,7 @@ export class AuthService {
       return createdUser;
     });
 
-    return this.buildSession(user as AuthUserInput, true);
+    return this.buildSession(user, true);
   }
 
   async changePassword(userId: number, dto: ChangePasswordDto) {
@@ -376,7 +374,7 @@ export class AuthService {
     }
 
     return {
-      ...this.toAuthUser(user as AuthUserInput),
+      ...this.toAuthUser(user),
       organization: user.organization
         ? {
             id: user.organization.id,
@@ -391,7 +389,7 @@ export class AuthService {
     const accessToken = this.signToken(
       user.id,
       user.email,
-      user.role as UserRoleValue,
+      user.role,
       user.organizationId,
     );
 
