@@ -2,14 +2,28 @@
   "name": "monitoring-backend",
   "private": true,
   "scripts": {
+    "dev": "concurrently \"npm run api:dev\" \"npm run worker:monitoring:dev\" \"npm run worker:notifications:dev\"",
+
+    "dev:api": "npm run api:dev",
+    "dev:monitoring": "npm run worker:monitoring:dev",
+    "dev:notifications": "npm run worker:notifications:dev",
+
     "api:dev": "npm --prefix api run start:dev",
     "api:build": "npm --prefix api run build",
     "api:prisma:generate": "npm --prefix api run prisma:generate",
+
     "worker:monitoring:dev": "npm --prefix workers/monitoring-worker run dev",
     "worker:monitoring:build": "npm --prefix workers/monitoring-worker run build",
+
     "worker:notifications:dev": "npm --prefix workers/notifications-worker run dev",
     "worker:notifications:build": "npm --prefix workers/notifications-worker run build",
+
+    "build": "npm run api:build && npm run worker:monitoring:build && npm run worker:notifications:build",
+
     "docker:config": "docker compose config",
     "docker:up": "docker compose up --build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
   }
 }
