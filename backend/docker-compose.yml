@@ -33,15 +33,17 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+      context: ./api
+      dockerfile: Dockerfile
     container_name: monitoring-api
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
-      PORT: 3000
-      GLOBAL_PREFIX: api
-      CORS_ORIGIN: http://localhost:5173,http://localhost:8080
+      API_PORT: 3000
+      API_PREFIX: api
+      CORS_ORIGINS: http://localhost:5173,http://localhost:8080
       JWT_SECRET: ${JWT_SECRET:-change-me-use-a-long-random-secret}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
       DATABASE_URL: postgresql://${POSTGRES_USER:-monitoring}:${POSTGRES_PASSWORD:-monitoring}@postgres:5432/${POSTGRES_DB:-monitoring}
@@ -58,8 +60,8 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+      context: ../frontend/web
+      dockerfile: Dockerfile
       args:
         VITE_API_URL: http://localhost:3000/api
     container_name: monitoring-web

@@ -7,7 +7,9 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate
+ENV DATABASE_URL=postgresql://monitoring:monitoring@postgres:5432/monitoring
+ENV DIRECT_URL=postgresql://monitoring:monitoring@postgres:5432/monitoring
+RUN npm run prisma:generate
 RUN npm run build
 
 FROM node:20-alpine AS runner

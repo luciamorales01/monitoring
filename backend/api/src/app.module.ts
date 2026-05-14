@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { resolve } from 'node:path';
 import appConfig from './config/app.config';
 import authConfig from './config/auth.config';
 import databaseConfig from './config/database.config';
@@ -26,6 +27,10 @@ import { EventsModule } from './modules/events/events.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
+      envFilePath: [
+        resolve(process.cwd(), '..', '.env'),
+        resolve(process.cwd(), '.env'),
+      ],
       isGlobal: true,
       load: [appConfig, authConfig, databaseConfig, queueConfig],
       validate: validateEnv,

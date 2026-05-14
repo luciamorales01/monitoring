@@ -15,34 +15,41 @@ export function validateEnv(config: RawEnv) {
     throw new Error('JWT_SECRET debe tener al menos 32 caracteres');
   }
 
-  if (config.API_PORT && Number.isNaN(Number(config.API_PORT))) {
-    throw new Error('API_PORT debe ser numérico');
+  const apiPort = config.API_PORT ?? config.PORT;
+
+  if (apiPort && Number.isNaN(Number(apiPort))) {
+    throw new Error('API_PORT debe ser numerico');
   }
 
   if (config.SMTP_PORT && Number.isNaN(Number(config.SMTP_PORT))) {
-    throw new Error('SMTP_PORT debe ser numérico');
+    throw new Error('SMTP_PORT debe ser numerico');
   }
 
   if (config.SMTP_SECURE && !['true', 'false'].includes(config.SMTP_SECURE)) {
     throw new Error('SMTP_SECURE debe ser true o false');
   }
 
+  const corsOriginsValue = config.CORS_ORIGINS ?? config.CORS_ORIGIN;
+
   if (
     config.NODE_ENV === 'production' &&
-    (!config.CORS_ORIGINS || config.CORS_ORIGINS.trim().length === 0)
+    (!corsOriginsValue || corsOriginsValue.trim().length === 0)
   ) {
     throw new Error('CORS_ORIGINS es obligatorio en produccion');
   }
 
-  const corsOrigins = config.CORS_ORIGINS?.split(',').map((origin) =>
-    origin.trim(),
-  );
+  const corsOrigins = corsOriginsValue
+    ?.split(',')
+    .map((origin) => origin.trim());
 
   if (corsOrigins?.some((origin) => origin === '*')) {
     throw new Error('CORS_ORIGINS no puede usar * con credenciales habilitadas');
   }
 
-  if (config.SWAGGER_ENABLED && !['true', 'false'].includes(config.SWAGGER_ENABLED)) {
+  if (
+    config.SWAGGER_ENABLED &&
+    !['true', 'false'].includes(config.SWAGGER_ENABLED)
+  ) {
     throw new Error('SWAGGER_ENABLED debe ser true o false');
   }
 

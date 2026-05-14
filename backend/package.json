@@ -1,0 +1,15 @@
+{
+  "name": "monitoring-backend",
+  "private": true,
+  "scripts": {
+    "api:dev": "npm --prefix api run start:dev",
+    "api:build": "npm --prefix api run build",
+    "api:prisma:generate": "npm --prefix api run prisma:generate",
+    "worker:monitoring:dev": "npm --prefix workers/monitoring-worker run dev",
+    "worker:monitoring:build": "npm --prefix workers/monitoring-worker run build",
+    "worker:notifications:dev": "npm --prefix workers/notifications-worker run dev",
+    "worker:notifications:build": "npm --prefix workers/notifications-worker run build",
+    "docker:config": "docker compose config",
+    "docker:up": "docker compose up --build"
+  }
+}

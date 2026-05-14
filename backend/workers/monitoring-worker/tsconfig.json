@@ -4,14 +4,15 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
-    "rootDir": "../../..",
+    "rootDir": "../..",
     "strict": true,
     "strictPropertyInitialization": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "ignoreDeprecations": "6.0"
   },
-  "include": ["src/**/*.ts", "../../api/src/types/**/*.d.ts"]
+  "include": ["src/**/*.ts", "../../api/src/**/*.ts"]
 }

@@ -1,9 +1,10 @@
-import { PrismaClient } from '@prisma/client';
 import { Job, Worker } from 'bullmq';
 import { existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { basename, resolve } from 'node:path';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
+import type { PrismaClient as PrismaClientType } from '../../../api/node_modules/@prisma/client';
 import {
   NOTIFICATIONS_QUEUE,
   type EmailPayload,
@@ -21,6 +22,8 @@ type SmtpConfig = {
   pass: string;
   from: string;
 };
+
+type PrismaClientConstructor = new () => PrismaClientType;
 
 function logStructured(level: 'log' | 'warn' | 'error', payload: object) {
   const line = JSON.stringify(payload);
@@ -43,14 +46,13 @@ function getEnvPathCandidates() {
   const workerEnvFromCwd =
     basename(cwd) === 'notifications-worker'
       ? resolve(cwd, '.env')
-      : resolve(cwd, 'apps', 'workers', 'notifications-worker', '.env');
+      : resolve(cwd, 'workers', 'notifications-worker', '.env');
 
   return [
+    resolve(cwd, '..', '..', '.env'),
     workerEnvFromCwd,
     resolve(__dirname, '..', '.env'),
-    resolve(__dirname, '..', '..', '..', '..', '..', '.env'),
     resolve(cwd, '.env'),
-    resolve(cwd, '..', '..', '..', '.env'),
   ];
 }
 
@@ -93,7 +95,18 @@ function logSmtpConfigurationStatus() {
 
 loadNotificationWorkerEnv();
 
-const prisma = new PrismaClient();
+function createApiPrismaClient() {
+  const apiRequire = createRequire(
+    resolve(process.cwd(), '..', '..', 'api', 'package.json'),
+  );
+  const { PrismaClient } = apiRequire('@prisma/client') as {
+    PrismaClient: PrismaClientConstructor;
+  };
+
+  return new PrismaClient();
+}
+
+const prisma = createApiPrismaClient();
 
 function getWorkerConcurrency() {
   const configured = Number(process.env.NOTIFICATIONS_WORKER_CONCURRENCY ?? 5);

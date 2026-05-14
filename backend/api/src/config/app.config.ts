@@ -21,8 +21,10 @@ function parseSwaggerEnabled(value?: string) {
 }
 
 export default registerAs('app', () => ({
-  port: Number(process.env.API_PORT ?? 3000),
-  globalPrefix: process.env.API_PREFIX ?? 'api',
-  corsOrigins: parseCorsOrigins(process.env.CORS_ORIGINS),
+  port: Number(process.env.API_PORT ?? process.env.PORT ?? 3000),
+  globalPrefix: process.env.API_PREFIX ?? process.env.GLOBAL_PREFIX ?? 'api',
+  corsOrigins: parseCorsOrigins(
+    process.env.CORS_ORIGINS ?? process.env.CORS_ORIGIN,
+  ),
   swaggerEnabled: parseSwaggerEnabled(process.env.SWAGGER_ENABLED),
 }));
