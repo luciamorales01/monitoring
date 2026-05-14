@@ -2,20 +2,22 @@
   "name": "monitoring-backend",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run api:dev\" \"npm run worker:monitoring:dev\" \"npm run worker:notifications:dev\"",
+    "dev": "concurrently \"npm run api:dev\" \"npm run worker:monitoring\" \"npm run worker:notifications\"",
 
     "dev:api": "npm run api:dev",
-    "dev:monitoring": "npm run worker:monitoring:dev",
-    "dev:notifications": "npm run worker:notifications:dev",
+    "dev:monitoring": "npm run worker:monitoring",
+    "dev:notifications": "npm run worker:notifications",
 
     "api:dev": "npm --prefix api run start:dev",
     "api:build": "npm --prefix api run build",
     "api:prisma:generate": "npm --prefix api run prisma:generate",
 
-    "worker:monitoring:dev": "npm --prefix workers/monitoring-worker run dev",
+    "worker:monitoring": "npm --prefix workers/monitoring-worker run dev",
+    "worker:monitoring:dev": "npm run worker:monitoring",
     "worker:monitoring:build": "npm --prefix workers/monitoring-worker run build",
 
-    "worker:notifications:dev": "npm --prefix workers/notifications-worker run dev",
+    "worker:notifications": "npm --prefix workers/notifications-worker run dev",
+    "worker:notifications:dev": "npm run worker:notifications",
     "worker:notifications:build": "npm --prefix workers/notifications-worker run build",
 
     "build": "npm run api:build && npm run worker:monitoring:build && npm run worker:notifications:build",

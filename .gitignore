@@ -1,33 +1,48 @@
 # Dependencies
 node_modules/
 
-# Build outputs
+# Builds
 dist/
 build/
 coverage/
 .vite/
 
-# Environment files
+# Env files
 .env
-.env.*
-!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
 
-# OS / IDE
+# OS
 .DS_Store
-.idea/
+Thumbs.db
+
+# IDEs
 .vscode/
+.idea/
 
-# Prisma / generated
-apps/api/prisma/dev.db
-apps/api/prisma/dev.db-journal
-
-# Temporary files
+# Temp
 .tmp/
-tmp/
+.temp/
+*.zip
+
+# Runtime
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Docker
+docker-data/
+
+# Prisma
+*.db
+*.db-journal
