@@ -15,6 +15,7 @@
     "lint": "eslint \"src/**/*.ts\" --fix",
     "prisma:generate": "node scripts/prisma.cjs generate",
     "prisma:migrate": "node scripts/prisma.cjs migrate dev",
+    "prisma:seed": "node scripts/prisma.cjs db seed",
     "prisma:studio": "node scripts/prisma.cjs studio"
   },
   "dependencies": {
@@ -67,8 +68,5 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
-  },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
   }
 }

@@ -1,330 +1,316 @@
-import { PrismaClient, UserRole, MonitorType } from '@prisma/client';
+// prisma/seed.ts
+
+import {
+  PrismaClient,
+  MonitorStatus,
+  MonitorType,
+  UserRole,
+  IncidentSeverity,
+  IncidentStatus,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const passwordHash = await bcrypt.hash('Monitoring123!', 10);
+const passwordPlain = 'Admin1234!';
 
-  const organization = await prisma.organization.upsert({
-    where: {
-      slug: 'monitoring-demo',
-    },
-    update: {},
-    create: {
+async function main() {
+  console.log('🌱 Iniciando seed...');
+
+  await prisma.notificationEvent.deleteMany();
+  await prisma.incident.deleteMany();
+  await prisma.checkResult.deleteMany();
+  await prisma.sectionMonitor.deleteMany();
+  await prisma.sectionMember.deleteMany();
+  await prisma.monitor.deleteMany();
+  await prisma.section.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
+  await prisma.refreshToken.deleteMany();
+  await prisma.userInvitation.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.organization.deleteMany();
+
+  const passwordHash = await bcrypt.hash(passwordPlain, 10);
+
+  const organization = await prisma.organization.create({
+    data: {
       name: 'Monitoring Demo',
       slug: 'monitoring-demo',
     },
   });
 
-  const user = await prisma.user.upsert({
-    where: {
-      email: 'luciamoralesalv1@gmail.com',
-    },
-    update: {
-      passwordHash,
-      role: UserRole.OWNER,
-      organizationId: organization.id,
-    },
-    create: {
-      email: 'luciamoralesalv1@gmail.com',
+  const admin = await prisma.user.create({
+    data: {
       name: 'Lucía Morales',
+      email: 'luciamoralesalv1@gmail.com',
       passwordHash,
       role: UserRole.OWNER,
       organizationId: organization.id,
+      phone: '600000000',
+      timezone: 'Europe/Madrid',
     },
   });
 
-  const monitors = [
-    {
-      name: 'Google',
-      target: 'https://www.google.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 60,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'GitHub',
-      target: 'https://github.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 60,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Cloudflare',
-      target: 'https://www.cloudflare.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'OpenAI',
-      target: 'https://openai.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 90,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Wikipedia',
-      target: 'https://www.wikipedia.org',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Amazon',
-      target: 'https://www.amazon.es',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Netflix',
-      target: 'https://www.netflix.com/es',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'YouTube',
-      target: 'https://www.youtube.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 90,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'X / Twitter',
-      target: 'https://x.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 90,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Twitch',
-      target: 'https://www.twitch.tv',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Reddit',
-      target: 'https://www.reddit.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Spotify',
-      target: 'https://open.spotify.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Stripe',
-      target: 'https://stripe.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Vercel',
-      target: 'https://vercel.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Supabase',
-      target: 'https://supabase.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 90,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'DigitalOcean',
-      target: 'https://www.digitalocean.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Discord',
-      target: 'https://discord.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 90,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Figma',
-      target: 'https://www.figma.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Canva',
-      target: 'https://www.canva.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'LinkedIn',
-      target: 'https://www.linkedin.com',
-      expectedStatusCode: 999,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
+  const users = await Promise.all(
+    [
+      ['Sofía Soporte', 'sofia.soporte@demo.com', UserRole.VIEWER],
+      ['Carlos DevOps', 'carlos.devops@demo.com', UserRole.ADMIN],
+      ['Marta Infraestructura', 'marta.infra@demo.com', UserRole.VIEWER],
+      ['Alejandro Sistemas', 'alejandro.sistemas@demo.com', UserRole.VIEWER],
+      ['Laura QA', 'laura.qa@demo.com', UserRole.VIEWER],
+    ].map(([name, email, role]) =>
+      prisma.user.create({
+        data: {
+          name: String(name),
+          email: String(email),
+          passwordHash,
+          role: role as UserRole,
+          organizationId: organization.id,
+        },
+      }),
+    ),
+  );
 
-    // Monitores problemáticos para demo real
+  const sections = await Promise.all(
+    [
+      {
+        name: 'Frontend',
+        description: 'Web principal, login, dashboard y paneles de usuario',
+        icon: 'layout-dashboard',
+        locations: ['madrid', 'paris'],
+      },
+      {
+        name: 'Backend',
+        description: 'API NestJS, autenticación, informes y lógica de negocio',
+        icon: 'server',
+        locations: ['madrid'],
+      },
+      {
+        name: 'Infraestructura',
+        description: 'Servidores, puertos, DNS, SSL y servicios críticos',
+        icon: 'network',
+        locations: ['madrid', 'london'],
+      },
+      {
+        name: 'Bases de Datos',
+        description: 'PostgreSQL, Supabase y servicios de persistencia',
+        icon: 'database',
+        locations: ['madrid'],
+      },
+      {
+        name: 'APIs externas',
+        description: 'Servicios externos usados por la plataforma',
+        icon: 'plug',
+        locations: ['paris', 'london'],
+      },
+      {
+        name: 'Producción',
+        description: 'Monitores críticos de entorno productivo',
+        icon: 'shield-check',
+        locations: ['madrid', 'paris', 'london'],
+      },
+    ].map((section) =>
+      prisma.section.create({
+        data: {
+          ...section,
+          organizationId: organization.id,
+          frequencySeconds: 60,
+          timeoutSeconds: 10,
+          expectedStatusCode: 200,
+          isActive: true,
+        },
+      }),
+    ),
+  );
 
-    {
-      name: 'HTTP 500 Demo',
-      target: 'https://httpstat.us/500',
-      expectedStatusCode: 200,
-      frequencySeconds: 45,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'HTTP 404 Demo',
-      target: 'https://httpstat.us/404',
-      expectedStatusCode: 200,
-      frequencySeconds: 45,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Slow Response Demo',
-      target: 'https://httpstat.us/200?sleep=8000',
-      expectedStatusCode: 200,
-      frequencySeconds: 60,
-      timeoutSeconds: 5,
-      type: 'HTTP',
-    },
-    {
-      name: 'Random Status Demo',
-      target: 'https://httpstat.us/random/200,500',
-      expectedStatusCode: 200,
-      frequencySeconds: 30,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Temporary Redirect Demo',
-      target: 'https://httpstat.us/302',
-      expectedStatusCode: 200,
-      frequencySeconds: 45,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Maintenance Demo',
-      target: 'https://httpstat.us/503',
-      expectedStatusCode: 200,
-      frequencySeconds: 45,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Timeout Demo',
-      target: 'https://deelay.me/10000/https://google.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 60,
-      timeoutSeconds: 3,
-      type: 'HTTP',
-    },
-    {
-      name: 'JSON API Demo',
-      target: 'https://jsonplaceholder.typicode.com/posts',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'GitHub API',
-      target: 'https://api.github.com',
-      expectedStatusCode: 200,
-      frequencySeconds: 120,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
-    {
-      name: 'Open Meteo API',
-      target:
-        'https://api.open-meteo.com/v1/forecast?latitude=36.5&longitude=-6.3&hourly=temperature_2m',
-      expectedStatusCode: 200,
-      frequencySeconds: 180,
-      timeoutSeconds: 10,
-      type: 'HTTP',
-    },
+  for (const section of sections) {
+    await prisma.sectionMember.create({
+      data: {
+        sectionId: section.id,
+        userId: admin.id,
+      },
+    });
+  }
+
+  for (const user of users) {
+    await prisma.sectionMember.create({
+      data: {
+        sectionId: sections[Math.floor(Math.random() * sections.length)].id,
+        userId: user.id,
+      },
+    });
+  }
+
+  const monitorTypes = [
+    MonitorType.HTTP,
+    MonitorType.HTTPS,
+    MonitorType.SSL,
+    MonitorType.TCP,
+    MonitorType.DNS,
   ];
 
-  for (const monitor of monitors) {
-    const existingMonitor = await prisma.monitor.findFirst({
-      where: {
+  const targetsByType: Record<MonitorType, string[]> = {
+    HTTP: [
+      'http://example.com',
+      'http://neverssl.com',
+      'http://httpstat.us/200',
+    ],
+    HTTPS: [
+      'https://google.com',
+      'https://github.com',
+      'https://openai.com',
+      'https://supabase.com',
+      'https://vercel.com',
+    ],
+    SSL: [
+      'google.com',
+      'github.com',
+      'openai.com',
+      'supabase.com',
+      'vercel.com',
+    ],
+    TCP: [
+      'google.com',
+      'github.com',
+      'cloudflare.com',
+      '1.1.1.1',
+      '8.8.8.8',
+    ],
+    DNS: [
+      'google.com',
+      'github.com',
+      'openai.com',
+      'supabase.com',
+      'cloudflare.com',
+    ],
+  };
+
+  for (let i = 1; i <= 50; i++) {
+    const type = monitorTypes[i % monitorTypes.length];
+    const section = sections[i % sections.length];
+
+    const isDown = i % 10 === 0;
+    const isUnknown = i % 13 === 0;
+
+    const currentStatus = isDown
+      ? MonitorStatus.DOWN
+      : isUnknown
+        ? MonitorStatus.UNKNOWN
+        : MonitorStatus.UP;
+
+    const targetList = targetsByType[type];
+
+    const monitor = await prisma.monitor.create({
+      data: {
+        name: `${type} Monitor ${i}`,
+        type,
+        target: targetList[i % targetList.length],
+
+        expectedStatusCode:
+          type === MonitorType.HTTP || type === MonitorType.HTTPS ? 200 : 0,
+
+        frequencySeconds: [60, 120, 300][i % 3],
+        timeoutSeconds: [5, 10, 15][i % 3],
+
+        currentStatus,
+        lastResponseTime: currentStatus === MonitorStatus.UP ? 80 + i * 6 : null,
+        lastCheckedAt: new Date(Date.now() - i * 60 * 1000),
+        nextCheckAt: new Date(Date.now() + i * 60 * 1000),
+
+        isActive: i % 17 !== 0,
+        usesSectionSchedule: i % 4 !== 0,
+
         organizationId: organization.id,
-        name: monitor.name,
+        createdById: admin.id,
+
+        alertEmail: true,
+        alertThreshold: [2, 3, 5][i % 3],
+
+        tcpPort: type === MonitorType.TCP ? [80, 443, 5432, 6379][i % 4] : null,
+        sslWarningDays: type === MonitorType.SSL ? [7, 14, 30][i % 3] : 14,
+        dnsRecordType: type === MonitorType.DNS ? ['A', 'AAAA', 'CNAME', 'MX'][i % 4] : 'A',
+        dnsExpectedValue:
+          type === MonitorType.DNS && i % 2 === 0 ? '142.250.184.14' : null,
       },
     });
 
-    if (existingMonitor) {
-      await prisma.monitor.update({
-        where: { id: existingMonitor.id },
+    await prisma.sectionMonitor.create({
+      data: {
+        sectionId: section.id,
+        monitorId: monitor.id,
+      },
+    });
+
+    for (let j = 0; j < 12; j++) {
+      const checkStatus =
+        j === 0
+          ? currentStatus
+          : Math.random() > 0.15
+            ? MonitorStatus.UP
+            : MonitorStatus.DOWN;
+
+      await prisma.checkResult.create({
         data: {
-          type: MonitorType.HTTP,
-          target: monitor.target,
-          expectedStatusCode: monitor.expectedStatusCode,
-          frequencySeconds: monitor.frequencySeconds,
-          timeoutSeconds: monitor.timeoutSeconds,
-          isActive: true,
+          monitorId: monitor.id,
+          status: checkStatus,
+          responseTimeMs:
+            checkStatus === MonitorStatus.UP
+              ? Math.floor(70 + Math.random() * 600)
+              : null,
+          statusCode:
+            type === MonitorType.HTTP || type === MonitorType.HTTPS
+              ? checkStatus === MonitorStatus.UP
+                ? 200
+                : 500
+              : null,
+          errorMessage:
+            checkStatus === MonitorStatus.DOWN
+              ? 'Timeout al comprobar el monitor'
+              : null,
+          location: ['madrid', 'paris', 'london', 'default'][j % 4],
+          checkedAt: new Date(Date.now() - j * 5 * 60 * 1000),
         },
       });
-    } else {
-      await prisma.monitor.create({
+    }
+
+    if (currentStatus === MonitorStatus.DOWN) {
+      const incident = await prisma.incident.create({
         data: {
-          name: monitor.name,
-          type: MonitorType.HTTP,
-          target: monitor.target,
-          expectedStatusCode: monitor.expectedStatusCode,
-          frequencySeconds: monitor.frequencySeconds,
-          timeoutSeconds: monitor.timeoutSeconds,
-          isActive: true,
-          organizationId: organization.id,
-          createdById: user.id,
+          monitorId: monitor.id,
+          status: IncidentStatus.OPEN,
+          severity:
+            i % 20 === 0
+              ? IncidentSeverity.CRITICAL
+              : IncidentSeverity.HIGH,
+          title: `${monitor.name} caído`,
+          startedAt: new Date(Date.now() - i * 10 * 60 * 1000),
+          lastStatusChangeAt: new Date(),
+          rootCause: 'Simulado para pruebas del seed',
+        },
+      });
+
+      await prisma.notificationEvent.create({
+        data: {
+          monitorId: monitor.id,
+          incidentId: incident.id,
+          type: 'MONITOR_DOWN',
+          status: 'SENT',
+          recipient: admin.email,
+          subject: `Alerta: ${monitor.name} caído`,
+          sentAt: new Date(),
         },
       });
     }
   }
 
-  console.info(`✅ Seed completado con ${monitors.length} monitores.`);
+  console.log('✅ Seed completado');
+  console.log(`Admin: luciamoralesalv1@gmail.com`);
+  console.log(`Password: ${passwordPlain}`);
 }
 
 main()
   .catch((error) => {
-    console.error(error);
+    console.error('❌ Error ejecutando seed:', error);
     process.exit(1);
   })
   .finally(async () => {

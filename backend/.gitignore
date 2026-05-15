@@ -24,3 +24,9 @@ shared-types/.cache/
 
 logs/
 *.log
+
+.env
+.env.*
+!*.env.example
+api/.env
+workers/**/.env

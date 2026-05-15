@@ -28,8 +28,8 @@ import { EventsModule } from './modules/events/events.module';
   imports: [
     ConfigModule.forRoot({
       envFilePath: [
-        resolve(process.cwd(), '..', '.env'),
         resolve(process.cwd(), '.env'),
+        resolve(process.cwd(), '..', '.env'),
       ],
       isGlobal: true,
       load: [appConfig, authConfig, databaseConfig, queueConfig],

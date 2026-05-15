@@ -49,10 +49,10 @@ function getEnvPathCandidates() {
       : resolve(cwd, 'workers', 'notifications-worker', '.env');
 
   return [
-    resolve(cwd, '..', '..', '.env'),
     workerEnvFromCwd,
     resolve(__dirname, '..', '.env'),
     resolve(cwd, '.env'),
+    resolve(cwd, '..', '..', '.env'),
   ];
 }
 

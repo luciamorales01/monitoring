@@ -12,8 +12,8 @@ import { MonitorsService } from '../../../api/src/modules/monitors/monitors.serv
   imports: [
     ConfigModule.forRoot({
       envFilePath: [
-        resolve(process.cwd(), '..', '..', '.env'),
         resolve(process.cwd(), '.env'),
+        resolve(process.cwd(), '..', '..', '.env'),
       ],
       isGlobal: true,
       load: [databaseConfig, queueConfig],
