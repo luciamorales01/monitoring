@@ -82,11 +82,8 @@ monitoring/
 │   └── .env
 │
 ├── frontend/
-│   ├── web/
-│   │   ├── src/
-│   │   ├── public/
-│   │   └── package.json
-│   │
+│   ├── src/
+│   ├── public/
 │   ├── package.json
 │   └── .env
 │
@@ -116,7 +113,7 @@ Workers BullMQ
 
 # Responsabilidades
 
-## Frontend (`frontend/web`)
+## Frontend (`frontend`)
 
 * Dashboard SaaS.
 * Gestion de monitores.
@@ -281,7 +278,7 @@ npm install
 Crear:
 
 ```txt
-frontend/web/.env
+frontend/.env
 ```
 
 Ejemplo:
@@ -574,5 +571,4 @@ Recomendaciones:
 # Licencia
 
 Proyecto privado desarrollado como Trabajo de Fin de Grado.
-
 
