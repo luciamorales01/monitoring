@@ -1,0 +1,141 @@
+import type { CSSProperties } from 'react';
+import {
+  controlBase,
+  kpiCardBase,
+  pageMain,
+  secondaryButtonBase,
+  surfaceCard,
+  toneStyles,
+  uiTheme,
+} from '../../theme/commonStyles';
+
+export const dashboardStyles: Record<string, CSSProperties> = {
+  main: {
+    ...pageMain,
+    display: 'grid',
+    gap: 24,
+  },
+  kpiGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: 16,
+  },
+  kpiCard: {
+    ...kpiCardBase,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+  },
+  kpiIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: uiTheme.radii.md,
+    display: 'grid',
+    placeItems: 'center',
+    flexShrink: 0,
+  },
+  kpiTitle: {
+    margin: 0,
+    color: uiTheme.colors.muted,
+    fontSize: 13,
+  },
+  kpiValue: {
+    display: 'block',
+    marginTop: 4,
+    fontSize: 24,
+    lineHeight: 1.1,
+  },
+  kpiNote: {
+    margin: '6px 0 0',
+    color: toneStyles.slate.color,
+    fontSize: 12,
+  },
+  contentGrid: {
+    display: 'grid',
+    gap: 16,
+    gridTemplateColumns: 'minmax(0, 2fr) minmax(320px, 1fr)',
+    alignItems: 'stretch',
+  },
+  cardLarge: {
+    ...surfaceCard,
+    display: 'grid',
+    gap: 18,
+    padding: 22,
+  },
+  card: {
+    ...surfaceCard,
+    display: 'grid',
+    gap: 18,
+    padding: 22,
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  cardTitle: {
+    margin: 0,
+    fontSize: 18,
+  },
+  selectFake: {
+    ...secondaryButtonBase,
+    minHeight: 36,
+    padding: '0 12px',
+    display: 'inline-flex',
+    alignItems: 'center',
+  },
+  chartBox: {
+    display: 'grid',
+    gridTemplateColumns: 'auto minmax(0, 1fr)',
+    gap: 12,
+    alignItems: 'stretch',
+  },
+  yAxis: {
+    display: 'grid',
+    alignContent: 'space-between',
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+    padding: '8px 0',
+  },
+  empty: {
+    margin: 0,
+    color: uiTheme.colors.muted,
+  },
+  alertRow: {
+    ...controlBase,
+    width: '100%',
+    padding: '12px 14px',
+    display: 'grid',
+    gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+    gap: 12,
+    alignItems: 'center',
+    textAlign: 'left',
+    cursor: 'pointer',
+    background: uiTheme.colors.surfaceSoft,
+  },
+  alertRowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: uiTheme.radii.md,
+    display: 'grid',
+    placeItems: 'center',
+  },
+  alertRowCopy: {
+    display: 'grid',
+    gap: 4,
+    minWidth: 0,
+    color: uiTheme.colors.text,
+  },
+  alertRowMeta: {
+    color: uiTheme.colors.muted,
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  listSection: {
+    display: 'grid',
+    gap: 12,
+    minWidth: 0,
+  },
+};

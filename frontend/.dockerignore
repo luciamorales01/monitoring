@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+coverage
+.cache
+.git
+.gitignore
+README.md
+*.log
+*.zip
