@@ -55,9 +55,6 @@ enum UserStatus {
 enum MonitorType {
   HTTP
   HTTPS
-  SSL
-  TCP
-  DNS
 }
 
 enum MonitorStatus {
@@ -111,12 +108,6 @@ model Monitor {
   alertEmail     Boolean  @default(true)
   alertThreshold Int      @default(3)
 
-  // Fase 9: checks avanzados
-  tcpPort        Int?
-  sslWarningDays Int      @default(14)
-  dnsRecordType  String   @default("A")
-  dnsExpectedValue String?
-
   sections  SectionMonitor[]
 }
 
@@ -133,7 +124,6 @@ model CheckResult {
   responseTimeMs Int?
   statusCode     Int?
   errorMessage   String?
-  location       String?       @default("default")
   checkedAt      DateTime      @default(now())
 
   monitor        Monitor       @relation(fields: [monitorId], references: [id], onDelete: Cascade)
@@ -273,7 +263,6 @@ model Section {
   expectedStatusCode Int           @default(200)
   frequencySeconds   Int           @default(60)
   timeoutSeconds     Int           @default(10)
-  locations      String[]         @default([])
   isActive       Boolean          @default(true)
   organizationId Int
   createdAt      DateTime         @default(now())

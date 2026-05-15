@@ -2,7 +2,6 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsEnum,
-  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -101,46 +100,4 @@ export class UpdateMonitorDto {
   @Max(20)
   alertThreshold?: number;
 
-  @ApiPropertyOptional({
-    example: 443,
-    minimum: 1,
-    maximum: 65535,
-    description: 'Puerto TCP a utilizar.',
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(65535)
-  tcpPort?: number;
-
-  @ApiPropertyOptional({
-    example: 14,
-    minimum: 1,
-    maximum: 365,
-    description: 'Dias de antelacion para alerta SSL.',
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(365)
-  sslWarningDays?: number;
-
-  @ApiPropertyOptional({
-    example: 'A',
-    description: 'Tipo de registro DNS esperado.',
-    maxLength: 12,
-  })
-  @IsOptional()
-  @IsIn(['A', 'AAAA', 'CNAME', 'MX', 'TXT'])
-  dnsRecordType?: string;
-
-  @ApiPropertyOptional({
-    example: '203.0.113.42',
-    description: 'Valor DNS esperado.',
-    maxLength: 255,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  dnsExpectedValue?: string;
 }

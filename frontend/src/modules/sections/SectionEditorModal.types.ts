@@ -13,7 +13,6 @@ export type SectionEditorSubmitPayload = {
   expectedStatusCode: number;
   frequencySeconds: number;
   timeoutSeconds: number;
-  locations: string[];
   isActive: boolean;
 };
 

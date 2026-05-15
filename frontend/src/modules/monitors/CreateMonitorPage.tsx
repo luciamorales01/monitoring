@@ -49,27 +49,6 @@ const monitorTypeConfig: Record<MonitorType, MonitorKindConfig> = {
     targetPlaceholder: 'http://servicio.ejemplo.com/health',
     helper: 'Comprueba endpoints HTTP sin certificado TLS.',
   },
-  SSL: {
-    label: 'Certificado SSL',
-    shortLabel: 'SSL',
-    targetLabel: 'Dominio o URL HTTPS',
-    targetPlaceholder: 'https://tudominio.com',
-    helper: 'Comprueba si el certificado existe y cuántos días faltan para caducar.',
-  },
-  TCP: {
-    label: 'TCP / Puerto',
-    shortLabel: 'TCP',
-    targetLabel: 'Host o dominio',
-    targetPlaceholder: 'api.tudominio.com',
-    helper: 'Comprueba si un puerto TCP acepta conexiones.',
-  },
-  DNS: {
-    label: 'DNS',
-    shortLabel: 'DNS',
-    targetLabel: 'Dominio',
-    targetPlaceholder: 'tudominio.com',
-    helper: 'Resuelve registros A, AAAA, CNAME, MX o TXT.',
-  },
 };
 
 const stepItems = [
@@ -79,7 +58,6 @@ const stepItems = [
   { step: 4 as WizardStep, title: 'Revisión', text: 'Confirmar monitor' },
 ] as const;
 
-const dnsRecordTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as const;
 
 const defaultForm: CreateMonitorInput = {
   name: '',
@@ -90,10 +68,6 @@ const defaultForm: CreateMonitorInput = {
   timeoutSeconds: 10,
   alertEmail: true,
   alertThreshold: 3,
-  tcpPort: null,
-  sslWarningDays: 14,
-  dnsRecordType: 'A',
-  dnsExpectedValue: '',
 };
 
 export default function CreateMonitorPage() {
@@ -125,10 +99,7 @@ export default function CreateMonitorPage() {
     setForm((current) => ({
       ...current,
       type,
-      expectedStatusCode: type === 'HTTP' || type === 'HTTPS' ? current.expectedStatusCode || 200 : 200,
-      tcpPort: type === 'TCP' ? current.tcpPort ?? 443 : null,
-      sslWarningDays: type === 'SSL' ? current.sslWarningDays ?? 14 : current.sslWarningDays ?? 14,
-      dnsRecordType: type === 'DNS' ? current.dnsRecordType ?? 'A' : current.dnsRecordType ?? 'A',
+      expectedStatusCode: current.expectedStatusCode || 200,
     }));
   };
 
@@ -142,20 +113,8 @@ export default function CreateMonitorPage() {
       if (!Number.isFinite(form.frequencySeconds) || form.frequencySeconds < 30) return 'La frecuencia mínima es 30 segundos.';
       if (!Number.isFinite(form.timeoutSeconds) || form.timeoutSeconds < 1) return 'El timeout mínimo es 1 segundo.';
 
-      if ((form.type === 'HTTP' || form.type === 'HTTPS') && (!Number.isFinite(form.expectedStatusCode) || form.expectedStatusCode < 100 || form.expectedStatusCode > 599)) {
-        return 'El código esperado debe estar entre 100 y 599.';
-      }
-
-      if (form.type === 'TCP' && (!Number.isFinite(form.tcpPort ?? NaN) || Number(form.tcpPort) < 1 || Number(form.tcpPort) > 65535)) {
-        return 'Los monitores TCP necesitan un puerto entre 1 y 65535.';
-      }
-
-      if (form.type === 'SSL' && (!Number.isFinite(form.sslWarningDays ?? NaN) || Number(form.sslWarningDays) < 1)) {
-        return 'El aviso SSL debe ser de al menos 1 día.';
-      }
-
-      if (form.type === 'DNS' && !dnsRecordTypes.includes((form.dnsRecordType ?? 'A') as typeof dnsRecordTypes[number])) {
-        return 'Selecciona un tipo de registro DNS válido.';
+      if (!Number.isFinite(form.expectedStatusCode) || form.expectedStatusCode < 100 || form.expectedStatusCode > 599) {
+        return 'El codigo esperado debe estar entre 100 y 599.';
       }
     }
 
@@ -190,10 +149,6 @@ export default function CreateMonitorPage() {
     ...form,
     name: form.name.trim(),
     target: form.target.trim(),
-    dnsExpectedValue: form.dnsExpectedValue?.trim() || null,
-    tcpPort: form.type === 'TCP' ? Number(form.tcpPort) : null,
-    sslWarningDays: form.type === 'SSL' ? Number(form.sslWarningDays ?? 14) : form.sslWarningDays ?? 14,
-    dnsRecordType: form.type === 'DNS' ? form.dnsRecordType ?? 'A' : form.dnsRecordType ?? 'A',
   });
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -266,37 +221,11 @@ export default function CreateMonitorPage() {
               <input min={1} max={60} type="number" style={styles.input} value={form.timeoutSeconds} onChange={(event) => updateForm('timeoutSeconds', Number(event.target.value))} />
             </Field>
 
-            {(form.type === 'HTTP' || form.type === 'HTTPS') && (
-              <Field label="Código esperado" helper="Código HTTP considerado correcto." required>
-                <input min={100} max={599} type="number" style={styles.input} value={form.expectedStatusCode} onChange={(event) => updateForm('expectedStatusCode', Number(event.target.value))} />
-              </Field>
-            )}
+            <Field label="Codigo esperado" helper="Codigo HTTP considerado correcto." required>
+              <input min={100} max={599} type="number" style={styles.input} value={form.expectedStatusCode} onChange={(event) => updateForm('expectedStatusCode', Number(event.target.value))} />
+            </Field>
 
-            {form.type === 'TCP' && (
-              <Field label="Puerto TCP" helper="Puerto que debe aceptar conexiones." required>
-                <input min={1} max={65535} type="number" style={styles.input} value={form.tcpPort ?? ''} onChange={(event) => updateForm('tcpPort', Number(event.target.value))} placeholder="443" />
-              </Field>
-            )}
 
-            {form.type === 'SSL' && (
-              <Field label="Avisar si caduca en menos de" helper="Días mínimos de validez del certificado." required>
-                <input min={1} max={365} type="number" style={styles.input} value={form.sslWarningDays ?? 14} onChange={(event) => updateForm('sslWarningDays', Number(event.target.value))} />
-              </Field>
-            )}
-
-            {form.type === 'DNS' && (
-              <>
-                <Field label="Tipo de registro" helper="Registro DNS que se resolverá." required>
-                  <select style={styles.input} value={form.dnsRecordType ?? 'A'} onChange={(event) => updateForm('dnsRecordType', event.target.value)}>
-                    {dnsRecordTypes.map((recordType) => <option key={recordType} value={recordType}>{recordType}</option>)}
-                  </select>
-                </Field>
-
-                <Field label="Valor esperado opcional" helper="Si se indica, algún registro debe contener este valor.">
-                  <input style={styles.input} value={form.dnsExpectedValue ?? ''} onChange={(event) => updateForm('dnsExpectedValue', event.target.value)} placeholder="mail.proveedor.com" />
-                </Field>
-              </>
-            )}
           </div>
         </>
       );
@@ -337,12 +266,9 @@ export default function CreateMonitorPage() {
           </div>
         </section>
         <section style={styles.reviewCard}>
-          <h3 style={styles.reviewTitle}>Validación avanzada</h3>
+          <h3 style={styles.reviewTitle}>Validacion</h3>
           <div style={styles.reviewList}>
-            <ReviewRow label="HTTP esperado" value={form.type === 'HTTP' || form.type === 'HTTPS' ? String(form.expectedStatusCode) : 'No aplica'} />
-            <ReviewRow label="Puerto TCP" value={form.type === 'TCP' ? String(form.tcpPort) : 'No aplica'} />
-            <ReviewRow label="SSL warning" value={form.type === 'SSL' ? `${form.sslWarningDays} días` : 'No aplica'} />
-            <ReviewRow label="DNS" value={form.type === 'DNS' ? `${form.dnsRecordType}${form.dnsExpectedValue ? ` · ${form.dnsExpectedValue}` : ''}` : 'No aplica'} />
+            <ReviewRow label="HTTP esperado" value={String(form.expectedStatusCode)} />
             <ReviewRow label="Alertas" value={alertLabel} />
           </div>
         </section>
@@ -354,7 +280,7 @@ export default function CreateMonitorPage() {
     <main style={styles.main}>
       <AppTopbar
         title="Crear nuevo monitor"
-        subtitle="Configura HTTP, SSL, TCP o DNS desde la interfaz."
+        subtitle="Configura monitores HTTP y HTTPS desde la interfaz."
         onRefresh={() => undefined}
         eyebrow={<><span>Webs monitorizadas</span><span>&gt;</span><strong>Crear monitor</strong></>}
       />
@@ -409,9 +335,6 @@ export default function CreateMonitorPage() {
 }
 
 function getValidationSummary(form: CreateMonitorInput) {
-  if (form.type === 'TCP') return `Puerto ${form.tcpPort ?? '-'}`;
-  if (form.type === 'SSL') return `Caducidad < ${form.sslWarningDays ?? 14} días`;
-  if (form.type === 'DNS') return `${form.dnsRecordType ?? 'A'}${form.dnsExpectedValue ? ` contiene ${form.dnsExpectedValue}` : ''}`;
   return `HTTP ${form.expectedStatusCode}`;
 }
 
@@ -452,7 +375,7 @@ const styles: Record<string, CSSProperties> = {
   cardTitle: { margin: 0, fontSize: 17, fontWeight: 900, color: uiTheme.colors.text },
   cardDescription: { margin: 0, maxWidth: 340, color: uiTheme.colors.muted, fontSize: 13, lineHeight: 1.5 },
   errorBanner: { border: `1px solid #fecaca`, background: uiTheme.colors.dangerSoft, color: uiTheme.colors.danger, borderRadius: uiTheme.radii.sm, padding: '14px 16px', display: 'grid', gap: 6 },
-  typeGrid: { display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 12 },
+  typeGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 },
   typeCard: { ...surfaceCard, padding: 14, display: 'grid', gap: 8, textAlign: 'left', cursor: 'pointer', background: uiTheme.colors.surface },
   typeCardActive: { ...surfaceCard, padding: 14, display: 'grid', gap: 8, textAlign: 'left', cursor: 'pointer', borderColor: uiTheme.colors.primary, background: uiTheme.colors.primarySoft, color: uiTheme.colors.primary },
   formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 22 },

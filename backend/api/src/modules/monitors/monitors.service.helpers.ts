@@ -244,24 +244,6 @@ export function buildIncidentTitle() {
   return 'Monitor caído';
 }
 
-export function sanitizeMonitorResponse<TMonitor extends object>(monitor: TMonitor) {
-  const monitorWithChecks = monitor as TMonitor & {
-    checkResults?: Array<Record<string, unknown> & { location?: string | null }>;
-  };
-
-  if (!monitorWithChecks.checkResults) {
-    return monitor;
-  }
-
-  return {
-    ...monitor,
-    checkResults: monitorWithChecks.checkResults.map(({ location, ...check }) => {
-      void location;
-      return check;
-    }),
-  };
-}
-
 export function buildMonitorCheckErrorMessage(
   error: unknown,
   timeoutSeconds: number,

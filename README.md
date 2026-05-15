@@ -11,7 +11,7 @@ El proyecto esta desarrollado como Trabajo de Fin de Grado (TFG) y mantiene una 
 - Arquitectura SaaS multi-tenant.
 - Sistema de autenticacion JWT con refresh tokens.
 - Roles `OWNER`, `ADMIN` y `VIEWER`.
-- Gestion de monitores HTTP/HTTPS, SSL, TCP y DNS.
+- Gestion de monitores HTTP/HTTPS.
 - Checks manuales y automaticos.
 - Registro historico de disponibilidad y latencia.
 - Gestion de incidentes.
@@ -571,4 +571,3 @@ Recomendaciones:
 # Licencia
 
 Proyecto privado desarrollado como Trabajo de Fin de Grado.
-

@@ -10,7 +10,6 @@ import {
   sectionIconOptions,
 } from './sectionVisuals';
 import { StatusBadge } from './components/SectionEditorStatusBadge';
-import { DEFAULT_LOCATIONS } from './SectionEditorModal.constants';
 import { styles } from './SectionEditorModal.styles';
 import type { SectionEditorModalProps } from './SectionEditorModal.types';
 import { getModeContent } from './SectionEditorModal.utils';
@@ -40,7 +39,6 @@ export default function SectionEditorModal({
   const [expectedStatusCode, setExpectedStatusCode] = useState(200);
   const [frequencySeconds, setFrequencySeconds] = useState(60);
   const [timeoutSeconds, setTimeoutSeconds] = useState(10);
-  const [locations, setLocations] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
   const [monitorSearch, setMonitorSearch] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
@@ -59,7 +57,6 @@ export default function SectionEditorModal({
     setExpectedStatusCode(section?.expectedStatusCode ?? 200);
     setFrequencySeconds(section?.frequencySeconds ?? 60);
     setTimeoutSeconds(section?.timeoutSeconds ?? 10);
-    setLocations(section?.locations ?? []);
     setIsActive(section?.isActive ?? true);
     setMonitorSearch('');
     setMemberSearch('');
@@ -121,14 +118,6 @@ export default function SectionEditorModal({
     );
   };
 
-  const toggleLocation = (location: string) => {
-    setLocations((currentLocations) =>
-      currentLocations.includes(location)
-        ? currentLocations.filter((item) => item !== location)
-        : [...currentLocations, location],
-    );
-  };
-
   const handleSubmit = () => {
     const normalizedName = name.trim();
 
@@ -158,7 +147,6 @@ export default function SectionEditorModal({
       expectedStatusCode,
       frequencySeconds,
       timeoutSeconds,
-      locations,
       isActive,
     });
   };
@@ -272,18 +260,6 @@ export default function SectionEditorModal({
                     />
                     Seccion activa
                   </label>
-                </div>
-                <div style={styles.locationPicker}>
-                  {DEFAULT_LOCATIONS.map((location) => (
-                    <label key={location} style={styles.locationOption}>
-                      <input
-                        type="checkbox"
-                        checked={locations.includes(location)}
-                        onChange={() => toggleLocation(location)}
-                      />
-                      {location}
-                    </label>
-                  ))}
                 </div>
               </div>
             </>

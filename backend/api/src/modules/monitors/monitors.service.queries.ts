@@ -15,10 +15,6 @@ export const monitorListSelect = {
   isActive: true,
   alertEmail: true,
   alertThreshold: true,
-  tcpPort: true,
-  sslWarningDays: true,
-  dnsRecordType: true,
-  dnsExpectedValue: true,
 } satisfies Prisma.MonitorSelect;
 
 const monitorSectionsRelation = {

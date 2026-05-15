@@ -1,6 +1,6 @@
 import { apiClient } from './apiClient';
 
-export type MonitorType = 'HTTPS' | 'HTTP' | 'SSL' | 'TCP' | 'DNS';
+export type MonitorType = 'HTTPS' | 'HTTP';
 export type MonitorStatus = 'UP' | 'DOWN' | 'UNKNOWN';
 
 export type Monitor = {
@@ -19,10 +19,6 @@ export type Monitor = {
   usesSectionSchedule?: boolean;
   alertEmail: boolean;
   alertThreshold: number;
-  tcpPort?: number | null;
-  sslWarningDays?: number | null;
-  dnsRecordType?: string | null;
-  dnsExpectedValue?: string | null;
   sections?: {
     section: {
       id: number;
@@ -30,7 +26,6 @@ export type Monitor = {
       expectedStatusCode: number;
       frequencySeconds: number;
       timeoutSeconds: number;
-      locations: string[];
       isActive: boolean;
     };
   }[];
@@ -75,10 +70,6 @@ export type CreateMonitorInput = {
   timeoutSeconds: number;
   alertEmail: boolean;
   alertThreshold: number;
-  tcpPort?: number | null;
-  sslWarningDays?: number | null;
-  dnsRecordType?: string | null;
-  dnsExpectedValue?: string | null;
 };
 
 export type UpdateMonitorInput = CreateMonitorInput;

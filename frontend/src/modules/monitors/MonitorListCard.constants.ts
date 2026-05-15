@@ -10,7 +10,7 @@ export const monitorFilterDefaults = {
 export const monitorAllowedValues = {
   sort: ["status", "name", "latest-check", "created-at"],
   status: ["ALL", "UP", "DOWN", "PAUSED", "UNKNOWN"],
-  type: ["ALL", "HTTP", "HTTPS", "SSL", "TCP", "DNS"],
+  type: ["ALL", "HTTP", "HTTPS"],
 } as const;
 
 export const MONITORS_PAGE_SIZE = 10;

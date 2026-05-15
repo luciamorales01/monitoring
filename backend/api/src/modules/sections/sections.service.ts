@@ -55,7 +55,6 @@ export class SectionsService {
       dto.monitorIds ?? [],
       user,
     );
-    const locations = this.sanitizeConfiguredLocations(dto.locations);
     const defaultMembers = this.buildDefaultMembers(user);
     const section = await this.prisma.section.create({
       data: {
@@ -65,7 +64,6 @@ export class SectionsService {
         expectedStatusCode: dto.expectedStatusCode ?? 200,
         frequencySeconds: dto.frequencySeconds ?? 60,
         timeoutSeconds: dto.timeoutSeconds ?? 10,
-        locations,
         isActive: dto.isActive ?? true,
         organizationId: user.organizationId,
         ...(monitorIds.length > 0
@@ -101,11 +99,6 @@ export class SectionsService {
         ? undefined
         : await this.validateMonitorIds(dto.monitorIds, user);
     const scheduleChanged = this.hasScheduleChange(dto);
-    const locations =
-      dto.locations === undefined
-        ? undefined
-        : this.sanitizeConfiguredLocations(dto.locations);
-
     const section = await this.prisma.$transaction(async (tx) => {
       if (monitorIds !== undefined) {
         await tx.sectionMonitor.deleteMany({ where: { sectionId: id } });
@@ -133,7 +126,6 @@ export class SectionsService {
           ...(dto.timeoutSeconds !== undefined
             ? { timeoutSeconds: dto.timeoutSeconds }
             : {}),
-          ...(locations !== undefined ? { locations } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         },
         include: this.sectionInclude,
@@ -385,17 +377,8 @@ export class SectionsService {
       dto.expectedStatusCode !== undefined ||
       dto.frequencySeconds !== undefined ||
       dto.timeoutSeconds !== undefined ||
-      dto.locations !== undefined ||
       dto.isActive !== undefined
     );
-  }
-
-  private sanitizeConfiguredLocations(locations?: string[] | null) {
-    const normalized = (locations ?? [])
-      .map((location) => location.trim())
-      .filter(Boolean);
-
-    return Array.from(new Set(normalized)).slice(0, 10);
   }
 
   private async applySectionScheduleToMonitors(
@@ -445,7 +428,6 @@ export class SectionsService {
       expectedStatusCode: section.expectedStatusCode,
       frequencySeconds: section.frequencySeconds,
       timeoutSeconds: section.timeoutSeconds,
-      locations: section.locations,
       isActive: section.isActive,
       monitorIds: monitors.map((monitor) => monitor.id),
       monitors,

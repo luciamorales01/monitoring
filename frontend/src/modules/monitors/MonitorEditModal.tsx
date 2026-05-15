@@ -19,22 +19,15 @@ import {
 import LoadingState from '../../shared/LoadingState';
 import { CloseIcon } from '../../shared/uiIcons';
 
-const dnsRecordTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as const;
 
 const typeLabels: Record<MonitorType, string> = {
   HTTPS: 'HTTP(s)',
   HTTP: 'HTTP',
-  SSL: 'Certificado SSL',
-  TCP: 'TCP / Puerto',
-  DNS: 'DNS',
 };
 
 const targetHelpers: Record<MonitorType, string> = {
   HTTPS: 'URL completa. Ejemplo: https://api.ejemplo.com/health',
   HTTP: 'URL HTTP. Ejemplo: http://servicio.ejemplo.com/health',
-  SSL: 'Dominio o URL HTTPS del certificado.',
-  TCP: 'Host o dominio sin protocolo. Ejemplo: api.ejemplo.com',
-  DNS: 'Dominio que se resolverá. Ejemplo: ejemplo.com',
 };
 
 type MonitorEditModalProps = {
@@ -63,10 +56,6 @@ const emptyForm: UpdateMonitorInput = {
   timeoutSeconds: 10,
   alertEmail: true,
   alertThreshold: 3,
-  tcpPort: null,
-  sslWarningDays: 14,
-  dnsRecordType: 'A',
-  dnsExpectedValue: '',
 };
 
 export default function MonitorEditModal({
@@ -94,10 +83,6 @@ export default function MonitorEditModal({
       timeoutSeconds: monitor.timeoutSeconds,
       alertEmail: monitor.alertEmail,
       alertThreshold: monitor.alertThreshold,
-      tcpPort: monitor.tcpPort ?? null,
-      sslWarningDays: monitor.sslWarningDays ?? 14,
-      dnsRecordType: monitor.dnsRecordType ?? 'A',
-      dnsExpectedValue: monitor.dnsExpectedValue ?? '',
     });
     setLocalError('');
   }, [isOpen, monitor]);
@@ -111,21 +96,14 @@ export default function MonitorEditModal({
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const setNumberField = (field: 'expectedStatusCode' | 'frequencySeconds' | 'timeoutSeconds' | 'alertThreshold' | 'tcpPort' | 'sslWarningDays') =>
+  const setNumberField = (field: 'expectedStatusCode' | 'frequencySeconds' | 'timeoutSeconds' | 'alertThreshold') =>
     (event: ChangeEvent<HTMLInputElement>) => updateForm(field, Number(event.target.value) as never);
 
-  const setTextField = (field: 'name' | 'target' | 'dnsExpectedValue') =>
+  const setTextField = (field: 'name' | 'target') =>
     (event: ChangeEvent<HTMLInputElement>) => updateForm(field, event.target.value as never);
 
   const setTypeField = (event: ChangeEvent<HTMLSelectElement>) => {
-    const type = event.target.value as MonitorType;
-    setForm((current) => ({
-      ...current,
-      type,
-      tcpPort: type === 'TCP' ? current.tcpPort ?? 443 : null,
-      sslWarningDays: type === 'SSL' ? current.sslWarningDays ?? 14 : current.sslWarningDays ?? 14,
-      dnsRecordType: type === 'DNS' ? current.dnsRecordType ?? 'A' : current.dnsRecordType ?? 'A',
-    }));
+    updateForm('type', event.target.value as MonitorType);
   };
 
   const setBooleanField = (field: 'alertEmail') =>
@@ -137,20 +115,8 @@ export default function MonitorEditModal({
     if (!Number.isInteger(form.timeoutSeconds) || form.timeoutSeconds < 1) return 'El timeout mínimo es 1 segundo.';
     if (!Number.isInteger(form.alertThreshold) || form.alertThreshold < 1) return 'El umbral mínimo es 1.';
 
-    if ((form.type === 'HTTP' || form.type === 'HTTPS') && (!Number.isInteger(form.expectedStatusCode) || form.expectedStatusCode < 100 || form.expectedStatusCode > 599)) {
-      return 'El código esperado debe estar entre 100 y 599.';
-    }
-
-    if (form.type === 'TCP' && (!Number.isInteger(form.tcpPort ?? NaN) || Number(form.tcpPort) < 1 || Number(form.tcpPort) > 65535)) {
-      return 'Los monitores TCP necesitan un puerto entre 1 y 65535.';
-    }
-
-    if (form.type === 'SSL' && (!Number.isInteger(form.sslWarningDays ?? NaN) || Number(form.sslWarningDays) < 1)) {
-      return 'El aviso SSL debe ser de al menos 1 día.';
-    }
-
-    if (form.type === 'DNS' && !dnsRecordTypes.includes((form.dnsRecordType ?? 'A') as typeof dnsRecordTypes[number])) {
-      return 'Selecciona un tipo de registro DNS válido.';
+    if (!Number.isInteger(form.expectedStatusCode) || form.expectedStatusCode < 100 || form.expectedStatusCode > 599) {
+      return 'El codigo esperado debe estar entre 100 y 599.';
     }
 
     return '';
@@ -169,10 +135,6 @@ export default function MonitorEditModal({
       ...form,
       name: form.name.trim(),
       target: form.target.trim(),
-      dnsExpectedValue: form.dnsExpectedValue?.trim() || null,
-      tcpPort: form.type === 'TCP' ? Number(form.tcpPort) : null,
-      sslWarningDays: form.type === 'SSL' ? Number(form.sslWarningDays ?? 14) : form.sslWarningDays ?? 14,
-      dnsRecordType: form.type === 'DNS' ? form.dnsRecordType ?? 'A' : form.dnsRecordType ?? 'A',
     });
   };
 
@@ -223,24 +185,7 @@ export default function MonitorEditModal({
           <section style={styles.section}>
             <h3 style={styles.sectionTitle}>Validación avanzada</h3>
             <div style={styles.grid}>
-              {(form.type === 'HTTP' || form.type === 'HTTPS') && (
-                <Field label="Código esperado"><input type="number" min={100} max={599} style={styles.input} value={form.expectedStatusCode} onChange={setNumberField('expectedStatusCode')} /></Field>
-              )}
-
-              {form.type === 'TCP' && <Field label="Puerto TCP"><input type="number" min={1} max={65535} style={styles.input} value={form.tcpPort ?? ''} onChange={setNumberField('tcpPort')} placeholder="443" /></Field>}
-
-              {form.type === 'SSL' && <Field label="Avisar si caduca en menos de"><input type="number" min={1} max={365} style={styles.input} value={form.sslWarningDays ?? 14} onChange={setNumberField('sslWarningDays')} /></Field>}
-
-              {form.type === 'DNS' && (
-                <>
-                  <Field label="Tipo de registro">
-                    <select style={styles.input} value={form.dnsRecordType ?? 'A'} onChange={(event) => updateForm('dnsRecordType', event.target.value)}>
-                      {dnsRecordTypes.map((recordType) => <option key={recordType} value={recordType}>{recordType}</option>)}
-                    </select>
-                  </Field>
-                  <Field label="Valor esperado opcional"><input style={styles.input} value={form.dnsExpectedValue ?? ''} onChange={setTextField('dnsExpectedValue')} placeholder="mail.proveedor.com" /></Field>
-                </>
-              )}
+              <Field label="Codigo esperado"><input type="number" min={100} max={599} style={styles.input} value={form.expectedStatusCode} onChange={setNumberField('expectedStatusCode')} /></Field>
             </div>
           </section>
 

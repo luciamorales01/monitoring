@@ -77,14 +77,12 @@
 }
 
 .monitor-detail-table-row,
-.monitor-detail-timeline-item,
-.monitor-detail-location-row {
+.monitor-detail-timeline-item {
   transition: background-color 160ms ease, transform 160ms ease;
 }
 
 .monitor-detail-table-row:hover,
-.monitor-detail-timeline-item:hover,
-.monitor-detail-location-row:hover {
+.monitor-detail-timeline-item:hover {
   background: var(--surface-soft);
 }
 

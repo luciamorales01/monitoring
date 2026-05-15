@@ -435,9 +435,6 @@ export default function MonitorListCard({
               <option value="ALL">Todos</option>
               <option value="HTTP">HTTP</option>
               <option value="HTTPS">HTTPS</option>
-              <option value="SSL">SSL</option>
-              <option value="TCP">TCP</option>
-              <option value="DNS">DNS</option>
             </select>
           </label>
 

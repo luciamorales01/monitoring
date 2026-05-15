@@ -3,18 +3,14 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
-  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   Max,
   MaxLength,
   Min,
-  ValidateIf,
 } from 'class-validator';
 import { MonitorType } from '@prisma/client';
-
-const DNS_RECORD_TYPES = ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as const;
 
 export class CreateMonitorDto {
   @ApiProperty({
@@ -37,7 +33,7 @@ export class CreateMonitorDto {
 
   @ApiProperty({
     example: 'https://status.acme.com/health',
-    description: 'Objetivo a comprobar: URL, host, dominio o endpoint.',
+    description: 'URL HTTP o HTTPS a comprobar.',
     maxLength: 2048,
   })
   @IsString()
@@ -49,7 +45,7 @@ export class CreateMonitorDto {
     example: 200,
     minimum: 100,
     maximum: 599,
-    description: 'Codigo HTTP esperado para monitores HTTP/HTTPS.',
+    description: 'Codigo HTTP esperado.',
   })
   @IsOptional()
   @IsInt()
@@ -101,48 +97,4 @@ export class CreateMonitorDto {
   @Max(20)
   alertThreshold?: number;
 
-  @ApiPropertyOptional({
-    example: 443,
-    minimum: 1,
-    maximum: 65535,
-    description: 'Puerto TCP. Obligatorio cuando `type` es `TCP`.',
-  })
-  @ValidateIf((dto: CreateMonitorDto) => dto.type === MonitorType.TCP)
-  @IsInt()
-  @Min(1)
-  @Max(65535)
-  tcpPort?: number;
-
-  @ApiPropertyOptional({
-    example: 14,
-    minimum: 1,
-    maximum: 365,
-    description: 'Dias de antelacion para alertar sobre expiracion SSL.',
-  })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(365)
-  sslWarningDays?: number;
-
-  @ApiPropertyOptional({
-    enum: DNS_RECORD_TYPES,
-    example: 'A',
-    description: 'Tipo de registro DNS esperado.',
-  })
-  @IsOptional()
-  @IsIn(DNS_RECORD_TYPES)
-  dnsRecordType?: string;
-
-  @ApiPropertyOptional({
-    example: '203.0.113.42',
-    description: 'Valor DNS esperado para validar el resultado.',
-    maxLength: 255,
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  dnsExpectedValue?: string;
 }
-
-export { DNS_RECORD_TYPES };

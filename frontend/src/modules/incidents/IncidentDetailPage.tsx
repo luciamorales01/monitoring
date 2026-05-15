@@ -129,7 +129,7 @@ export default function IncidentDetailPage() {
               <>
                 <label style={styles.label}>
                   Causa raíz
-                  <textarea style={styles.textarea} value={rootCause} onChange={(event) => setRootCause(event.target.value)} placeholder="Ej: caída del servidor, error DNS, timeout externo..." />
+                  <textarea style={styles.textarea} value={rootCause} onChange={(event) => setRootCause(event.target.value)} placeholder="Ej: caída del servidor, timeout externo..." />
                 </label>
                 <label style={styles.label}>
                   Nota de resolución

@@ -10,8 +10,6 @@ export const IncidentStatus = {
   RESOLVED: 'RESOLVED',
 } as const;
 
-export const DEFAULT_CHECK_LOCATION = 'default';
-
 export type MonitorStatusValue =
   (typeof MonitorStatus)[keyof typeof MonitorStatus];
 
@@ -28,10 +26,6 @@ export type MonitorEntity = {
   isActive?: boolean;
   alertThreshold?: number | null;
   alertEmail?: boolean | null;
-  tcpPort?: number | null;
-  sslWarningDays?: number | null;
-  dnsRecordType?: string | null;
-  dnsExpectedValue?: string | null;
   usesSectionSchedule?: boolean | null;
   sections?: {
     section: {
@@ -39,7 +33,6 @@ export type MonitorEntity = {
       expectedStatusCode: number;
       frequencySeconds: number;
       timeoutSeconds: number;
-      locations: string[];
       isActive: boolean;
       members?: { userId: number }[];
     };
@@ -51,13 +44,11 @@ export type CheckResultEntity = {
   monitorId?: number;
   status: MonitorStatusValue;
   checkedAt: Date;
-  location?: string | null;
 };
 
 export type MonitorCheckOutcome = {
   checkedAt: Date;
   errorMessage: string | null;
-  location: string;
   responseTimeMs: number;
   status: MonitorStatusValue;
   statusCode: number | null;

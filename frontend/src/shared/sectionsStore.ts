@@ -15,7 +15,6 @@ export type MonitorSection = {
   expectedStatusCode: number;
   frequencySeconds: number;
   timeoutSeconds: number;
-  locations: string[];
   isActive: boolean;
   monitorIds: number[];
   memberIds: number[];

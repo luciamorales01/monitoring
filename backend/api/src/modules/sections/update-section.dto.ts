@@ -54,13 +54,6 @@ export class UpdateSectionDto {
   timeoutSeconds?: number;
 
   @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(10)
-  @IsString({ each: true })
-  @MaxLength(64, { each: true })
-  locations?: string[];
-
-  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 }

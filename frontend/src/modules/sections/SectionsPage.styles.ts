@@ -437,19 +437,6 @@ export const styles: Record<string, CSSProperties> = {
     padding: '0 12px',
     fontSize: 13,
   },
-  locationPicker: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  locationOption: {
-    ...surfaceCard,
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '10px 12px',
-    fontSize: 13,
-  },
   textarea: {
     ...controlBase,
     minHeight: 110,
