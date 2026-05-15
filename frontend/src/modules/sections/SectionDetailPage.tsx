@@ -7,6 +7,7 @@ import {
 } from "../../shared/monitorApi";
 import { getMonitorViewStatus } from "../../shared/monitorFilters";
 import AppTopbar from "../../shared/AppTopbar";
+import ReportExportPanel from "../../shared/components/ReportExportPanel";
 import LoadingState from "../../shared/LoadingState";
 import { useCurrentUserPermissions } from "../../shared/permissions";
 import {
@@ -444,47 +445,28 @@ export default function SectionDetailPage() {
         />
       </section>
 
-      <section style={styles.exportCard}>
-        <div>
-          <h2 style={styles.exportTitle}>Exportar informe de la seccion</h2>
-          <p style={styles.exportSubtitle}>
+      <ReportExportPanel
+        title="Exportar informe de la seccion"
+        description={
+          <>
             Descarga un resumen consolidado de los monitores de {section.name}{" "}
             para el periodo seleccionado.
-          </p>
-        </div>
-
-        <div style={styles.exportControls}>
-          <select
-            value={exportRange}
-            onChange={(event) =>
-              setExportRange(event.target.value as ReportRange)
-            }
-            style={styles.exportSelect}
-          >
-            <option value="24h">Ultimas 24 horas</option>
-            <option value="7d">Ultimos 7 dias</option>
-            <option value="30d">Ultimos 30 dias</option>
-          </select>
-
-          <button
-            type="button"
-            style={styles.secondaryButton}
-            onClick={() => void handleExportReport("csv")}
-            disabled={exportingFormat !== null}
-          >
-            {exportingFormat === "csv" ? "Exportando..." : "CSV"}
-          </button>
-
-          <button
-            type="button"
-            style={styles.primaryButton}
-            onClick={() => void handleExportReport("pdf")}
-            disabled={exportingFormat !== null}
-          >
-            {exportingFormat === "pdf" ? "Exportando..." : "PDF"}
-          </button>
-        </div>
-      </section>
+          </>
+        }
+        exportRange={exportRange}
+        exportingFormat={exportingFormat}
+        onRangeChange={setExportRange}
+        onExportReport={(format) => void handleExportReport(format)}
+        styles={{
+          card: styles.exportCard,
+          title: styles.exportTitle,
+          subtitle: styles.exportSubtitle,
+          controls: styles.exportControls,
+          select: styles.exportSelect,
+          secondaryButton: styles.secondaryButton,
+          primaryButton: styles.primaryButton,
+        }}
+      />
 
       <nav style={styles.tabs}>
         {[

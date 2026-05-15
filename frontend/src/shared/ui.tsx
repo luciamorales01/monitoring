@@ -187,9 +187,13 @@ export function SectionHeader({
   );
 }
 
-export function Table({ children, style, ...props }: TableHTMLAttributes<HTMLTableElement>) {
+type TableProps = TableHTMLAttributes<HTMLTableElement> & {
+  wrapperStyle?: CSSProperties;
+};
+
+export function Table({ children, style, wrapperStyle, ...props }: TableProps) {
   return (
-    <div style={styles.tableWrap}>
+    <div style={{ ...styles.tableWrap, ...wrapperStyle }}>
       <table
         style={{
           ...styles.table,

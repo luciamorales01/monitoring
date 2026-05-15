@@ -209,7 +209,7 @@ export default function UsersPage() {
           ) : error ? (
             <EmptyState title="No se pudieron cargar usuarios">{error}</EmptyState>
           ) : (
-            <Table>
+            <Table wrapperStyle={styles.tableWrapVisible}>
               <thead>
                 <tr>
                   <th style={styles.th}>Usuario</th>
@@ -511,6 +511,7 @@ const styles: Record<string, CSSProperties> = {
   cardHeaderCompact: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
   cardTitle: { margin: 0, fontSize: 17, fontWeight: 700 },
   cardSubtitle: { margin: '6px 0 0', color: uiTheme.colors.muted, fontSize: 13 },
+  tableWrapVisible: { overflow: 'visible' },
   table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0 },
   th: { textAlign: 'left', padding: '13px 16px', color: uiTheme.colors.muted, fontSize: 12, borderBottom: `1px solid ${uiTheme.colors.border}`, fontWeight: 600 },
   thActions: { textAlign: 'right', padding: '13px 16px', color: uiTheme.colors.muted, fontSize: 12, borderBottom: `1px solid ${uiTheme.colors.border}`, fontWeight: 600 },
