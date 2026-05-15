@@ -23,7 +23,7 @@ export const monitorListSelect = {
 
 const monitorSectionsRelation = {
   include: { section: { include: { members: true } } },
-  orderBy: { assignedAt: 'asc' },
+  orderBy: { assignedAt: 'asc' as const },
 };
 
 export const monitorSectionsInclude = {
