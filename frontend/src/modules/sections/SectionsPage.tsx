@@ -45,6 +45,7 @@ import SectionEditorModal, {
 } from './SectionEditorModal';
 import { styles } from './SectionsPage.styles';
 import type { EditorState, FeedbackState, SectionSummary } from './SectionsPage.types';
+import { attachSectionsToMonitors } from './sectionMonitorLinks';
 
 export default function SectionsPage() {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ export default function SectionsPage() {
         canWriteActions ? getUsers() : Promise.resolve([]),
       ]);
 
-      setMonitors(nextMonitors);
+      setMonitors(attachSectionsToMonitors(nextMonitors, nextSections));
       setSections(nextSections);
       setUsers(nextUsers);
       setError(null);
@@ -534,7 +535,6 @@ export default function SectionsPage() {
         canManageMembers={canWriteActions}
         users={users.filter((user) => user.status === 'ACTIVE')}
         section={editorState.section}
-        sections={sectionSummaries}
         onClose={handleCloseEditor}
         onSubmit={handleSaveSection}
       />

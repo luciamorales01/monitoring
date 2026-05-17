@@ -44,6 +44,7 @@ import { KpiCard, TrendingGlyph } from "./components/SectionDetailParts";
 import { styles } from "./SectionDetailPage.styles";
 import type { ActiveTab } from "./SectionDetailPage.types";
 import { formatRelativeDate } from "./SectionDetailPage.utils";
+import { attachSectionsToMonitors } from "./sectionMonitorLinks";
 
 export default function SectionDetailPage() {
   const { sectionId } = useParams();
@@ -86,7 +87,7 @@ export default function SectionDetailPage() {
 
       setSection(nextSection);
       setMonitors(nextSection.monitors ?? []);
-      setAllMonitors(nextMonitors);
+      setAllMonitors(attachSectionsToMonitors(nextMonitors, nextSections));
       setAllSections(nextSections);
       setUsers(nextUsers);
       setError(null);
@@ -527,7 +528,6 @@ export default function SectionDetailPage() {
         canManageMembers={canWriteActions}
         users={users.filter((user) => user.status === "ACTIVE")}
         section={section}
-        sections={allSections}
         mode={sectionEditorMode ?? "full"}
         onClose={handleCloseSectionEditor}
         onSubmit={handleSaveSection}
@@ -535,4 +535,3 @@ export default function SectionDetailPage() {
     </main>
   );
 }
-

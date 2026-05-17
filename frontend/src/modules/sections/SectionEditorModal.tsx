@@ -3,7 +3,11 @@ import {
   getMonitorViewStatus,
   sortMonitorsByStatusAndLastCheck,
 } from '../../shared/monitorFilters';
-import type { SectionIcon } from '../../shared/sectionsStore';
+import {
+  type MonitorSection,
+  normalizeSectionIcon,
+  type SectionIcon,
+} from '../../shared/sectionsStore';
 import { ChevronRightIcon, PlusIcon, SearchIcon } from '../../shared/uiIcons';
 import {
   SectionIconGlyph,
@@ -17,8 +21,23 @@ import { getModeContent } from './SectionEditorModal.utils';
 export type {
   SectionEditorMode,
   SectionEditorSubmitPayload,
-  SectionSummaryOption,
 } from './SectionEditorModal.types';
+
+function getMonitorSectionLabel(sections: MonitorSection[]) {
+  const sectionNames = Array.from(
+    new Set(
+      sections
+        .map((currentSection) => currentSection.name.trim())
+        .filter((sectionName) => sectionName.length > 0),
+    ),
+  );
+
+  if (sectionNames.length === 0) {
+    return 'Sin sección asignada';
+  }
+
+  return `Ahora en: ${sectionNames.join(', ')}`;
+}
 
 export default function SectionEditorModal({
   isOpen,
@@ -26,7 +45,6 @@ export default function SectionEditorModal({
   canManageMembers,
   users,
   section,
-  sections,
   onClose,
   onSubmit,
   mode = 'full',
@@ -51,7 +69,7 @@ export default function SectionEditorModal({
 
     setName(section?.name ?? '');
     setDescription(section?.description ?? '');
-    setIcon(section?.icon ?? 'folder');
+    setIcon(normalizeSectionIcon(section?.icon));
     setMonitorIds(section?.monitorIds ?? []);
     setMemberIds(section?.memberIds ?? []);
     setExpectedStatusCode(section?.expectedStatusCode ?? 200);
@@ -141,7 +159,7 @@ export default function SectionEditorModal({
     onSubmit({
       name: normalizedName,
       description: description.trim(),
-      icon,
+      icon: normalizeSectionIcon(icon),
       monitorIds,
       memberIds,
       expectedStatusCode,
@@ -288,12 +306,8 @@ export default function SectionEditorModal({
                 ) : (
                   filteredMonitors.map((monitor) => {
                     const viewStatus = getMonitorViewStatus(monitor);
-                    const linkedSection = sections.find(
-                      (currentSection) =>
-                        currentSection.id !== section?.id &&
-                        currentSection.monitorIds.includes(monitor.id),
-                    );
                     const isSelected = monitorIds.includes(monitor.id);
+                    const sectionLabel = getMonitorSectionLabel(monitor.sections);
 
                     return (
                       <label
@@ -311,11 +325,9 @@ export default function SectionEditorModal({
                         <div style={styles.monitorOptionCopy}>
                           <strong>{monitor.name}</strong>
                           <span>{monitor.target}</span>
-                          {linkedSection ? (
-                            <small style={styles.monitorLinkedSection}>
-                              Ahora en: {linkedSection.name}
-                            </small>
-                          ) : null}
+                          <small style={styles.monitorLinkedSection}>
+                            {sectionLabel}
+                          </small>
                         </div>
                         <StatusBadge status={viewStatus} />
                       </label>

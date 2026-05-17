@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import type { MonitorSection } from './sectionsStore';
 
 export type MonitorType = 'HTTPS' | 'HTTP';
 export type MonitorStatus = 'UP' | 'DOWN' | 'UNKNOWN';
@@ -19,16 +20,12 @@ export type Monitor = {
   usesSectionSchedule?: boolean;
   alertEmail: boolean;
   alertThreshold: number;
-  sections?: {
-    section: {
-      id: number;
-      name: string;
-      expectedStatusCode: number;
-      frequencySeconds: number;
-      timeoutSeconds: number;
-      isActive: boolean;
-    };
-  }[];
+  sections: MonitorSection[];
+};
+
+type RawMonitorSection = MonitorSection | { section: MonitorSection };
+export type RawMonitor = Omit<Monitor, 'sections'> & {
+  sections?: RawMonitorSection[];
 };
 
 export type MonitorCheck = {
@@ -47,6 +44,10 @@ export type PaginatedMonitors = {
   page: number;
   limit: number;
   totalPages: number;
+};
+
+type RawPaginatedMonitors = Omit<PaginatedMonitors, 'items'> & {
+  items: RawMonitor[];
 };
 
 export type MonitorSortOption = 'status' | 'name' | 'latest-check' | 'created-at';
@@ -76,6 +77,38 @@ export type UpdateMonitorInput = CreateMonitorInput;
 
 const MONITOR_LIST_FETCH_LIMIT = 100;
 
+function normalizeMonitorSections(
+  sections: RawMonitorSection[] | undefined,
+): MonitorSection[] {
+  if (!sections) {
+    return [];
+  }
+
+  const seenSectionIds = new Set<string>();
+  const nextSections: MonitorSection[] = [];
+
+  for (const entry of sections) {
+    const section = 'section' in entry ? entry.section : entry;
+    const sectionId = String(section.id);
+
+    if (seenSectionIds.has(sectionId)) {
+      continue;
+    }
+
+    seenSectionIds.add(sectionId);
+    nextSections.push(section);
+  }
+
+  return nextSections;
+}
+
+export function normalizeMonitor(monitor: RawMonitor): Monitor {
+  return {
+    ...monitor,
+    sections: normalizeMonitorSections(monitor.sections),
+  };
+}
+
 function buildMonitorListPath(query: MonitorListQuery = {}) {
   const params = new URLSearchParams();
 
@@ -95,7 +128,11 @@ export const getPaginatedMonitors = async (
   query: MonitorListQuery = {},
   signal?: AbortSignal,
 ) => {
-  return apiClient<PaginatedMonitors>(buildMonitorListPath(query), { signal });
+  const page = await apiClient<RawPaginatedMonitors>(buildMonitorListPath(query), { signal });
+  return {
+    ...page,
+    items: page.items.map(normalizeMonitor),
+  };
 };
 
 export const getMonitors = async () => {
@@ -124,29 +161,33 @@ export const getMonitors = async () => {
 };
 
 export const createMonitor = async (data: CreateMonitorInput) => {
-  return apiClient<Monitor>('/monitors', {
+  const monitor = await apiClient<RawMonitor>('/monitors', {
     method: 'POST',
     body: JSON.stringify(data),
   });
+  return normalizeMonitor(monitor);
 };
 
 export const updateMonitor = async (id: number, data: UpdateMonitorInput) => {
-  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`, {
+  const monitor = await apiClient<RawMonitor>(`/monitors/${encodeURIComponent(String(id))}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+  return normalizeMonitor(monitor);
 };
 
 export const useSectionSchedule = async (id: number) => {
-  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}/use-section-schedule`, {
+  const monitor = await apiClient<RawMonitor>(`/monitors/${encodeURIComponent(String(id))}/use-section-schedule`, {
     method: 'PATCH',
   });
+  return normalizeMonitor(monitor);
 };
 
 export const deleteMonitor = async (id: number) => {
-  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`, {
+  const monitor = await apiClient<RawMonitor>(`/monitors/${encodeURIComponent(String(id))}`, {
     method: 'DELETE',
   });
+  return normalizeMonitor(monitor);
 };
 
 export const runMonitorCheck = async (id: number) => {
@@ -156,13 +197,15 @@ export const runMonitorCheck = async (id: number) => {
 };
 
 export const toggleMonitorActive = async (id: number) => {
-  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}/toggle-active`, {
+  const monitor = await apiClient<RawMonitor>(`/monitors/${encodeURIComponent(String(id))}/toggle-active`, {
     method: 'PATCH',
   });
+  return normalizeMonitor(monitor);
 };
 
 export const getMonitor = async (id: number) => {
-  return apiClient<Monitor>(`/monitors/${encodeURIComponent(String(id))}`);
+  const monitor = await apiClient<RawMonitor>(`/monitors/${encodeURIComponent(String(id))}`);
+  return normalizeMonitor(monitor);
 };
 
 export const getMonitorChecks = async (

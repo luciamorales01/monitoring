@@ -1,11 +1,27 @@
 import { apiClient } from './apiClient';
-import type { Monitor } from './monitorApi';
-import type { MonitorSection, SectionIcon } from './sectionsStore';
+import {
+  normalizeMonitor,
+  type Monitor,
+  type RawMonitor,
+} from './monitorApi';
+import {
+  normalizeSectionIcon,
+  type MonitorSection,
+  type SectionIcon,
+} from './sectionsStore';
 import type { User } from './userApi';
 
 export type ApiSection = MonitorSection & {
   monitors?: Monitor[];
   members?: Pick<User, 'id' | 'name' | 'email' | 'role' | 'status'>[];
+};
+
+type SectionMember = Pick<User, 'id' | 'name' | 'email' | 'role' | 'status'>;
+
+type RawApiSection = Omit<MonitorSection, 'icon'> & {
+  icon?: unknown;
+  monitors?: RawMonitor[];
+  members?: SectionMember[];
 };
 
 export type SectionPayload = {
@@ -19,33 +35,53 @@ export type SectionPayload = {
   isActive?: boolean;
 };
 
-export function getSections() {
-  return apiClient<ApiSection[]>('/sections');
+function normalizeApiSection(section: RawApiSection): ApiSection {
+  return {
+    ...section,
+    icon: normalizeSectionIcon(section.icon),
+    monitors: section.monitors?.map(normalizeMonitor),
+  };
 }
 
-export function getSection(id: string | number) {
-  return apiClient<ApiSection>(`/sections/${id}`);
+function normalizeSectionPayload(payload: SectionPayload): SectionPayload {
+  return {
+    ...payload,
+    icon: normalizeSectionIcon(payload.icon),
+  };
 }
 
-export function createSection(payload: SectionPayload) {
-  return apiClient<ApiSection>('/sections', {
+export async function getSections() {
+  const sections = await apiClient<RawApiSection[]>('/sections');
+  return sections.map(normalizeApiSection);
+}
+
+export async function getSection(id: string | number) {
+  const section = await apiClient<RawApiSection>(`/sections/${id}`);
+  return normalizeApiSection(section);
+}
+
+export async function createSection(payload: SectionPayload) {
+  const section = await apiClient<RawApiSection>('/sections', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(normalizeSectionPayload(payload)),
   });
+  return normalizeApiSection(section);
 }
 
-export function updateSection(id: string | number, payload: SectionPayload) {
-  return apiClient<ApiSection>(`/sections/${id}`, {
+export async function updateSection(id: string | number, payload: SectionPayload) {
+  const section = await apiClient<RawApiSection>(`/sections/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(normalizeSectionPayload(payload)),
   });
+  return normalizeApiSection(section);
 }
 
-export function updateSectionMembers(id: string | number, userIds: number[]) {
-  return apiClient<ApiSection>(`/sections/${id}/members`, {
+export async function updateSectionMembers(id: string | number, userIds: number[]) {
+  const section = await apiClient<RawApiSection>(`/sections/${id}/members`, {
     method: 'PATCH',
     body: JSON.stringify({ userIds }),
   });
+  return normalizeApiSection(section);
 }
 
 export function deleteSection(id: string | number) {

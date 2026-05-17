@@ -2,8 +2,6 @@ import type { Monitor } from "../../shared/monitorApi";
 import type { MonitorSection, SectionIcon } from "../../shared/sectionsStore";
 import type { User } from "../../shared/userApi";
 
-export type SectionSummaryOption = Pick<MonitorSection, 'id' | 'name' | 'monitorIds'>;
-
 export type SectionEditorSubmitPayload = {
   name: string;
   description: string;
@@ -24,7 +22,6 @@ export type SectionEditorModalProps = {
   canManageMembers: boolean;
   users: User[];
   section: MonitorSection | null;
-  sections: SectionSummaryOption[];
   onClose: () => void;
   onSubmit: (payload: SectionEditorSubmitPayload) => void;
   mode?: SectionEditorMode;
