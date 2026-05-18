@@ -1,38 +1,50 @@
+import type { ComponentType, ReactElement } from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import ForgotPasswordPage from "../modules/auth/ForgotPasswordPage";
-import LoginPage from "../modules/auth/LoginPage";
-import RegisterPage from "../modules/auth/RegisterPage";
-import CreateMonitorPage from "../modules/monitors/CreateMonitorPage";
-import IncidentsPage from "../modules/incidents/IncidentsPage";
-import IncidentDetailPage from "../modules/incidents/IncidentDetailPage";
 import { ProtectedRoute } from "./ProtectedRoute";
-import DashboardPage from "../modules/dashboard/DashboardPage";
 import AppLayout from "./AppLayout";
-import MonitorDetailPage from "../modules/monitors/MonitorDetailPage";
-import MonitorsPage from "../modules/monitors/MonitorsPage";
-import SectionDetailPage from "../modules/sections/SectionDetailPage";
-import SectionsPage from "../modules/sections/SectionsPage";
-import UsersPage from "../modules/users/UsersPage";
-import ProfilePage from "../modules/profile/ProfilePage";
-import PublicStatusPage from "../modules/status/PublicStatusPage";
 import AuthRedirect from "./AuthRedirect";
 import RouteErrorPage from "./RouteErrorPage";
 import NotFoundPage from "./NotFoundPage";
-import ResetPasswordPage from "../modules/auth/ResetPasswordPage";
-import AcceptInvitationPage from "../modules/auth/AcceptInvitationPage";
 import { OwnerRoute } from "./OwnerRoute";
+import {
+  AcceptInvitationPage,
+  CreateMonitorPage,
+  DashboardPage,
+  ForgotPasswordPage,
+  IncidentDetailPage,
+  IncidentsPage,
+  LoginPage,
+  MonitorDetailPage,
+  MonitorsPage,
+  ProfilePage,
+  PublicStatusPage,
+  RegisterPage,
+  ResetPasswordPage,
+  RouteSuspense,
+  SectionDetailPage,
+  SectionsPage,
+  UsersPage,
+} from "./lazyRoutePages";
+
+function lazyRoute(Page: ComponentType): ReactElement {
+  return (
+    <RouteSuspense>
+      <Page />
+    </RouteSuspense>
+  );
+}
 
 export const router = createBrowserRouter([
   {
     path: "/restablecer-password",
-    element: <ResetPasswordPage />,
+    element: lazyRoute(ResetPasswordPage),
     errorElement: <RouteErrorPage />,
   },
   {
     path: "/login",
     element: (
       <AuthRedirect>
-        <LoginPage />
+        {lazyRoute(LoginPage)}
       </AuthRedirect>
     ),
     errorElement: <RouteErrorPage />,
@@ -41,15 +53,15 @@ export const router = createBrowserRouter([
     path: "/registro",
     element: (
       <AuthRedirect>
-        <RegisterPage />
+        {lazyRoute(RegisterPage)}
       </AuthRedirect>
     ),
     errorElement: <RouteErrorPage />,
   },
   { path: "/register", element: <Navigate to="/registro" replace /> },
-  { path: "/recuperar-password", element: <ForgotPasswordPage /> },
-  { path: "/aceptar-invitacion", element: <AcceptInvitationPage /> },
-  { path: "/status/:slug", element: <PublicStatusPage /> },
+  { path: "/recuperar-password", element: lazyRoute(ForgotPasswordPage) },
+  { path: "/aceptar-invitacion", element: lazyRoute(AcceptInvitationPage) },
+  { path: "/status/:slug", element: lazyRoute(PublicStatusPage) },
   { path: "/mi-perfil", element: <Navigate to="/profile" replace /> },
   {
     path: "/",
@@ -61,30 +73,30 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: "dashboard", element: <DashboardPage /> },
+      { path: "dashboard", element: lazyRoute(DashboardPage) },
       {
         path: "monitors/create",
         element: (
           <OwnerRoute>
-            <CreateMonitorPage />
+            {lazyRoute(CreateMonitorPage)}
           </OwnerRoute>
         ),
       },
-      { path: "incidents", element: <IncidentsPage /> },
-      { path: "incidents/:id", element: <IncidentDetailPage /> },
-      { path: "monitors/:id", element: <MonitorDetailPage /> },
-      { path: "monitors", element: <MonitorsPage /> },
-      { path: "sections/:sectionId", element: <SectionDetailPage /> },
-      { path: "sections", element: <SectionsPage /> },
+      { path: "incidents", element: lazyRoute(IncidentsPage) },
+      { path: "incidents/:id", element: lazyRoute(IncidentDetailPage) },
+      { path: "monitors/:id", element: lazyRoute(MonitorDetailPage) },
+      { path: "monitors", element: lazyRoute(MonitorsPage) },
+      { path: "sections/:sectionId", element: lazyRoute(SectionDetailPage) },
+      { path: "sections", element: lazyRoute(SectionsPage) },
       {
         path: "users",
         element: (
           <OwnerRoute>
-            <UsersPage />
+            {lazyRoute(UsersPage)}
           </OwnerRoute>
         ),
       },
-      { path: "profile", element: <ProfilePage /> },
+      { path: "profile", element: lazyRoute(ProfilePage) },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

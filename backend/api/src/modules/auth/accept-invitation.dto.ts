@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 
 const STRONG_PASSWORD_MESSAGE =
-  'La contrasena debe incluir mayuscula, minuscula, numero y simbolo.';
+  'La contraseña debe incluir mayuscula, minuscula, numero y simbolo.';
 
 export class AcceptInvitationDto {
   @ApiProperty({
@@ -38,7 +38,7 @@ export class AcceptInvitationDto {
   @ApiProperty({
     example: 'AdminPass123',
     minLength: 8,
-    description: 'Contrasena inicial de la cuenta invitada.',
+    description: 'Contraseña inicial de la cuenta invitada.',
   })
   @IsString()
   @MinLength(8)

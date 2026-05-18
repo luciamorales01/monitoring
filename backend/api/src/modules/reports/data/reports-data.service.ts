@@ -34,7 +34,11 @@ export class ReportsDataService {
     const from = getRangeStart(params.range);
     const to = new Date();
 
-    await this.ensureScopeAccess(params.user, params.monitorId, params.sectionId);
+    await this.ensureScopeAccess(
+      params.user,
+      params.monitorId,
+      params.sectionId,
+    );
 
     const [monitors, scopeName] = await Promise.all([
       this.getMonitors(params.user, from, params.monitorId, params.sectionId),

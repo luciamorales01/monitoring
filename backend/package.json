@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "env:sync": "node scripts/sync-env.cjs",
-    "dev": "concurrently \"npm run api:dev\" \"npm run worker:monitoring\" \"npm run worker:notifications\"",
+    "shared-types:build": "npm --prefix shared-types run build",
+    "dev": "npm run shared-types:build && concurrently \"npm run api:dev\" \"npm run worker:monitoring\" \"npm run worker:notifications\"",
     "dev:api": "npm run api:dev",
     "dev:monitoring": "npm run worker:monitoring",
     "dev:notifications": "npm run worker:notifications",
@@ -18,7 +19,7 @@
     "worker:notifications": "npm --prefix workers/notifications-worker run dev",
     "worker:notifications:dev": "npm run worker:notifications",
     "worker:notifications:build": "npm --prefix workers/notifications-worker run build",
-    "build": "npm run api:build && npm run worker:monitoring:build && npm run worker:notifications:build",
+    "build": "npm run shared-types:build && npm run api:build && npm run worker:monitoring:build && npm run worker:notifications:build",
     "docker:config": "docker compose config",
     "docker:up": "docker compose up --build"
   },

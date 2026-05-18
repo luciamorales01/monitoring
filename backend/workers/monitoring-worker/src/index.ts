@@ -8,7 +8,7 @@ import {
   type MonitorCheckJobData,
   type MonitorCheckJobName,
   type MonitorCheckJobResult,
-} from '../../../api/src/modules/monitors/monitor-checks.queue-contract';
+} from '@monitoring-tfg/shared-types';
 import { MonitorsService } from '../../../api/src/modules/monitors/monitors.service';
 import { createRedisConnection } from './redis-connection';
 import { MonitoringWorkerAppModule } from './worker-app.module';

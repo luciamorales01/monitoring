@@ -24,7 +24,7 @@ export class LoginDto {
   @ApiProperty({
     example: 'Str0ngPass!',
     minLength: 6,
-    description: 'Contrasena del usuario.',
+    description: 'Contraseña del usuario.',
   })
   @IsString()
   @MinLength(6)

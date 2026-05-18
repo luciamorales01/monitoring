@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getNotifications,
   markAllNotificationsAsRead,
@@ -16,7 +16,7 @@ export function useTopbarNotifications() {
   const knownNotificationIds = useRef<Set<number>>(new Set());
   const initializedNotifications = useRef(false);
 
-  const syncNotifications = (
+  const syncNotifications = useCallback((
     nextNotifications: NotificationEvent[],
     showToast: boolean,
   ) => {
@@ -35,9 +35,9 @@ export function useTopbarNotifications() {
     );
     initializedNotifications.current = true;
     setNotifications(nextNotifications);
-  };
+  }, []);
 
-  const loadNotifications = useEffectEvent(async (
+  const loadNotifications = useCallback(async (
     showToast = false,
     options?: {
       clearOnError?: boolean;
@@ -61,7 +61,7 @@ export function useTopbarNotifications() {
         setNotifications([]);
       }
     }
-  });
+  }, [syncNotifications]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,7 +77,7 @@ export function useTopbarNotifications() {
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, []);
+  }, [loadNotifications]);
 
   useEffect(() => {
     if (!toast) return;

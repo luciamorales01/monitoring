@@ -1,4 +1,9 @@
-import { IncidentSeverity, IncidentStatus, MonitorStatus, MonitorType } from '@prisma/client';
+import {
+  IncidentSeverity,
+  IncidentStatus,
+  MonitorStatus,
+  MonitorType,
+} from '@prisma/client';
 import type { AuthenticatedUser } from '../../../common/monitor-access-scope';
 
 export type ReportRange = '24h' | '7d' | '30d';

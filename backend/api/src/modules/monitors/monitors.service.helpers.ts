@@ -262,6 +262,7 @@ export function buildMonitorCheckErrorMessage(
 export function isMonitorCheckTimeoutError(error: unknown) {
   return (
     (error instanceof DOMException && error.name === 'AbortError') ||
-    (error instanceof Error && /^Timeout tras \d+ segundos$/.test(error.message))
+    (error instanceof Error &&
+      /^Timeout tras \d+ segundos$/.test(error.message))
   );
 }

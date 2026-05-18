@@ -1,14 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { csvEscape, formatSeconds } from '../helpers/report-formatters';
 import { buildReportFilename } from '../helpers/report-filename';
-import type { ReportExportContext, ReportFile, ReportRow } from '../types/report.types';
+import type {
+  ReportExportContext,
+  ReportFile,
+  ReportRow,
+} from '../types/report.types';
 import type { ReportExporter } from './report-exporter.interface';
 
 @Injectable()
 export class ReportCsvExporter implements ReportExporter {
   export({ dataset, filenameSuffix }: ReportExportContext): ReportFile {
     return {
-      filename: buildReportFilename(dataset.summary.range, filenameSuffix, 'csv'),
+      filename: buildReportFilename(
+        dataset.summary.range,
+        filenameSuffix,
+        'csv',
+      ),
       contentType: 'text/csv; charset=utf-8',
       buffer: Buffer.from(this.buildCsv(dataset.summary.rows), 'utf8'),
     };

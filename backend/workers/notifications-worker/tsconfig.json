@@ -10,8 +10,5 @@
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": [
-    "src/**/*.ts",
-    "../../api/src/modules/notifications/notifications.queue-contract.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

@@ -12,7 +12,6 @@ import type {
   ReportExportContext,
   ReportFile,
   ReportIncidentRow,
-  ReportRange,
   ReportRow,
 } from '../types/report.types';
 import type { ReportExporter } from './report-exporter.interface';
@@ -30,7 +29,11 @@ export class ReportXlsxExporter implements ReportExporter {
     filenameSuffix,
   }: ReportExportContext): Promise<ReportFile> {
     return {
-      filename: buildReportFilename(dataset.summary.range, filenameSuffix, 'xlsx'),
+      filename: buildReportFilename(
+        dataset.summary.range,
+        filenameSuffix,
+        'xlsx',
+      ),
       contentType:
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       buffer: await this.buildExcel(dataset),
@@ -54,7 +57,10 @@ export class ReportXlsxExporter implements ReportExporter {
     const sheet = workbook.addWorksheet('Resumen');
     const totals = dataset.summary.totals;
 
-    sheet.addRow(['Informe de monitorizacion', getRangeLabel(dataset.summary.range)]);
+    sheet.addRow([
+      'Informe de monitorizacion',
+      getRangeLabel(dataset.summary.range),
+    ]);
     sheet.addRow(['Generado desde', dataset.summary.from]);
     sheet.addRow(['Generado hasta', dataset.summary.to]);
     sheet.addRow(['Ambito', dataset.scopeName ?? 'Todos los monitores']);
@@ -62,11 +68,17 @@ export class ReportXlsxExporter implements ReportExporter {
     sheet.addRow(['Metrica', 'Valor']);
     sheet.addRow(['Monitores', totals.monitors]);
     sheet.addRow(['Uptime medio', totals.averageUptimePercent / 100]);
-    sheet.addRow(['Tiempo medio de respuesta (ms)', totals.averageResponseTimeMs]);
+    sheet.addRow([
+      'Tiempo medio de respuesta (ms)',
+      totals.averageResponseTimeMs,
+    ]);
     sheet.addRow(['Incidencias', totals.incidents]);
     sheet.addRow(['Checks', totals.checks]);
     sheet.addRow(['Downtime estimado (s)', totals.estimatedDowntimeSeconds]);
-    sheet.addRow(['Downtime estimado', formatSeconds(totals.estimatedDowntimeSeconds)]);
+    sheet.addRow([
+      'Downtime estimado',
+      formatSeconds(totals.estimatedDowntimeSeconds),
+    ]);
 
     sheet.getCell('A1').font = { bold: true, size: 16, color: { argb: WHITE } };
     sheet.getCell('B1').font = { bold: true, color: { argb: WHITE } };
@@ -194,9 +206,7 @@ export class ReportXlsxExporter implements ReportExporter {
     sheet.columns.forEach((column) => {
       let maxLength = 12;
       column.eachCell?.({ includeEmpty: true }, (cell) => {
-        const value = cell.value;
-        const text =
-          value === null || value === undefined ? '' : String(value);
+        const text = cell.text;
         maxLength = Math.max(maxLength, Math.min(text.length + 2, 48));
       });
       column.width = maxLength;

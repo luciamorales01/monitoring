@@ -36,7 +36,7 @@ export default function PasswordInput({
   leadingIcon,
 }: PasswordInputProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const label = isVisible ? 'Ocultar contrasena' : 'Ver contrasena';
+  const label = isVisible ? 'Ocultar contraseña' : 'Ver contraseña';
 
   const inputControl = (
     <>

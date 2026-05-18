@@ -2,13 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 const STRONG_PASSWORD_MESSAGE =
-  'La contrasena debe incluir mayuscula, minuscula, numero y simbolo.';
+  'La contraseña debe incluir mayuscula, minuscula, numero y simbolo.';
 
 export class ChangePasswordDto {
   @ApiProperty({
     example: 'Str0ngPass!',
     minLength: 6,
-    description: 'Contrasena actual del usuario autenticado.',
+    description: 'Contraseña actual del usuario autenticado.',
   })
   @IsString()
   @MinLength(6)
@@ -18,7 +18,7 @@ export class ChangePasswordDto {
   @ApiProperty({
     example: 'MyN3wPass!',
     minLength: 8,
-    description: 'Nueva contrasena que reemplazara a la actual.',
+    description: 'Nueva contraseña que reemplazara a la actual.',
   })
   @IsString()
   @MinLength(8)

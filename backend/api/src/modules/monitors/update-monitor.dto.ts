@@ -99,5 +99,4 @@ export class UpdateMonitorDto {
   @Min(1)
   @Max(20)
   alertThreshold?: number;
-
 }

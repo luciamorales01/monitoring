@@ -1,5 +1,5 @@
 import { AlertTriangleIcon } from '../../../shared/uiIcons';
-import { toneStyles, uiTheme } from '../../../theme/commonStyles';
+import { toneStyles } from '../../../theme/commonStyles';
 import { dashboardStyles as styles } from '../dashboardStyles';
 import type { DashboardAlertItem } from '../dashboardTypes';
 

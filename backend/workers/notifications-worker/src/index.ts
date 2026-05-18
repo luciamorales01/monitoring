@@ -4,14 +4,13 @@ import { createRequire } from 'node:module';
 import { basename, resolve } from 'node:path';
 import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
-import type { PrismaClient as PrismaClientType } from '../../../api/node_modules/@prisma/client';
 import {
   NOTIFICATIONS_QUEUE,
   type EmailPayload,
   type SendEmailJobData,
   type SendEmailJobName,
   type SendEmailJobResult,
-} from '../../../api/src/modules/notifications/notifications.queue-contract';
+} from '@monitoring-tfg/shared-types';
 import { createRedisConnection } from './redis-connection';
 
 type SmtpConfig = {
@@ -21,6 +20,24 @@ type SmtpConfig = {
   user: string;
   pass: string;
   from: string;
+};
+
+type NotificationEventStatus = 'SENT' | 'FAILED' | 'SKIPPED';
+
+type NotificationEventUpdateArgs = {
+  where: { id: number };
+  data: {
+    errorMessage: string | null;
+    sentAt: Date | null;
+    status: NotificationEventStatus;
+  };
+};
+
+type PrismaClientType = {
+  $disconnect(): Promise<void>;
+  notificationEvent: {
+    update(args: NotificationEventUpdateArgs): Promise<unknown>;
+  };
 };
 
 type PrismaClientConstructor = new () => PrismaClientType;
@@ -140,7 +157,7 @@ function getSmtpConfig(): SmtpConfig | null {
 
 async function updateNotificationEvent(
   eventId: number,
-  status: 'SENT' | 'FAILED' | 'SKIPPED',
+  status: NotificationEventStatus,
   errorMessage?: string,
 ) {
   await prisma.notificationEvent.update({

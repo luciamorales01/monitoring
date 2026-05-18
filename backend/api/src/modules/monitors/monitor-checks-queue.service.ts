@@ -8,7 +8,7 @@ import {
   type MonitorCheckJobData,
   type MonitorCheckJobName,
   type MonitorCheckJobResult,
-} from './monitor-checks.queue-contract';
+} from '@monitoring-tfg/shared-types';
 
 type EnqueueSummary = {
   enqueued: number;

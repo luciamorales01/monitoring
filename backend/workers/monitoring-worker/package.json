@@ -6,12 +6,14 @@
   "main": "dist/workers/monitoring-worker/src/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "prebuild": "npm --prefix ../../shared-types run build",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/workers/monitoring-worker/src/index.js",
     "lint": "echo \"Add ESLint when the worker source is stable\"",
     "test": "echo \"Add worker tests\""
   },
   "dependencies": {
+    "@monitoring-tfg/shared-types": "file:../../shared-types",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",

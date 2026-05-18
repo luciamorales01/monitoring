@@ -36,7 +36,11 @@ export class ReportPdfExporter implements ReportExporter {
     filenameSuffix,
   }: ReportExportContext): Promise<ReportFile> {
     return {
-      filename: buildReportFilename(dataset.summary.range, filenameSuffix, 'pdf'),
+      filename: buildReportFilename(
+        dataset.summary.range,
+        filenameSuffix,
+        'pdf',
+      ),
       contentType: 'application/pdf',
       buffer: await this.buildPdf(dataset),
     };
@@ -308,7 +312,9 @@ export class ReportPdfExporter implements ReportExporter {
     label: string,
     value: string,
   ) {
-    doc.roundedRect(x, y, width, height, 10).fillAndStroke(COLORS.soft, COLORS.border);
+    doc
+      .roundedRect(x, y, width, height, 10)
+      .fillAndStroke(COLORS.soft, COLORS.border);
     doc
       .font('Helvetica')
       .fontSize(8.5)
@@ -364,7 +370,11 @@ export class ReportPdfExporter implements ReportExporter {
 
   private addFooters(doc: PdfDoc) {
     const range = doc.bufferedPageRange();
-    for (let index = range.start; index < range.start + range.count; index += 1) {
+    for (
+      let index = range.start;
+      index < range.start + range.count;
+      index += 1
+    ) {
       doc.switchToPage(index);
       const pageNumber = index + 1;
       doc

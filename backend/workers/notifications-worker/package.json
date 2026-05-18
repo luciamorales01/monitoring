@@ -6,12 +6,14 @@
   "main": "dist/workers/notifications-worker/src/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "prebuild": "npm --prefix ../../shared-types run build",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/workers/notifications-worker/src/index.js",
     "lint": "echo \"Add ESLint when the worker source is stable\"",
     "test": "echo \"Add worker tests\""
   },
   "dependencies": {
+    "@monitoring-tfg/shared-types": "file:../../shared-types",
     "bullmq": "^5.75.2",
     "dotenv": "^17.4.1",
     "ioredis": "^5.10.1",

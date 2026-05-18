@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 
 const STRONG_PASSWORD_MESSAGE =
-  'La contrasena debe incluir mayuscula, minuscula, numero y simbolo.';
+  'La contraseña debe incluir mayuscula, minuscula, numero y simbolo.';
 
 export class RegisterDto {
   @ApiProperty({
@@ -39,7 +39,7 @@ export class RegisterDto {
   @ApiProperty({
     example: 'Str0ngPass!',
     minLength: 8,
-    description: 'Contrasena de acceso.',
+    description: 'Contraseña de acceso.',
   })
   @IsString()
   @MinLength(8)

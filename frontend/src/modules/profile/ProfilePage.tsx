@@ -102,7 +102,7 @@ export default function ProfilePage() {
       {
         id: "password",
         icon: <LockIcon size={16} />,
-        label: "Cambiar contrasena",
+        label: "Cambiar contraseña",
         tone: "default" as const,
       },
       {
@@ -192,12 +192,12 @@ export default function ProfilePage() {
     setStatusMessage("");
 
     if (passwordForm.newPassword.length < 6) {
-      setStatusMessage("La nueva contrasena debe tener al menos 6 caracteres.");
+      setStatusMessage("La nueva contraseña debe tener al menos 6 caracteres.");
       return;
     }
 
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setStatusMessage("Las contrasenas no coinciden.");
+      setStatusMessage("Las contraseñas no coinciden.");
       return;
     }
 
@@ -207,13 +207,13 @@ export default function ProfilePage() {
         newPassword: passwordForm.newPassword,
       });
       tokenStorage.clear();
-      setStatusMessage("Contrasena actualizada. Vuelve a iniciar sesion.");
+      setStatusMessage("Contraseña actualizada. Vuelve a iniciar sesion.");
       window.setTimeout(() => navigate("/login", { replace: true }), 900);
     } catch (err) {
       setStatusMessage(
         err instanceof Error
           ? err.message
-          : "No se pudo cambiar la contrasena.",
+          : "No se pudo cambiar la contraseña.",
       );
     }
   };
@@ -391,7 +391,7 @@ export default function ProfilePage() {
               ) : activeTab === "security" ? (
                 <SectionCard
                   title="Seguridad de la cuenta"
-                  subtitle="Cambia tu contrasena y cierra la sesion actual."
+                  subtitle="Cambia tu contraseña y cierra la sesion actual."
                   badge="Sesion protegida"
                 >
                   <div style={styles.noticeBanner}>
@@ -406,7 +406,7 @@ export default function ProfilePage() {
                     onSubmit={handlePasswordSubmit}
                     style={styles.profileForm}
                   >
-                    <Field label="Contrasena actual">
+                    <Field label="Contraseña actual">
                       <PasswordInput
                         value={passwordForm.currentPassword}
                         onChange={(event) =>
@@ -423,7 +423,7 @@ export default function ProfilePage() {
                       />
                     </Field>
 
-                    <Field label="Nueva contrasena">
+                    <Field label="Nueva contraseña">
                       <PasswordInput
                         value={passwordForm.newPassword}
                         onChange={(event) =>
@@ -440,7 +440,7 @@ export default function ProfilePage() {
                       />
                     </Field>
 
-                    <Field label="Confirmar nueva contrasena" wide>
+                    <Field label="Confirmar nueva contraseña" wide>
                       <PasswordInput
                         value={passwordForm.confirmPassword}
                         onChange={(event) =>
@@ -482,7 +482,7 @@ export default function ProfilePage() {
                           style={styles.primaryButton}
                           className="profile-primaryButton"
                         >
-                          Actualizar contrasena
+                          Actualizar contraseña
                         </button>
                       </div>
                     </div>

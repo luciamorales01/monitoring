@@ -95,8 +95,6 @@ export default function MonitorDetailPage() {
     if (!isValidMonitorId) {
       return;
     }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData()
       .catch(() => {
         setMonitor(null);

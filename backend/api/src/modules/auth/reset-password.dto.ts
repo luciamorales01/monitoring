@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 
 const STRONG_PASSWORD_MESSAGE =
-  'La contrasena debe incluir mayuscula, minuscula, numero y simbolo.';
+  'La contraseña debe incluir mayuscula, minuscula, numero y simbolo.';
 
 export class ResetPasswordDto {
   @ApiProperty({
@@ -24,7 +24,7 @@ export class ResetPasswordDto {
   @ApiProperty({
     example: 'MyN3wPass!',
     minLength: 8,
-    description: 'Nueva contrasena del usuario.',
+    description: 'Nueva contraseña del usuario.',
   })
   @IsString()
   @MinLength(8)

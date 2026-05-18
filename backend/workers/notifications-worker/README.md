@@ -6,7 +6,7 @@ Worker BullMQ que consume la cola `notifications` y envia emails con Nodemailer.
 
 - Monitor DOWN.
 - Monitor recuperado.
-- Recuperacion de contrasena.
+- Recuperacion de contraseña.
 
 La API solo encola jobs. Si SMTP no esta configurado, el worker escribe el email en logs, marca la notificacion como `SKIPPED` cuando aplica y no falla el job.
 

@@ -133,7 +133,7 @@ export class AuthController {
 
   @Post('forgot-password')
   @ApiOperation({
-    summary: 'Solicitar recuperacion de contrasena',
+    summary: 'Solicitar recuperacion de contraseña',
     description:
       'Inicia el flujo de recuperacion. En desarrollo puede devolver `resetUrl` y `resetToken`.',
   })
@@ -156,13 +156,13 @@ export class AuthController {
 
   @Post('reset-password')
   @ApiOperation({
-    summary: 'Restablecer contrasena',
+    summary: 'Restablecer contraseña',
     description:
-      'Consume un token de recuperacion valido y actualiza la contrasena.',
+      'Consume un token de recuperacion valido y actualiza la contraseña.',
   })
   @ApiBody({ type: ResetPasswordDto })
   @ApiOkResponse({
-    description: 'Contrasena restablecida.',
+    description: 'Contraseña restablecida.',
     schema: { example: { success: true } },
   })
   @ApiBadRequestResponse({ description: 'Token invalido o caducado.' })
@@ -206,17 +206,17 @@ export class AuthController {
   @Post('change-password')
   @ApiBearerAuth('bearer')
   @ApiOperation({
-    summary: 'Cambiar contrasena del usuario autenticado',
+    summary: 'Cambiar contraseña del usuario autenticado',
     description:
-      'Actualiza la contrasena actual y revoca las sesiones previas.',
+      'Actualiza la contraseña actual y revoca las sesiones previas.',
   })
   @ApiBody({ type: ChangePasswordDto })
   @ApiOkResponse({
-    description: 'Contrasena actualizada.',
+    description: 'Contraseña actualizada.',
     schema: { example: { success: true } },
   })
   @ApiBadRequestResponse({
-    description: 'Contrasena actual incorrecta o nueva contrasena invalida.',
+    description: 'Contraseña actual incorrecta o nueva contraseña invalida.',
   })
   @ApiUnauthorizedResponse({
     description: 'Token ausente o usuario no autorizado.',

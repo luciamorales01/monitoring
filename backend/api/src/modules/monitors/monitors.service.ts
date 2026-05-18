@@ -2,11 +2,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { lookup } from 'node:dns/promises';
-import { isIP } from 'node:net';
 import { Prisma } from '@prisma/client';
 import {
   buildAccessibleMonitorWhere,
@@ -22,123 +19,37 @@ import {
   ListMonitorsQueryDto,
   type MonitorListSortOption,
 } from './list-monitors-query.dto';
+import { MonitorCheckRunnerService } from './monitor-check-runner.service';
+import { MonitorIncidentSyncService } from './monitor-incident-sync.service';
+import { MonitorTargetValidatorService } from './monitor-target-validator.service';
+import {
+  buildGlobalErrorMessage,
+  getAverageResponseTime,
+  getLatestCheckedAt,
+  getOverallMonitorStatus,
+} from './monitors.service.helpers';
+import { monitorListSelect } from './monitors.service.queries';
+import {
+  type MonitorCheckBatchResult,
+  type MonitorCheckOutcome,
+  type MonitorEntity,
+  type PersistedCheckResult,
+} from './monitors.service.types';
 import { UpdateMonitorDto } from './update-monitor.dto';
-
-const MonitorStatus = {
-  UP: 'UP',
-  DOWN: 'DOWN',
-  UNKNOWN: 'UNKNOWN',
-} as const;
-
-const IncidentStatus = {
-  OPEN: 'OPEN',
-  ACKNOWLEDGED: 'ACKNOWLEDGED',
-  RESOLVED: 'RESOLVED',
-} as const;
-
-type MonitorStatusValue = (typeof MonitorStatus)[keyof typeof MonitorStatus];
-
-type MonitorEntity = {
-  id: number;
-  name?: string;
-  type: string;
-  target: string;
-  expectedStatusCode: number;
-  frequencySeconds: number;
-  timeoutSeconds: number;
-  organizationId: number;
-  currentStatus?: MonitorStatusValue | null;
-  isActive?: boolean;
-  alertThreshold?: number | null;
-  alertEmail?: boolean | null;
-  usesSectionSchedule?: boolean | null;
-  sections?: {
-    section: {
-      id: number;
-      expectedStatusCode: number;
-      frequencySeconds: number;
-      timeoutSeconds: number;
-      isActive: boolean;
-      members?: { userId: number }[];
-    };
-  }[];
-};
-
-type CheckResultEntity = {
-  id?: number;
-  monitorId?: number;
-  status: MonitorStatusValue;
-  checkedAt: Date;
-};
-
-type MonitorCheckOutcome = {
-  checkedAt: Date;
-  errorMessage: string | null;
-  responseTimeMs: number;
-  status: MonitorStatusValue;
-  statusCode: number | null;
-};
-
-type MonitorCheckBatchResult = {
-  overallStatus: MonitorStatusValue;
-  results: unknown[];
-};
-
-type IncidentSyncResult =
-  | {
-      type: 'created';
-      incidentId: number;
-      happenedAt: Date;
-      title: string;
-      severity?: string | null;
-      errorMessage?: string | null;
-      shouldNotify: boolean;
-    }
-  | {
-      type: 'resolved';
-      incidentId: number;
-      happenedAt: Date;
-      title: string;
-      severity?: string | null;
-      shouldNotify: boolean;
-    }
-  | null;
-
-type PersistedCheckResult = MonitorCheckBatchResult & {
-  checkedAt: Date;
-  incidentSync: IncidentSyncResult;
-  previousStatus: MonitorStatusValue | null;
-};
-
-const monitorListSelect = {
-  id: true,
-  name: true,
-  type: true,
-  target: true,
-  expectedStatusCode: true,
-  frequencySeconds: true,
-  timeoutSeconds: true,
-  currentStatus: true,
-  lastResponseTime: true,
-  lastCheckedAt: true,
-  nextCheckAt: true,
-  isActive: true,
-  alertEmail: true,
-  alertThreshold: true,
-} satisfies Prisma.MonitorSelect;
 
 @Injectable()
 export class MonitorsService {
-  private readonly logger = new Logger(MonitorsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly eventsService: EventsService,
+    private readonly targetValidator: MonitorTargetValidatorService,
+    private readonly checkRunner: MonitorCheckRunnerService,
+    private readonly incidentSync: MonitorIncidentSyncService,
   ) {}
 
   async create(dto: CreateMonitorDto, user: AuthenticatedUser) {
-    await this.assertAllowedTarget(dto.target);
+    await this.targetValidator.assertAllowedTarget(dto.target);
 
     return this.prisma.monitor.create({
       data: {
@@ -209,7 +120,7 @@ export class MonitorsService {
     const monitor = await this.findMonitorByIdOrThrow(id);
     this.ensureMonitorAccess(monitor, user);
 
-    const outcomes = await this.executeMonitorChecks(monitor);
+    const outcomes = await this.checkRunner.executeMonitorChecks(monitor);
 
     return this.persistCheckResults(monitor, outcomes);
   }
@@ -222,7 +133,9 @@ export class MonitorsService {
     const scheduleFieldsChanged = this.hasMonitorScheduleChange(dto);
 
     if (dto.target !== undefined || dto.type !== undefined) {
-      await this.assertAllowedTarget(dto.target ?? monitor.target);
+      await this.targetValidator.assertAllowedTarget(
+        dto.target ?? monitor.target,
+      );
     }
 
     if (dto.name !== undefined) data.name = dto.name;
@@ -320,7 +233,7 @@ export class MonitorsService {
       return null;
     }
 
-    const outcomes = await this.executeMonitorChecks(monitor);
+    const outcomes = await this.checkRunner.executeMonitorChecks(monitor);
 
     return this.persistCheckResults(monitor, outcomes);
   }
@@ -429,256 +342,6 @@ export class MonitorsService {
     ];
   }
 
-  private async executeMonitorChecks(
-    monitor: MonitorEntity,
-  ): Promise<MonitorCheckOutcome[]> {
-    return [await this.executeSingleCheck(monitor)];
-  }
-
-  private async executeSingleCheck(
-    monitor: MonitorEntity,
-  ): Promise<MonitorCheckOutcome> {
-    return this.executeHttpCheck(monitor);
-  }
-
-  private async executeHttpCheck(
-    monitor: MonitorEntity,
-  ): Promise<MonitorCheckOutcome> {
-    const checkedAt = new Date();
-    const startTime = performance.now();
-
-    try {
-      const parsedUrl = await this.parsePublicHttpUrl(monitor.target);
-
-      const controller = new AbortController();
-      const timeout = setTimeout(
-        () => controller.abort(),
-        monitor.timeoutSeconds * 1000,
-      );
-
-      try {
-        const { response, redirectChain } = await this.fetchHttpResponse(
-          parsedUrl,
-          controller.signal,
-          monitor,
-        );
-
-        const statusCodeMatches = this.doesHttpStatusMatch(
-          response.status,
-          monitor.expectedStatusCode,
-        );
-
-        if (redirectChain.length > 0) {
-          this.logger.log(
-            `HTTP monitor ${monitor.id} redirect chain: ${redirectChain.join(' | ')}`,
-          );
-        }
-
-        return {
-          checkedAt,
-          errorMessage: statusCodeMatches
-            ? null
-            : this.buildHttpStatusErrorMessage(
-                response.status,
-                monitor.expectedStatusCode,
-              ),
-          responseTimeMs: Math.round(performance.now() - startTime),
-          status: statusCodeMatches ? MonitorStatus.UP : MonitorStatus.DOWN,
-          statusCode: response.status,
-        };
-      } finally {
-        clearTimeout(timeout);
-      }
-    } catch (error) {
-      const errorMessage = this.getMonitorCheckErrorMessage(
-        error,
-        monitor.timeoutSeconds,
-      );
-
-      if (this.isTimeoutError(error)) {
-        this.logger.warn(
-          `HTTP monitor ${monitor.id} timeout: ${errorMessage}`,
-        );
-      }
-
-      return {
-        checkedAt,
-        errorMessage,
-        responseTimeMs: Math.round(performance.now() - startTime),
-        status: MonitorStatus.DOWN,
-        statusCode: null,
-      };
-    }
-  }
-
-  private async assertAllowedTarget(target: string) {
-    await this.assertPublicHttpTarget(target);
-  }
-
-  private async parsePublicHttpUrl(target: string) {
-    let parsedUrl: URL;
-
-    try {
-      parsedUrl = new URL(target);
-    } catch {
-      throw new BadRequestException('URL del monitor no válida');
-    }
-
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      throw new BadRequestException('Solo se permiten URLs HTTP o HTTPS');
-    }
-
-    if (parsedUrl.username || parsedUrl.password) {
-      throw new BadRequestException(
-        'No se permiten credenciales en la URL del monitor',
-      );
-    }
-
-    await this.assertPublicHostTarget(parsedUrl.hostname);
-    return parsedUrl;
-  }
-
-  private async assertPublicHostTarget(target: string) {
-    const hostname = target
-      .replace(/^https?:\/\//, '')
-      .split('/')[0]
-      .split(':')[0]
-      .trim()
-      .toLowerCase();
-
-    if (!hostname || this.isBlockedHostname(hostname)) {
-      throw new BadRequestException('El destino del monitor no está permitido');
-    }
-
-    const addresses = isIP(hostname)
-      ? [{ address: hostname }]
-      : await lookup(hostname, { all: true, verbatim: true });
-
-    if (addresses.length === 0) {
-      throw new BadRequestException(
-        'No se pudo resolver el destino del monitor',
-      );
-    }
-
-    if (addresses.some(({ address }) => this.isPrivateAddress(address))) {
-      throw new BadRequestException('El destino del monitor no está permitido');
-    }
-
-    return hostname;
-  }
-
-  private async assertPublicHttpTarget(target: string) {
-    await this.parsePublicHttpUrl(target);
-  }
-
-  private async fetchHttpResponse(
-    initialUrl: URL,
-    signal: AbortSignal,
-    monitor: Pick<MonitorEntity, 'id'>,
-  ) {
-    const redirectChain: string[] = [];
-    const maxRedirects = 5;
-    let currentUrl = initialUrl;
-
-    for (let attempt = 0; attempt <= maxRedirects; attempt += 1) {
-      const response = await fetch(currentUrl.toString(), {
-        method: 'GET',
-        redirect: 'manual',
-        signal,
-        headers: {
-          'User-Agent': 'MonitoringTFG/1.0',
-        },
-      });
-
-      this.logger.log(
-        `HTTP monitor ${monitor.id} response: status=${response.status} url=${currentUrl.toString()}`,
-      );
-
-      if (!this.isRedirectStatus(response.status)) {
-        return { response, redirectChain };
-      }
-
-      const redirectHeader = response.headers.get('Location');
-
-      if (!redirectHeader) {
-        return { response, redirectChain };
-      }
-
-      const nextUrl = await this.parsePublicHttpUrl(
-        new URL(redirectHeader, currentUrl).toString(),
-      );
-
-      redirectChain.push(
-        `${response.status} ${currentUrl.toString()} -> ${nextUrl.toString()}`,
-      );
-
-      if (attempt === maxRedirects) {
-        this.logger.warn(
-          `HTTP monitor ${monitor.id} redirect limit reached: ${redirectChain.join(' | ')}`,
-        );
-        return { response, redirectChain };
-      }
-
-      currentUrl = nextUrl;
-    }
-
-    throw new Error('Redirect no resuelto');
-  }
-
-  private isRedirectStatus(statusCode: number) {
-    return [301, 302, 303, 307, 308].includes(statusCode);
-  }
-
-  private doesHttpStatusMatch(statusCode: number, expectedStatusCode: number) {
-    return statusCode === expectedStatusCode;
-  }
-
-  private buildHttpStatusErrorMessage(
-    statusCode: number,
-    expectedStatusCode: number,
-  ) {
-    return `Código HTTP ${statusCode}, esperado ${expectedStatusCode}`;
-  }
-
-  private isBlockedHostname(hostname: string) {
-    return (
-      hostname === 'localhost' ||
-      hostname.endsWith('.localhost') ||
-      hostname === '0.0.0.0' ||
-      hostname === '::'
-    );
-  }
-
-  private isPrivateAddress(address: string) {
-    if (isIP(address) === 4) {
-      const parts = address.split('.').map(Number);
-      const [first, second] = parts;
-
-      return (
-        first === 10 ||
-        first === 127 ||
-        (first === 169 && second === 254) ||
-        (first === 172 && second >= 16 && second <= 31) ||
-        (first === 192 && second === 168) ||
-        (first === 100 && second >= 64 && second <= 127) ||
-        first === 0
-      );
-    }
-
-    if (isIP(address) === 6) {
-      const normalized = address.toLowerCase();
-
-      return (
-        normalized === '::1' ||
-        normalized.startsWith('fc') ||
-        normalized.startsWith('fd') ||
-        normalized.startsWith('fe80:')
-      );
-    }
-
-    return true;
-  }
-
   private async persistCheckResults(
     monitor: Pick<
       MonitorEntity,
@@ -694,9 +357,9 @@ export class MonitorsService {
     outcomes: MonitorCheckOutcome[],
   ): Promise<MonitorCheckBatchResult> {
     const nextCheckAt = new Date(Date.now() + monitor.frequencySeconds * 1000);
-    const overallStatus = this.getOverallMonitorStatus(outcomes);
-    const latestCheckedAt = this.getLatestCheckedAt(outcomes);
-    const averageResponseTime = this.getAverageResponseTime(outcomes);
+    const overallStatus = getOverallMonitorStatus(outcomes);
+    const latestCheckedAt = getLatestCheckedAt(outcomes);
+    const averageResponseTime = getAverageResponseTime(outcomes);
     const previousStatus = monitor.currentStatus ?? null;
 
     const persisted = await this.prisma.$transaction(async (tx) => {
@@ -725,13 +388,17 @@ export class MonitorsService {
         },
       });
 
-      const incidentSync = await this.syncIncidentForCheck(tx, monitor, {
-        checkedAt: latestCheckedAt,
-        errorMessage: this.buildGlobalErrorMessage(outcomes),
-        responseTimeMs: averageResponseTime ?? 0,
-        status: overallStatus,
-        statusCode: null,
-      });
+      const incidentSync = await this.incidentSync.syncIncidentForCheck(
+        tx,
+        monitor,
+        {
+          checkedAt: latestCheckedAt,
+          errorMessage: buildGlobalErrorMessage(outcomes),
+          responseTimeMs: averageResponseTime ?? 0,
+          status: overallStatus,
+          statusCode: null,
+        },
+      );
 
       return {
         checkedAt: latestCheckedAt,
@@ -852,243 +519,6 @@ export class MonitorsService {
     }
   }
 
-  private getOverallMonitorStatus(
-    outcomes: MonitorCheckOutcome[],
-  ): MonitorStatusValue {
-    if (
-      outcomes.length === 0 ||
-      outcomes.every((outcome) => outcome.status === MonitorStatus.UNKNOWN)
-    ) {
-      return MonitorStatus.UNKNOWN;
-    }
-
-    if (outcomes.some((outcome) => outcome.status === MonitorStatus.DOWN)) {
-      return MonitorStatus.DOWN;
-    }
-
-    if (outcomes.every((outcome) => outcome.status === MonitorStatus.UP)) {
-      return MonitorStatus.UP;
-    }
-
-    return MonitorStatus.UNKNOWN;
-  }
-
-  private getLatestCheckedAt(outcomes: MonitorCheckOutcome[]) {
-    return outcomes.reduce(
-      (latest, outcome) =>
-        outcome.checkedAt.getTime() > latest.getTime()
-          ? outcome.checkedAt
-          : latest,
-      outcomes[0]?.checkedAt ?? new Date(),
-    );
-  }
-
-  private getAverageResponseTime(outcomes: MonitorCheckOutcome[]) {
-    const responseTimes = outcomes
-      .map((outcome) => outcome.responseTimeMs)
-      .filter((value): value is number => Number.isFinite(value));
-
-    if (responseTimes.length === 0) {
-      return null;
-    }
-
-    return Math.round(
-      responseTimes.reduce((sum, value) => sum + value, 0) /
-        responseTimes.length,
-    );
-  }
-
-  private buildGlobalErrorMessage(outcomes: MonitorCheckOutcome[]) {
-    const errors = outcomes
-      .filter(
-        (outcome) =>
-          outcome.status === MonitorStatus.DOWN && outcome.errorMessage,
-      )
-      .map((outcome) => outcome.errorMessage);
-
-    return errors.length > 0 ? errors.join(' | ') : null;
-  }
-
-  private getAlertThreshold(alertThreshold?: number | null) {
-    return Math.max(1, alertThreshold ?? 3);
-  }
-
-  private getBatchStatus(
-    results: Array<Pick<CheckResultEntity, 'status'>>,
-  ): MonitorStatusValue {
-    if (results.some((result) => result.status === MonitorStatus.DOWN)) {
-      return MonitorStatus.DOWN;
-    }
-
-    if (results.every((result) => result.status === MonitorStatus.UP)) {
-      return MonitorStatus.UP;
-    }
-
-    return MonitorStatus.UNKNOWN;
-  }
-
-  private getRecentCheckBatches(
-    results: CheckResultEntity[],
-    batchSize: number,
-  ): CheckResultEntity[][] {
-    const batches: CheckResultEntity[][] = [];
-
-    for (let index = 0; index < results.length; index += batchSize) {
-      const batch = results.slice(index, index + batchSize);
-
-      if (batch.length < batchSize) {
-        break;
-      }
-
-      batches.push(batch);
-    }
-
-    return batches;
-  }
-
-  private getConsecutiveDownBatches(
-    results: CheckResultEntity[],
-    batchSize: number,
-  ): CheckResultEntity[][] {
-    const batches = this.getRecentCheckBatches(results, batchSize);
-    const consecutiveDownBatches: CheckResultEntity[][] = [];
-
-    for (const batch of batches) {
-      if (this.getBatchStatus(batch) !== MonitorStatus.DOWN) {
-        break;
-      }
-
-      consecutiveDownBatches.push(batch);
-    }
-
-    return consecutiveDownBatches;
-  }
-
-  private getIncidentStartedAt(batches: CheckResultEntity[][], fallback: Date) {
-    const oldestBatch = batches.at(-1);
-
-    if (!oldestBatch || oldestBatch.length === 0) {
-      return fallback;
-    }
-
-    return oldestBatch.reduce(
-      (earliest, result) =>
-        result.checkedAt.getTime() < earliest.getTime()
-          ? result.checkedAt
-          : earliest,
-      oldestBatch[0].checkedAt,
-    );
-  }
-
-  private buildIncidentTitle() {
-    return 'Monitor caído';
-  }
-
-  private async syncIncidentForCheck(
-    tx: Prisma.TransactionClient,
-    monitor: Pick<
-      MonitorEntity,
-      | 'id'
-      | 'name'
-      | 'target'
-      | 'organizationId'
-      | 'alertThreshold'
-      | 'alertEmail'
-    >,
-    outcome: MonitorCheckOutcome,
-  ): Promise<IncidentSyncResult> {
-    const openIncident = await tx.incident.findFirst({
-      where: {
-        monitorId: monitor.id,
-        status: { in: [IncidentStatus.OPEN, IncidentStatus.ACKNOWLEDGED] },
-      },
-      orderBy: {
-        startedAt: 'desc',
-      },
-    });
-
-    if (outcome.status === MonitorStatus.DOWN) {
-      if (openIncident) {
-        return null;
-      }
-
-      const batchSize = 1;
-      const alertThreshold = this.getAlertThreshold(monitor.alertThreshold);
-
-      const recentResults = await tx.checkResult.findMany({
-        where: {
-          monitorId: monitor.id,
-        },
-        orderBy: {
-          checkedAt: 'desc',
-        },
-        take: batchSize * alertThreshold,
-      });
-
-      const consecutiveDownBatches = this.getConsecutiveDownBatches(
-        recentResults,
-        batchSize,
-      );
-
-      if (consecutiveDownBatches.length < alertThreshold) {
-        return null;
-      }
-
-      const incident = await tx.incident.create({
-        data: {
-          monitorId: monitor.id,
-          status: IncidentStatus.OPEN,
-          title: this.buildIncidentTitle(),
-          startedAt: this.getIncidentStartedAt(
-            consecutiveDownBatches,
-            outcome.checkedAt,
-          ),
-        },
-      });
-
-      return {
-        errorMessage: outcome.errorMessage,
-        happenedAt: incident.startedAt ?? outcome.checkedAt,
-        incidentId: incident.id,
-        severity: incident.severity,
-        shouldNotify: monitor.alertEmail !== false,
-        title: incident.title,
-        type: 'created',
-      };
-    }
-
-    if (!openIncident) {
-      return null;
-    }
-
-    const resolvedIncident = await tx.incident.update({
-      where: {
-        id: openIncident.id,
-      },
-      data: {
-        status: IncidentStatus.RESOLVED,
-        resolvedAt: outcome.checkedAt,
-        durationSeconds: Math.max(
-          0,
-          Math.floor(
-            (outcome.checkedAt.getTime() - openIncident.startedAt.getTime()) /
-              1000,
-          ),
-        ),
-        lastStatusChangeAt: outcome.checkedAt,
-      },
-    });
-
-    return {
-      happenedAt: outcome.checkedAt,
-      incidentId: resolvedIncident.id,
-      severity: resolvedIncident.severity,
-      shouldNotify: monitor.alertEmail !== false,
-      title: resolvedIncident.title,
-      type: 'resolved',
-    };
-  }
-
   private findMonitorById(id: number): Promise<MonitorEntity | null> {
     return this.prisma.monitor.findUnique({
       where: { id },
@@ -1157,29 +587,6 @@ export class MonitorsService {
       monitor.expectedStatusCode === section.expectedStatusCode &&
       monitor.frequencySeconds === section.frequencySeconds &&
       monitor.timeoutSeconds === section.timeoutSeconds
-    );
-  }
-
-  private getMonitorCheckErrorMessage(
-    error: unknown,
-    timeoutSeconds: number,
-  ): string {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return `Timeout tras ${timeoutSeconds} segundos`;
-    }
-
-    if (error instanceof Error && error.message) {
-      return error.message;
-    }
-
-    return 'Error desconocido';
-  }
-
-  private isTimeoutError(error: unknown) {
-    return (
-      (error instanceof DOMException && error.name === 'AbortError') ||
-      (error instanceof Error &&
-        /^Timeout tras \d+ segundos$/.test(error.message))
     );
   }
 }

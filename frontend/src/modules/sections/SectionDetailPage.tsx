@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   getMonitors,
-  useSectionSchedule,
+  useSectionSchedule as applySectionSchedule,
   type Monitor,
 } from "../../shared/monitorApi";
 import { getMonitorViewStatus } from "../../shared/monitorFilters";
@@ -38,7 +38,6 @@ import SectionEditorModal, {
   type SectionEditorMode,
   type SectionEditorSubmitPayload,
 } from "./SectionEditorModal";
-import type { MonitorSection } from "../../shared/sectionsStore";
 import MonitorListCard from "../monitors/MonitorListCard";
 import { KpiCard, TrendingGlyph } from "./components/SectionDetailParts";
 import { styles } from "./SectionDetailPage.styles";
@@ -57,7 +56,6 @@ export default function SectionDetailPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [allMonitors, setAllMonitors] = useState<Monitor[]>([]);
-  const [allSections, setAllSections] = useState<MonitorSection[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
   const [sectionEditorMode, setSectionEditorMode] =
@@ -88,7 +86,6 @@ export default function SectionDetailPage() {
       setSection(nextSection);
       setMonitors(nextSection.monitors ?? []);
       setAllMonitors(attachSectionsToMonitors(nextMonitors, nextSections));
-      setAllSections(nextSections);
       setUsers(nextUsers);
       setError(null);
     } catch (currentError) {
@@ -100,7 +97,6 @@ export default function SectionDetailPage() {
       );
       setMonitors([]);
       setAllMonitors([]);
-      setAllSections([]);
       setUsers([]);
       setSection(null);
     } finally {
@@ -497,7 +493,7 @@ export default function SectionDetailPage() {
             onRefresh={loadData}
             sectionSchedule={section}
             onUseSectionSchedule={async (monitor) => {
-              await useSectionSchedule(monitor.id);
+              await applySectionSchedule(monitor.id);
             }}
           />
         </section>

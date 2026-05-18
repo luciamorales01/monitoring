@@ -8,7 +8,7 @@ import {
   type SendEmailJobData,
   type SendEmailJobName,
   type SendEmailJobResult,
-} from './notifications.queue-contract';
+} from '@monitoring-tfg/shared-types';
 
 @Injectable()
 export class NotificationsQueueService implements OnModuleDestroy {
